@@ -76,5 +76,24 @@ namespace AESP.API.Controllers
             return Ok(new { token = result.Token, message = result.Message });
         }
 
+
+        [HttpPost("send-otp")]
+        public async Task<IActionResult> SendOtp([FromQuery] string email)
+        {
+            await _authService.SendOtpAsync(email);
+            return Ok(new { message = "OTP đã được gửi tới email." });
+        }
+
+        [HttpPost("verify-otp")]
+        public async Task<IActionResult> VerifyOtp([FromBody] OtpVerifyDto dto)
+        {
+            var result = await _authService.VerifyOtpAsync(dto);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(new { message = result.Message });
+        }
+
     }
 }

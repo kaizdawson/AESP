@@ -37,5 +37,15 @@ namespace AESP.Repository.Repositories
             return await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.UserId == id);
         }
 
+
+        public async Task MarkUserVerifiedAsync(string email)
+        {
+            var user = _context.Users.FirstOrDefault(u => u.Email == email);
+            if (user != null)
+            {
+                user.Status = "Active";
+                await _context.SaveChangesAsync();
+            }
+        }
     }
 }

@@ -5,6 +5,8 @@ using AESP.Service.Contract;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Extensions.Caching.Memory;
+
 
 namespace AESP.Service.Implementation
 {
@@ -12,11 +14,15 @@ namespace AESP.Service.Implementation
     {
         private readonly IAuthRepository _authRepository;
         private readonly JwtService _jwtService;
+        private readonly IEmailService _emailService;
+        private readonly IMemoryCache _cache;
 
-        public AuthService(IAuthRepository authRepository, JwtService jwtService)
+        public AuthService(IAuthRepository authRepository, JwtService jwtService, IEmailService emailService,IMemoryCache cache)
         {
             _authRepository = authRepository;
             _jwtService = jwtService;
+            _emailService = emailService; 
+            _cache = cache;
         }
 
         public async Task<LoginResult> SignUpAsync(SignUpDto dto, int roleId)
@@ -35,9 +41,10 @@ namespace AESP.Service.Implementation
             {
                 FullName = dto.FullName,
                 PhoneNumber = dto.PhoneNumber,
+                Email= dto.Email,
                 PasswordHash = passwordHash,
                 RoleId = roleId,
-                Status = "Active"
+                Status = "UnActive"
             };
 
             await _authRepository.AddUserAsync(user);
@@ -114,5 +121,31 @@ namespace AESP.Service.Implementation
         }
 
 
+
+        public async Task SendOtpAsync(string email)
+        {
+            var otp = OtpGenerator.GenerateOtp();
+            _cache.Set(email, otp, TimeSpan.FromMinutes(5));  
+            await _emailService.SendEmailAsync(email, "Xác thực tài khoản", $"Mã OTP của bạn là: {otp}");
+        }
+
+        public async Task<(bool Success, string Message)> VerifyOtpAsync(OtpVerifyDto dto)
+        {
+            if (_cache.TryGetValue(dto.Email, out string cachedOtp) && cachedOtp == dto.Otp)
+            {
+                await _authRepository.MarkUserVerifiedAsync(dto.Email);
+                return (true, "Xác thực thành công! Tài khoản đã được Active.");
+            }
+            return (false, "OTP không hợp lệ hoặc đã hết hạn.");
+        }
+    }
+
+    public static class OtpGenerator
+    {
+        public static string GenerateOtp(int length = 6)
+        {
+            var random = new Random();
+            return string.Concat(Enumerable.Range(0, length).Select(_ => random.Next(0, 10).ToString()));
+        }
     }
 }

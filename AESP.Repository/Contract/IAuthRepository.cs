@@ -8,5 +8,7 @@ namespace AESP.Repository.Contract
         Task AddUserAsync(User user);
         Task<Role?> GetRoleByIdAsync(int roleId);
         Task<User?> GetUserByIdAsync(Guid id);
+
+        Task MarkUserVerifiedAsync(string email);
     }
 }

@@ -1,4 +1,5 @@
-﻿using AESP.Repository.Contract;
+﻿using AESP.Common.DTOs;
+using AESP.Repository.Contract;
 using AESP.Repository.DB;
 using AESP.Repository.Repositories;
 using AESP.Service.Contract;
@@ -61,6 +62,9 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddMemoryCache();
 
 
 
@@ -72,7 +76,7 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
         Title = "AESP.API",
-        Version = "v1"
+        Version = "1.0.0"
     });
 
     // Không cần nhập chữ Bearer nha mấy đứa

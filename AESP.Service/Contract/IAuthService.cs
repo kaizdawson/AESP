@@ -9,5 +9,8 @@ namespace AESP.Service.Contract
 
         Task<LoginResult> RefreshTokenAsync(RefreshTokenRequestDto dto);
 
+
+        Task SendOtpAsync(string email);
+        Task<(bool Success, string Message)> VerifyOtpAsync(OtpVerifyDto dto);
     }
 }
