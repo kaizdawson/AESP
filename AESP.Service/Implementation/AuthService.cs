@@ -6,6 +6,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.EntityFrameworkCore;
 
 
 namespace AESP.Service.Implementation
@@ -157,6 +158,47 @@ namespace AESP.Service.Implementation
 
             return (true, "Đổi mật khẩu thành công.");
         }
+
+
+        public async Task<(bool Success, string Message)> ForgotPasswordAsync(ForgotPasswordRequestDto dto)
+        {
+            var user = await _authRepository.GetUserByEmailAsync(dto.Email);
+            if (user == null)
+                return (false, "Email không tồn tại trong hệ thống.");
+
+            var token = Guid.NewGuid().ToString("N");
+
+            _cache.Set($"reset_{dto.Email}", token, TimeSpan.FromMinutes(15));
+
+            var resetLink = $"https://your-frontend.com/reset-password?email={dto.Email}&token={token}";
+
+            await _emailService.SendEmailAsync(dto.Email, "Reset Password",
+                $"<p>Click để reset mật khẩu:</p><a href='{resetLink}'>Đặt lại mật khẩu</a>");
+
+            return (true, "Link đặt lại mật khẩu đã được gửi tới email.");
+        }
+
+        public async Task<(bool Success, string Message)> ResetPasswordByLinkAsync(ResetPasswordByLinkDto dto)
+        {
+            if (!_cache.TryGetValue($"reset_{dto.Email}", out string? cachedToken) || cachedToken != dto.Token)
+                return (false, "Token không hợp lệ hoặc đã hết hạn.");
+
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return (false, "Mật khẩu xác nhận không khớp.");
+
+            var user = await _authRepository.GetUserByEmailAsync(dto.Email);
+            if (user == null)
+                return (false, "Người dùng không tồn tại.");
+
+            user.PasswordHash = HashPassword(dto.NewPassword);
+            await _authRepository.UpdateUserAsync(user);
+
+            _cache.Remove($"reset_{dto.Email}");
+
+            return (true, "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.");
+        }
+
+
 
     }
 
