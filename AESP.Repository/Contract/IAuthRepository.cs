@@ -13,5 +13,7 @@ namespace AESP.Repository.Contract
 
         Task UpdateUserAsync(User user);
 
+        Task<User?> GetUserByEmailAsync(string email);
+
     }
 }

@@ -116,5 +116,26 @@ namespace AESP.API.Controllers
             return Ok(new { message = result.Message });
         }
 
+
+        [AllowAnonymous]
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
+        {
+            var result = await _authService.ForgotPasswordAsync(dto);
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+            return Ok(new { message = result.Message });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("reset-password-by-link")]
+        public async Task<IActionResult> ResetPasswordByLink([FromBody] ResetPasswordByLinkDto dto)
+        {
+            var result = await _authService.ResetPasswordByLinkAsync(dto);
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+            return Ok(new { message = result.Message });
+        }
+
     }
 }
