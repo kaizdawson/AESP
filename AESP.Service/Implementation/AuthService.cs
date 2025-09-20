@@ -138,6 +138,26 @@ namespace AESP.Service.Implementation
             }
             return (false, "OTP không hợp lệ hoặc đã hết hạn.");
         }
+
+
+        public async Task<(bool Success, string Message)> ChangePasswordAsync(Guid userId, ChangePasswordDto dto)
+        {
+            var user = await _authRepository.GetUserByIdAsync(userId);
+            if (user == null)
+                return (false, "Người dùng không tồn tại.");
+
+            if (!VerifyPassword(dto.CurrentPassword, user.PasswordHash))
+                return (false, "Mật khẩu hiện tại không đúng.");
+
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return (false, "Mật khẩu xác nhận không khớp.");
+
+            user.PasswordHash = HashPassword(dto.NewPassword);
+            await _authRepository.UpdateUserAsync(user);
+
+            return (true, "Đổi mật khẩu thành công.");
+        }
+
     }
 
     public static class OtpGenerator

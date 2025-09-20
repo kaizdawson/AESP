@@ -10,5 +10,8 @@ namespace AESP.Repository.Contract
         Task<User?> GetUserByIdAsync(Guid id);
 
         Task MarkUserVerifiedAsync(string email);
+
+        Task UpdateUserAsync(User user);
+
     }
 }

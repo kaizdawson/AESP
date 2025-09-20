@@ -12,5 +12,8 @@ namespace AESP.Service.Contract
 
         Task SendOtpAsync(string email);
         Task<(bool Success, string Message)> VerifyOtpAsync(OtpVerifyDto dto);
+
+        Task<(bool Success, string Message)> ChangePasswordAsync(Guid userId, ChangePasswordDto dto);
+
     }
 }
