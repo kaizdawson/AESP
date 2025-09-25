@@ -25,7 +25,9 @@ namespace AESP.Repository.Models
         public Guid LearnerProfileId { get; set; }
         [ForeignKey(nameof(LearnerProfileId))]
         public LearnerProfile LearnerProfile { get; set; } = null!;
-
+        public Guid RoomId { get; set; }
+        [ForeignKey(nameof(RoomId))]
+        public Room Room { get; set; } = null!;
         public ICollection<PracticeDetail> PracticeDetails { get; set; } = new List<PracticeDetail>();
 
         public Booking Booking { get; set; }

@@ -21,6 +21,9 @@ namespace AESP.Repository.Models
         public Guid ConversationTopicId { get; set; }
         [ForeignKey(nameof(ConversationTopicId))]
         public ConversationTopic ConversationTopic { get; set; } = null!;
+        public Guid RoomId { get; set; }
+        [ForeignKey(nameof(RoomId))]
+        public Room Room { get; set; } = null!;
 
         public ICollection<GroupSessionMember> GroupSessionMembers { get; set; } = new List<GroupSessionMember>();
         public ICollection<GroupPracticeDetail> GroupPracticeDetails { get; set; } = new List<GroupPracticeDetail>();
