@@ -61,6 +61,9 @@ namespace AESP.Repository.DB
         public DbSet<GroupSession> GroupSessions { get; set; }
         public DbSet<GroupSessionMember> GroupSessionMembers { get; set; }
         public DbSet<GroupPracticeDetail> GroupPracticeDetails { get; set; }
+        public DbSet<Skill> Skills { get; set; }
+        public DbSet<SkillMentor> SkillMentors { get; set; }
+        public DbSet<Room> Rooms { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
