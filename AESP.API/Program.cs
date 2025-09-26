@@ -1,6 +1,7 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Repository.Contract;
 using AESP.Repository.DB;
+using AESP.Repository.Implementation;
 using AESP.Repository.Repositories;
 using AESP.Service.Contract;
 using AESP.Service.Implementation;
@@ -65,6 +66,8 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddMemoryCache();
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 
 
