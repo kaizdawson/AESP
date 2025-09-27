@@ -18,11 +18,11 @@ namespace AESP.API.Controllers
             _authService = authService;
         }
 
-        // --- SIGN UP ADMIN ---
-        [HttpPost("register/admin")]
-        public async Task<IActionResult> RegisterAdmin([FromBody] SignUpDto dto)
+
+        [HttpPost("register/{roleId}")]
+        public async Task<IActionResult> Register(int roleId, [FromBody] SignUpDto dto)
         {
-            var result = await _authService.SignUpAsync(dto, 1);
+            var result = await _authService.SignUpAsync(dto, roleId);
 
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
@@ -30,31 +30,8 @@ namespace AESP.API.Controllers
             return Ok(new { message = result.Message });
         }
 
-        // --- SIGN UP LEARNER ---
-        [HttpPost("register/learner")]
-        public async Task<IActionResult> RegisterLearner([FromBody] SignUpDto dto)
-        {
-            var result = await _authService.SignUpAsync(dto, 2);
 
-            if (!result.Success)
-                return BadRequest(new { message = result.Message });
-
-            return Ok(new { message = result.Message });
-        }
-
-        // --- SIGN UP MENTOR ---
-        [HttpPost("register/mentor")]
-        public async Task<IActionResult> RegisterMentor([FromBody] SignUpDto dto)
-        {
-            var result = await _authService.SignUpAsync(dto, 3);
-
-            if (!result.Success)
-                return BadRequest(new { message = result.Message });
-
-            return Ok(new { message = result.Message });
-        }
-
-        // --- SIGN IN ---
+   
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
@@ -63,7 +40,15 @@ namespace AESP.API.Controllers
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
-            return Ok(new { token = result.Token, message = result.Message });
+            return Ok(new
+            {
+                token = result.Token,
+                message = result.Message,
+                roleName = result.RoleName,
+                isPlacementTestDone = result.IsPlacementTestDone,
+                isGoalSet = result.IsGoalSet,
+                isProfileCompleted = result.IsProfileCompleted
+            });
         }
 
         [AllowAnonymous]
