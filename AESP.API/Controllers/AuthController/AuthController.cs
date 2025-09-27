@@ -44,7 +44,10 @@ namespace AESP.API.Controllers
             {
                 token = result.Token,
                 message = result.Message,
-                roleName = result.RoleName   
+                roleName = result.RoleName,
+                isPlacementTestDone = result.IsPlacementTestDone,
+                isGoalSet = result.IsGoalSet,
+                isProfileCompleted = result.IsProfileCompleted
             });
         }
 

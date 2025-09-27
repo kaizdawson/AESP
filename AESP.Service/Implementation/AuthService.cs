@@ -14,6 +14,10 @@ namespace AESP.Service.Implementation
     {
         private readonly IGenericRepository<User> _userRepository;
         private readonly IGenericRepository<Role> _roleRepository;
+        private readonly IGenericRepository<LearnerProfile> _learnerProfileRepository;
+        private readonly IGenericRepository<MentorProfile> _mentorProfileRepository;
+        private readonly IGenericRepository<Assessment> _assessmentRepository;
+        private readonly IGenericRepository<TeachingCertificate> _certificateRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly JwtService _jwtService;
         private readonly IEmailService _emailService;
@@ -23,6 +27,10 @@ namespace AESP.Service.Implementation
         public AuthService(
             IGenericRepository<User> userRepository,
             IGenericRepository<Role> roleRepository,
+            IGenericRepository<LearnerProfile> learnerProfileRepository,
+            IGenericRepository<MentorProfile> mentorProfileRepository,
+            IGenericRepository<Assessment> assessmentRepository,
+            IGenericRepository<TeachingCertificate> certificateRepository,
             IUnitOfWork unitOfWork,
             JwtService jwtService,
             IEmailService emailService,
@@ -31,6 +39,10 @@ namespace AESP.Service.Implementation
         {
             _userRepository = userRepository;
             _roleRepository = roleRepository;
+            _learnerProfileRepository = learnerProfileRepository;
+            _mentorProfileRepository = mentorProfileRepository;
+            _assessmentRepository = assessmentRepository;
+            _certificateRepository = certificateRepository;
             _unitOfWork = unitOfWork;
             _jwtService = jwtService;
             _emailService = emailService;
@@ -62,6 +74,30 @@ namespace AESP.Service.Implementation
             await _userRepository.Insert(user);
             await _unitOfWork.SaveChangeAsync();
 
+            if (roleId == 2)
+            {
+                var learnerProfile = new LearnerProfile
+                {
+                    LearnerProfileId = Guid.NewGuid(),
+                    UserId = user.UserId
+                };
+
+                await _learnerProfileRepository.Insert(learnerProfile);
+                await _unitOfWork.SaveChangeAsync();
+            }
+
+            if (roleId == 3)
+            {
+                var mentorProfile = new MentorProfile
+                {
+                    MentorProfileId = Guid.NewGuid(),
+                    UserId = user.UserId
+                };
+
+                await _mentorProfileRepository.Insert(mentorProfile);
+                await _unitOfWork.SaveChangeAsync();
+            }
+
             return new LoginResult { Success = true, Message = "Đăng ký thành công" };
         }
 
@@ -79,12 +115,49 @@ namespace AESP.Service.Implementation
 
             var token = _jwtService.GenerateAccessToken(user);
 
+            bool? isPlacementTestDone = null;
+            bool? isGoalSet = null;
+            bool? isProfileCompleted = null;
+
+            if (user.RoleId == 2) 
+            {
+                var learnerProfile = await _learnerProfileRepository
+                    .GetByExpression(lp => lp.UserId == user.UserId);
+
+                if (learnerProfile != null)
+                {
+                    isGoalSet = !string.IsNullOrEmpty(learnerProfile.Goal);
+
+                    var assessment = await _assessmentRepository
+                        .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+
+                    isPlacementTestDone = assessment != null;
+                }
+            }
+            else if (user.RoleId == 3) // Mentor
+            {
+                var mentorProfile = await _mentorProfileRepository
+                    .GetByExpression(mp => mp.UserId == user.UserId);
+
+                if (mentorProfile != null)
+                {
+                    var certificate = await _certificateRepository
+                        .GetByExpression(c => c.MentorProfileId == mentorProfile.MentorProfileId);
+
+                    isProfileCompleted = certificate != null;
+                }
+            }
+
+
             return new LoginResult
             {
                 Success = true,
                 Message = "Đăng nhập thành công",
                 Token = token,
-                RoleName = user.Role?.RoleName
+                RoleName = user.Role?.RoleName,
+                IsPlacementTestDone = isPlacementTestDone,
+                IsGoalSet = isGoalSet,
+                IsProfileCompleted = isProfileCompleted
             };
         }
 
