@@ -56,7 +56,7 @@ namespace AESP.Service.Implementation
                 Email = dto.Email,
                 PasswordHash = HashPassword(dto.Password),
                 RoleId = roleId,
-                Status = "UnActive"
+                Status = "InActive"
             };
 
             await _userRepository.Insert(user);
