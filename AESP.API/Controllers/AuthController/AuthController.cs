@@ -31,7 +31,7 @@ namespace AESP.API.Controllers
         }
 
 
-        // --- SIGN IN ---
+   
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
@@ -40,7 +40,12 @@ namespace AESP.API.Controllers
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
-            return Ok(new { token = result.Token, message = result.Message });
+            return Ok(new
+            {
+                token = result.Token,
+                message = result.Message,
+                roleName = result.RoleName   
+            });
         }
 
         [AllowAnonymous]

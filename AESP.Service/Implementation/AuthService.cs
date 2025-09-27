@@ -83,7 +83,8 @@ namespace AESP.Service.Implementation
             {
                 Success = true,
                 Message = "Đăng nhập thành công",
-                Token = token
+                Token = token,
+                RoleName = user.Role?.RoleName
             };
         }
 
