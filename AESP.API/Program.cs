@@ -8,6 +8,7 @@ using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text.Json.Serialization;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -81,7 +82,7 @@ builder.Services.AddSwaggerGen(c =>
         Title = "AESP.API",
         Version = "1.0.0"
     });
-
+    c.DescribeAllParametersInCamelCase();
     // Không cần nhập chữ Bearer nha mấy đứa
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
@@ -111,7 +112,11 @@ builder.Services.AddSwaggerGen(c =>
 
 
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 var app = builder.Build();
 
@@ -121,6 +126,7 @@ app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "AESP.API v1");
     c.RoutePrefix = string.Empty; 
+
 });
 
 

@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace AESP.Common.DTOs
 {
-    public class ForgotPasswordRequestDto
+    public class SendOtpDto
     {
         [Required(ErrorMessage = "Email không được để trống.")]
         [EmailAddress(ErrorMessage = "Email không hợp lệ.")]
