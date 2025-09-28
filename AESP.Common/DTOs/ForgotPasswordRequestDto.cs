@@ -10,7 +10,7 @@ namespace AESP.Common.DTOs
     public class ForgotPasswordRequestDto
     {
         [Required(ErrorMessage = "Email không được để trống.")]
-        [EmailAddress(ErrorMessage = "Email không hợp lệ.")]
+        [EmailAddress(ErrorMessage = "Email phải đúng định dạng example@gmail.com.")]
         public string Email { get; set; } = string.Empty;
     }
 }
