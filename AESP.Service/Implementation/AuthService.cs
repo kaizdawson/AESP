@@ -1,4 +1,5 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Common.Enums;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
@@ -50,13 +51,13 @@ namespace AESP.Service.Implementation
             _configuration = configuration;
         }
 
-        public async Task<LoginResult> SignUpAsync(SignUpDto dto, int roleId)
+        public async Task<LoginResult> SignUpAsync(SignUpDto dto)
         {
             var existingUser = await _userRepository.GetByExpression(u => u.PhoneNumber == dto.PhoneNumber);
             if (existingUser != null)
                 return new LoginResult { Success = false, Message = "Số điện thoại này đã tồn tại." };
 
-            var role = await _roleRepository.GetById(roleId);
+            var role = await _roleRepository.GetById((int)dto.Role);
             if (role == null)
                 return new LoginResult { Success = false, Message = "Role không hợp lệ." };
 
@@ -67,14 +68,14 @@ namespace AESP.Service.Implementation
                 PhoneNumber = dto.PhoneNumber,
                 Email = dto.Email,
                 PasswordHash = HashPassword(dto.Password),
-                RoleId = roleId,
+                RoleId = (int)dto.Role,
                 Status = "InActive"
             };
 
             await _userRepository.Insert(user);
             await _unitOfWork.SaveChangeAsync();
 
-            if (roleId == 2)
+            if (dto.Role == UserRole.LEARNER)
             {
                 var learnerProfile = new LearnerProfile
                 {
@@ -86,7 +87,7 @@ namespace AESP.Service.Implementation
                 await _unitOfWork.SaveChangeAsync();
             }
 
-            if (roleId == 3)
+            if (dto.Role == UserRole.MENTOR)
             {
                 var mentorProfile = new MentorProfile
                 {
@@ -101,12 +102,14 @@ namespace AESP.Service.Implementation
             return new LoginResult { Success = true, Message = "Đăng ký thành công" };
         }
 
+
         public async Task<LoginResult> SignInAsync(LoginRequest request)
         {
             var user = await _userRepository.GetByExpression(u => u.PhoneNumber == request.PhoneNumber, u => u.Role);
             if (user == null)
                 return new LoginResult { Success = false, Message = "Số điện thoại này chưa được đăng ký." };
-
+            if (user.Status == "InActive")
+                return new LoginResult { Success = false, Message = "Tài khoản này chưa xác minh email. Vui lòng kích hoạt để được sử dụng." };
             if (user.Status == "Banned")
                 return new LoginResult { Success = false, Message = "Tài khoản đã bị khóa." };
 
@@ -134,7 +137,7 @@ namespace AESP.Service.Implementation
                     isPlacementTestDone = assessment != null;
                 }
             }
-            else if (user.RoleId == 3) // Mentor
+            else if (user.RoleId == 3) 
             {
                 var mentorProfile = await _mentorProfileRepository
                     .GetByExpression(mp => mp.UserId == user.UserId);
@@ -177,9 +180,60 @@ namespace AESP.Service.Implementation
             if (user == null)
                 return new LoginResult { Success = false, Message = "Người dùng không tồn tại" };
 
+            if (user.Status == "Banned")
+                return new LoginResult { Success = false, Message = "Tài khoản đã bị khóa." };
+
+            if (user.Status == "InActive")
+                return new LoginResult { Success = false, Message = "Tài khoản chưa xác minh email." };
+
+           
             var newToken = _jwtService.GenerateAccessToken(user);
-            return new LoginResult { Success = true, Message = "Refresh thành công", Token = newToken };
+
+            bool? isPlacementTestDone = null;
+            bool? isGoalSet = null;
+            bool? isProfileCompleted = null;
+
+            if (user.RoleId == 2) 
+            {
+                var learnerProfile = await _learnerProfileRepository
+                    .GetByExpression(lp => lp.UserId == user.UserId);
+
+                if (learnerProfile != null)
+                {
+                    isGoalSet = !string.IsNullOrEmpty(learnerProfile.Goal);
+
+                    var assessment = await _assessmentRepository
+                        .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+
+                    isPlacementTestDone = assessment != null;
+                }
+            }
+            else if (user.RoleId == 3) 
+            {
+                var mentorProfile = await _mentorProfileRepository
+                    .GetByExpression(mp => mp.UserId == user.UserId);
+
+                if (mentorProfile != null)
+                {
+                    var certificate = await _certificateRepository
+                        .GetByExpression(c => c.MentorProfileId == mentorProfile.MentorProfileId);
+
+                    isProfileCompleted = certificate != null;
+                }
+            }
+
+            return new LoginResult
+            {
+                Success = true,
+                Message = "Refresh thành công",
+                Token = newToken,
+                RoleName = user.Role?.RoleName,
+                IsPlacementTestDone = isPlacementTestDone,
+                IsGoalSet = isGoalSet,
+                IsProfileCompleted = isProfileCompleted
+            };
         }
+
 
         public async Task SendOtpAsync(string email)
         {

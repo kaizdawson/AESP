@@ -17,12 +17,32 @@ namespace AESP.API.Controllers
         {
             _authService = authService;
         }
-
-
-        [HttpPost("register/{roleId}")]
-        public async Task<IActionResult> Register(int roleId, [FromBody] SignUpDto dto)
+        private IActionResult? ValidateModel()
         {
-            var result = await _authService.SignUpAsync(dto, roleId);
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Errors.Select(e => e.ErrorMessage).ToArray()
+                    );
+
+                return BadRequest(new { errors });
+            }
+
+            return null;
+        }
+
+
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] SignUpDto dto)
+        {
+            var validationResult = ValidateModel();
+            if (validationResult != null) return validationResult;
+
+
+            var result = await _authService.SignUpAsync(dto);
 
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
@@ -35,6 +55,9 @@ namespace AESP.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
+            var validationResult = ValidateModel();
+            if (validationResult != null) return validationResult;
+
             var result = await _authService.SignInAsync(request);
 
             if (!result.Success)
@@ -51,29 +74,46 @@ namespace AESP.API.Controllers
             });
         }
 
-        [AllowAnonymous]
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto dto)
         {
+            var validationResult = ValidateModel();
+            if (validationResult != null) return validationResult;
+
             var result = await _authService.RefreshTokenAsync(dto);
 
             if (!result.Success)
                 return Unauthorized(new { message = result.Message });
 
-            return Ok(new { token = result.Token, message = result.Message });
+            return Ok(new
+            {
+                token = result.Token,
+                message = result.Message,
+                roleName = result.RoleName,
+                isPlacementTestDone = result.IsPlacementTestDone,
+                isGoalSet = result.IsGoalSet,
+                isProfileCompleted = result.IsProfileCompleted
+            });
         }
 
 
         [HttpPost("send-otp")]
-        public async Task<IActionResult> SendOtp([FromQuery] string email)
+        public async Task<IActionResult> SendOtp([FromBody] SendOtpDto dto)
         {
-            await _authService.SendOtpAsync(email);
+            var validationResult = ValidateModel();
+            if (validationResult != null) return validationResult;
+
+            await _authService.SendOtpAsync(dto.Email);
             return Ok(new { message = "OTP đã được gửi tới email." });
         }
+
 
         [HttpPost("verify-otp")]
         public async Task<IActionResult> VerifyOtp([FromBody] OtpVerifyDto dto)
         {
+            var validationResult = ValidateModel();
+            if (validationResult != null) return validationResult;
+
             var result = await _authService.VerifyOtpAsync(dto);
 
             if (!result.Success)
@@ -87,6 +127,9 @@ namespace AESP.API.Controllers
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
         {
+            var validationResult = ValidateModel();
+            if (validationResult != null) return validationResult;
+
             string? userIdClaim = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
                                    ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -106,6 +149,9 @@ namespace AESP.API.Controllers
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
         {
+            var validationResult = ValidateModel();
+            if (validationResult != null) return validationResult;
+
             var result = await _authService.ForgotPasswordAsync(dto);
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
@@ -116,6 +162,9 @@ namespace AESP.API.Controllers
         [HttpPost("reset-password-by-link")]
         public async Task<IActionResult> ResetPasswordByLink([FromBody] ResetPasswordByLinkDto dto)
         {
+            var validationResult = ValidateModel();
+            if (validationResult != null) return validationResult;
+
             var result = await _authService.ResetPasswordByLinkAsync(dto);
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
@@ -123,4 +172,6 @@ namespace AESP.API.Controllers
         }
 
     }
+
+
 }
