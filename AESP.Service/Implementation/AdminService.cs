@@ -7,64 +7,50 @@ namespace AESP.Service.Implementation
 {
     public class AdminService : IAdminService
     {
-        private readonly IAdminRepository _adminRepository;
+        private readonly IGenericRepository<User> _userRepository;
+        private readonly IGenericRepository<Role> _roleRepository;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public AdminService(IAdminRepository adminRepository)
+        public AdminService(
+            IGenericRepository<User> userRepository,
+            IGenericRepository<Role> roleRepository,
+            IUnitOfWork unitOfWork)
         {
-            _adminRepository = adminRepository;
+            _userRepository = userRepository;
+            _roleRepository = roleRepository;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<List<UserDto>> GetAllUsersAsync()
         {
-            var users = await _adminRepository.GetAllUsersAsync();
-            return users
+            var result = await _userRepository.GetAllDataByExpression(
+                null, 0, 0, null, true, u => u.Role);
+
+            return result.Items
                 .Where(u => u.Role?.RoleName != "Admin")
-                .Select(u => new UserDto
-                {
-                    UserId = u.UserId,
-                    FullName = u.FullName,
-                    Email = u.Email,
-                    PhoneNumber = u.PhoneNumber,
-                    Status = u.Status,
-                    RoleName = u.Role?.RoleName ?? "Unknown"
-                })
+                .Select(ToDto)
                 .ToList();
         }
 
         public async Task<List<UserDto>> GetLearnersAsync()
         {
-            var users = await _adminRepository.GetUsersByRoleAsync("Learner");
+            var result = await _userRepository.GetAllDataByExpression(
+                u => u.Role.RoleName == "Learner", 0, 0, null, true, u => u.Role);
 
-            return users.Select(u => new UserDto
-            {
-                UserId = u.UserId,
-                FullName = u.FullName,
-                Email = u.Email,
-                PhoneNumber = u.PhoneNumber,
-                Status = u.Status,
-                RoleName = u.Role?.RoleName ?? "Unknown"
-            }).ToList();
+            return result.Items.Select(ToDto).ToList();
         }
 
         public async Task<List<UserDto>> GetMentorsAsync()
         {
-            var users = await _adminRepository.GetUsersByRoleAsync("Mentor");
+            var result = await _userRepository.GetAllDataByExpression(
+                u => u.Role.RoleName == "Mentor", 0, 0, null, true, u => u.Role);
 
-            return users.Select(u => new UserDto
-            {
-                UserId = u.UserId,
-                FullName = u.FullName,
-                Email = u.Email,
-                PhoneNumber = u.PhoneNumber,
-                Status = u.Status,
-                RoleName = u.Role?.RoleName ?? "Unknown"
-            }).ToList();
+            return result.Items.Select(ToDto).ToList();
         }
-
 
         public async Task<string?> ToggleUserStatusAsync(Guid userId)
         {
-            var user = await _adminRepository.GetUserByIdAsync(userId);
+            var user = await _userRepository.GetById(userId);
             if (user == null) return "User not found";
 
             string roleName = user.Role?.RoleName ?? "Unknown";
@@ -81,10 +67,20 @@ namespace AESP.Service.Implementation
                 message = $"Đã mở khóa {roleName} {user.FullName}";
             }
 
-            await _adminRepository.UpdateUserAsync(user);
+            await _userRepository.Update(user);
+            await _unitOfWork.SaveChangeAsync();
+
             return message;
         }
 
-
+        private static UserDto ToDto(User u) => new UserDto
+        {
+            UserId = u.UserId,
+            FullName = u.FullName,
+            Email = u.Email,
+            PhoneNumber = u.PhoneNumber,
+            Status = u.Status,
+            RoleName = u.Role?.RoleName ?? "Unknown"
+        };
     }
 }

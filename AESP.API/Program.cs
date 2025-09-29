@@ -1,13 +1,16 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Repository.Contract;
 using AESP.Repository.DB;
+using AESP.Repository.Implementation;
 using AESP.Repository.Repositories;
 using AESP.Service.Contract;
 using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text.Json.Serialization;
 using System.Text;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,6 +68,8 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddMemoryCache();
+builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 
 
@@ -78,7 +83,7 @@ builder.Services.AddSwaggerGen(c =>
         Title = "AESP.API",
         Version = "1.0.0"
     });
-
+    c.DescribeAllParametersInCamelCase();
     // Không cần nhập chữ Bearer nha mấy đứa
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
@@ -106,9 +111,17 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.SuppressModelStateInvalidFilter = true;
+});
 
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 var app = builder.Build();
 
@@ -118,6 +131,7 @@ app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "AESP.API v1");
     c.RoutePrefix = string.Empty; 
+
 });
 
 
