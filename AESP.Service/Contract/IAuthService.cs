@@ -4,7 +4,7 @@ namespace AESP.Service.Contract
 {
     public interface IAuthService
     {
-        Task<LoginResult> SignUpAsync(SignUpDto dto, int roleId);
+        Task<LoginResult> SignUpAsync(SignUpDto dto);
         Task<LoginResult> SignInAsync(LoginRequest request);
 
         Task<LoginResult> RefreshTokenAsync(RefreshTokenRequestDto dto);
