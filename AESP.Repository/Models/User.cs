@@ -24,5 +24,6 @@ namespace AESP.Repository.Models
         public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
         public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
         public virtual ICollection<SystemPolicy> SystemPolicies { get; set; } = new List<SystemPolicy>();
+        public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     }
 }

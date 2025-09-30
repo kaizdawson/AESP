@@ -64,6 +64,11 @@ namespace AESP.Repository.DB
         public DbSet<Skill> Skills { get; set; }
         public DbSet<SkillMentor> SkillMentors { get; set; }
         public DbSet<Room> Rooms { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+
+
+    
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -108,6 +113,12 @@ namespace AESP.Repository.DB
                 new Role { RoleId = 2, RoleName = "Learner" },
                 new Role { RoleId = 3, RoleName = "Mentor" }
             );
+
+
+            modelBuilder.Entity<RefreshToken>()
+                 .HasOne(r => r.User)
+                 .WithMany(u => u.RefreshTokens)
+                 .HasForeignKey(r => r.UserId);
         }
     }
 }
