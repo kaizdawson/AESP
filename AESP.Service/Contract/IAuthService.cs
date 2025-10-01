@@ -18,5 +18,7 @@ namespace AESP.Service.Contract
         Task<(bool Success, string Message)> ForgotPasswordAsync(ForgotPasswordRequestDto dto);
         Task<(bool Success, string Message)> ResetPasswordByLinkAsync(ResetPasswordByLinkDto dto);
 
+        Task<(bool Success, string Message)> LogoutAsync(Guid userId);
+
     }
 }

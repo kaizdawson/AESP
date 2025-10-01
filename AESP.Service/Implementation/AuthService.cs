@@ -344,6 +344,26 @@ namespace AESP.Service.Implementation
             return (true, "Đặt lại mật khẩu thành công.");
         }
 
+        public async Task<(bool Success, string Message)> LogoutAsync(Guid userId)
+        {
+            var tokens = await _refreshTokenRepository.GetAllDataByExpression(
+                r => r.UserId == userId && !r.Revoked,
+                0, 0, null, true
+            );
+
+            foreach (var token in tokens.Items)
+            {
+                token.Revoked = true;
+                await _refreshTokenRepository.Update(token);
+            }
+
+            await _unitOfWork.SaveChangeAsync();
+            return (true, "Đăng xuất thành công");
+        }
+
+
+
+
         private string HashPassword(string password)
         {
             using var sha = SHA256.Create();
