@@ -113,15 +113,16 @@ namespace AESP.API.Controllers
 
 
 
-        [HttpPost("send-otp")]
-        public async Task<IActionResult> SendOtp([FromBody] SendOtpDto dto)
+        [HttpPost("resend-otp")]
+        public async Task<IActionResult> ResendOtp([FromBody] SendOtpDto dto)
         {
             var validationResult = ValidateModel();
             if (validationResult != null) return validationResult;
 
             await _authService.SendOtpAsync(dto.Email);
-            return Ok(new { message = "OTP đã được gửi tới email." });
+            return Ok(new { message = "OTP mới đã được gửi tới email." });
         }
+
 
 
         [HttpPost("verify-otp")]
