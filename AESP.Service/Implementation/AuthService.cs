@@ -398,8 +398,31 @@ namespace AESP.Service.Implementation
                 await _learnerProfileRepository.Insert(learnerProfile);
                 await _unitOfWork.SaveChangeAsync();
             }
+            else
+            {
+                bool changed = false;
 
-            
+                if (string.IsNullOrEmpty(user.AvatarUrl) && !string.IsNullOrEmpty(avatarUrl))
+                {
+                    user.AvatarUrl = avatarUrl;
+                    changed = true;
+                }
+
+                if (user.Status == "InActive")
+                {
+                    user.Status = "Active"; 
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    await _userRepository.Update(user);
+                    await _unitOfWork.SaveChangeAsync();
+                }
+            }
+
+
+
             var role = await _roleRepository.GetById(user.RoleId);
 
            
