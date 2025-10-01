@@ -365,6 +365,87 @@ namespace AESP.Service.Implementation
             return Convert.ToBase64String(randomBytes);
         }
 
+
+        public async Task<AuthResultDto> SignInWithGoogleAsync(string email, string fullName, string avatarUrl)
+        {
+        
+            var user = await _userRepository.GetByExpression(u => u.Email == email, u => u.Role);
+
+        
+            if (user == null)
+            {
+                user = new User
+                {
+                    UserId = Guid.NewGuid(),
+                    FullName = fullName,
+                    Email = email,
+                    PhoneNumber = "",
+                    PasswordHash = "", 
+                    RoleId = 2,        
+                    Status = "Active",
+                    AvatarUrl = avatarUrl
+                };
+
+                await _userRepository.Insert(user);
+                await _unitOfWork.SaveChangeAsync();
+
+                
+                var learnerProfile = new LearnerProfile
+                {
+                    LearnerProfileId = Guid.NewGuid(),
+                    UserId = user.UserId
+                };
+                await _learnerProfileRepository.Insert(learnerProfile);
+                await _unitOfWork.SaveChangeAsync();
+            }
+
+            
+            var role = await _roleRepository.GetById(user.RoleId);
+
+           
+            var accessToken = _jwtService.GenerateAccessToken(user);
+
+        
+            var oldTokens = await _refreshTokenRepository.GetAllDataByExpression(
+                r => r.UserId == user.UserId && !r.Revoked,
+                0, 0, null, true
+            );
+            foreach (var old in oldTokens.Items)
+            {
+                old.Revoked = true;
+                await _refreshTokenRepository.Update(old);
+            }
+
+        
+            var refreshToken = GenerateRefreshToken();
+            var refreshTokenEntity = new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.UserId,
+                Token = refreshToken,
+                CreatedAt = DateTime.UtcNow,
+                ExpiredAt = DateTime.UtcNow.AddDays(7), 
+                Revoked = false,
+                IpAddress = "google-login",  
+                DeviceInfo = "google-oauth"
+            };
+
+            await _refreshTokenRepository.Insert(refreshTokenEntity);
+            await _unitOfWork.SaveChangeAsync();
+
+       
+            return new AuthResultDto
+            {
+                Success = true,
+                Message = "Đăng nhập Google thành công",
+                Token = accessToken,
+                RefreshToken = refreshToken,
+                RoleName = role?.RoleName ?? "Learner",
+                Email = user.Email
+            };
+        }
+
+
     }
 
     public static class OtpGenerator
