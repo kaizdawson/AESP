@@ -23,6 +23,7 @@ builder.Services.AddAuthentication(options =>
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
+.AddCookie()
 .AddJwtBearer(options =>
 {
     options.SaveToken = true;
@@ -55,7 +56,15 @@ builder.Services.AddAuthentication(options =>
             return context.Response.WriteAsync("{\"message\": \"Không đủ quyền hạn để truy cập\"}");
         }
     };
+}).AddGoogle(options =>
+{
+    var google = builder.Configuration.GetSection("Authentication:Google");
+    options.ClientId = google["ClientId"]!;
+    options.ClientSecret = google["ClientSecret"]!;
+    options.CallbackPath = "/signin-google";
 });
+
+
 
 
 // Add services to the container.
@@ -137,6 +146,7 @@ app.UseSwaggerUI(c =>
 
 
 app.UseHttpsRedirection();
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
