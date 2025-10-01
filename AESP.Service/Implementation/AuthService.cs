@@ -103,7 +103,11 @@ namespace AESP.Service.Implementation
                 await _unitOfWork.SaveChangeAsync();
             }
 
-            return new LoginResult { Success = true, Message = "Đăng ký thành công" };
+            var otp = OtpGenerator.GenerateOtp();
+            _cache.Set(user.Email, otp, TimeSpan.FromMinutes(5));
+            await _emailService.SendEmailAsync(user.Email, "Xác thực tài khoản", $"Mã OTP của bạn là: {otp}");
+
+            return new LoginResult { Success = true, Message = "Đăng ký thành công. Vui lòng kiểm tra email để xác thực OTP." };
         }
 
 
