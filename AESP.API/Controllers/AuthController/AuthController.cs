@@ -79,7 +79,7 @@ namespace AESP.API.Controllers
 
             return Ok(new
             {
-                token = result.Token,
+                accessToken = result.Token,
                 refreshToken = result.RefreshToken,
                 message = result.Message,
                 roleName = result.RoleName,
@@ -95,7 +95,7 @@ namespace AESP.API.Controllers
             var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
             var deviceInfo = Request.Headers["User-Agent"].ToString();
 
-            var result = await _authService.RenewTokenAsync(dto.AccessToken, dto.RefreshToken, ipAddress, deviceInfo);
+            var result = await _authService.RenewTokenAsync(dto.RefreshToken, ipAddress, deviceInfo);
 
             if (!result.Success)
                 return Unauthorized(new { message = result.Message });
@@ -108,6 +108,7 @@ namespace AESP.API.Controllers
                 roleName = result.RoleName
             });
         }
+
 
 
 
@@ -186,23 +187,17 @@ namespace AESP.API.Controllers
             return Ok(new { message = result.Message });
         }
 
-        [Authorize]
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Logout([FromBody] LogoutRequestDto dto)
         {
-            string? userIdClaim = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
-                                   ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-                return Unauthorized(new { message = "Không xác định được người dùng." });
-
-            var result = await _authService.LogoutAsync(userId);
+            var result = await _authService.LogoutAsync(dto.RefreshToken);
 
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
             return Ok(new { message = result.Message });
         }
+
 
 
     }

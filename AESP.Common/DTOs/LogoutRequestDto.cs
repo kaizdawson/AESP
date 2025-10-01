@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace AESP.Common.DTOs
 {
-    public class RefreshTokenRequestDto
+    public class LogoutRequestDto
     {
         public string RefreshToken { get; set; } = string.Empty;
     }
