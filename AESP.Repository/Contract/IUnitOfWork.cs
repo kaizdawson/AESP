@@ -8,6 +8,7 @@ namespace AESP.Repository.Contract
 {
     public interface IUnitOfWork
     {
+
         public Task<int> SaveChangeAsync();
 
     }
