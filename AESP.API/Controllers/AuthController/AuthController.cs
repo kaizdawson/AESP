@@ -186,6 +186,25 @@ namespace AESP.API.Controllers
             return Ok(new { message = result.Message });
         }
 
+        [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            string? userIdClaim = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                                   ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized(new { message = "Không xác định được người dùng." });
+
+            var result = await _authService.LogoutAsync(userId);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(new { message = result.Message });
+        }
+
+
     }
 
 
