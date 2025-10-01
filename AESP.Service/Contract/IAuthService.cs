@@ -8,7 +8,8 @@ namespace AESP.Service.Contract
         Task<LoginResult> SignInAsync(LoginRequest request, string? ipAddress, string? deviceInfo);
 
 
-        Task<LoginResult> RenewTokenAsync(string accessToken, string refreshToken, string? ipAddress, string? deviceInfo);
+        Task<LoginResult> RenewTokenAsync(string refreshToken, string? ipAddress, string? deviceInfo);
+
 
         Task SendOtpAsync(string email);
         Task<(bool Success, string Message)> VerifyOtpAsync(OtpVerifyDto dto);
@@ -18,7 +19,8 @@ namespace AESP.Service.Contract
         Task<(bool Success, string Message)> ForgotPasswordAsync(ForgotPasswordRequestDto dto);
         Task<(bool Success, string Message)> ResetPasswordByLinkAsync(ResetPasswordByLinkDto dto);
 
-        Task<(bool Success, string Message)> LogoutAsync(Guid userId);
+        Task<(bool Success, string Message)> LogoutAsync(string refreshToken);
+
 
     }
 }

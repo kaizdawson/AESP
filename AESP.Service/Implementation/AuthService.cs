@@ -200,71 +200,52 @@ namespace AESP.Service.Implementation
         }
 
 
-        public async Task<LoginResult> RenewTokenAsync(string accessToken, string refreshToken, string? ipAddress, string? deviceInfo)
+        public async Task<LoginResult> RenewTokenAsync(string refreshToken, string? ipAddress, string? deviceInfo)
         {
+            var storedToken = await _refreshTokenRepository.GetByExpression(r => r.Token == refreshToken);
+
+            if (storedToken == null || storedToken.Revoked || storedToken.ExpiredAt <= DateTime.UtcNow)
             {
-                var handler = new JwtSecurityTokenHandler();
-                JwtSecurityToken? jwtToken;
-
-                try
-                {
-                    jwtToken = handler.ReadJwtToken(accessToken);
-                }
-                catch
-                {
-                    return new LoginResult { Success = false, Message = "AccessToken không hợp lệ." };
-                }
-
-                var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
-                if (!Guid.TryParse(userIdClaim, out var userId))
-                    return new LoginResult { Success = false, Message = "Không tìm thấy UserId trong token." };
-
-                var user = await _userRepository.GetById(userId);
-                if (user == null)
-                    return new LoginResult { Success = false, Message = "Người dùng không tồn tại." };
-
-
-                var storedToken = await _refreshTokenRepository.GetByExpression(r =>
-                    r.UserId == userId && r.Token == refreshToken);
-
-                if (storedToken == null || storedToken.Revoked || storedToken.ExpiredAt <= DateTime.UtcNow)
-                {
-                    return new LoginResult { Success = false, Message = "Refresh token không hợp lệ hoặc đã hết hạn." };
-                }
-
-
-                storedToken.Revoked = true;
-                await _refreshTokenRepository.Update(storedToken);
-
-                var newAccessToken = _jwtService.GenerateAccessToken(user);
-                var newRefreshToken = GenerateRefreshToken();
-
-                var refreshTokenEntity = new RefreshToken
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = user.UserId,
-                    Token = newRefreshToken,
-                    CreatedAt = DateTime.UtcNow,
-                    ExpiredAt = DateTime.UtcNow.AddMinutes(2),
-                    Revoked = false,
-                    IpAddress = ipAddress ?? "unknown",
-                    DeviceInfo = deviceInfo ?? "unknown"
-                };
-
-
-                await _refreshTokenRepository.Insert(refreshTokenEntity);
-                await _unitOfWork.SaveChangeAsync();
-
-                return new LoginResult
-                {
-                    Success = true,
-                    Message = "Renew thành công",
-                    Token = newAccessToken,
-                    RefreshToken = newRefreshToken,
-                    RoleName = user.Role?.RoleName
-                };
+                return new LoginResult { Success = false, Message = "Refresh token không hợp lệ hoặc đã hết hạn." };
             }
+
+            var user = await _userRepository.GetById(storedToken.UserId);
+            if (user == null)
+                return new LoginResult { Success = false, Message = "Người dùng không tồn tại." };
+
+           
+            storedToken.Revoked = true;
+            await _refreshTokenRepository.Update(storedToken);
+
+        
+            var newAccessToken = _jwtService.GenerateAccessToken(user);
+            var newRefreshToken = GenerateRefreshToken();
+
+            var refreshTokenEntity = new RefreshToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.UserId,
+                Token = newRefreshToken,
+                CreatedAt = DateTime.UtcNow,
+                ExpiredAt = DateTime.UtcNow.AddMinutes(2),
+                Revoked = false,
+                IpAddress = ipAddress ?? "unknown",
+                DeviceInfo = deviceInfo ?? "unknown"
+            };
+
+            await _refreshTokenRepository.Insert(refreshTokenEntity);
+            await _unitOfWork.SaveChangeAsync();
+
+            return new LoginResult
+            {
+                Success = true,
+                Message = "Renew thành công",
+                Token = newAccessToken,
+                RefreshToken = newRefreshToken,
+                RoleName = user.Role?.RoleName
+            };
         }
+
 
 
 
@@ -344,22 +325,20 @@ namespace AESP.Service.Implementation
             return (true, "Đặt lại mật khẩu thành công.");
         }
 
-        public async Task<(bool Success, string Message)> LogoutAsync(Guid userId)
+        public async Task<(bool Success, string Message)> LogoutAsync(string refreshToken)
         {
-            var tokens = await _refreshTokenRepository.GetAllDataByExpression(
-                r => r.UserId == userId && !r.Revoked,
-                0, 0, null, true
-            );
+            var storedToken = await _refreshTokenRepository.GetByExpression(r => r.Token == refreshToken);
 
-            foreach (var token in tokens.Items)
-            {
-                token.Revoked = true;
-                await _refreshTokenRepository.Update(token);
-            }
+            if (storedToken == null || storedToken.Revoked)
+                return (false, "Refresh token không hợp lệ hoặc đã logout rồi.");
 
+            storedToken.Revoked = true;
+            await _refreshTokenRepository.Update(storedToken);
             await _unitOfWork.SaveChangeAsync();
-            return (true, "Đăng xuất thành công");
+
+            return (true, "Đăng xuất thành công.");
         }
+
 
 
 
