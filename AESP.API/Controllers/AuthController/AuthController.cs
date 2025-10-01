@@ -68,7 +68,11 @@ namespace AESP.API.Controllers
             var validationResult = ValidateModel();
             if (validationResult != null) return validationResult;
 
-            var result = await _authService.SignInAsync(request);
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var deviceInfo = Request.Headers["User-Agent"].ToString();
+
+            var result = await _authService.SignInAsync(request, ipAddress, deviceInfo);
+
 
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
@@ -76,6 +80,7 @@ namespace AESP.API.Controllers
             return Ok(new
             {
                 token = result.Token,
+                refreshToken = result.RefreshToken,
                 message = result.Message,
                 roleName = result.RoleName,
                 isPlacementTestDone = result.IsPlacementTestDone,
@@ -87,24 +92,24 @@ namespace AESP.API.Controllers
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto dto)
         {
-            var validationResult = ValidateModel();
-            if (validationResult != null) return validationResult;
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var deviceInfo = Request.Headers["User-Agent"].ToString();
 
-            var result = await _authService.RefreshTokenAsync(dto);
+            var result = await _authService.RenewTokenAsync(dto.AccessToken, dto.RefreshToken, ipAddress, deviceInfo);
 
             if (!result.Success)
                 return Unauthorized(new { message = result.Message });
 
             return Ok(new
             {
-                token = result.Token,
+                accessToken = result.Token,
+                refreshToken = result.RefreshToken,
                 message = result.Message,
-                roleName = result.RoleName,
-                isPlacementTestDone = result.IsPlacementTestDone,
-                isGoalSet = result.IsGoalSet,
-                isProfileCompleted = result.IsProfileCompleted
+                roleName = result.RoleName
             });
         }
+
+
 
 
         [HttpPost("send-otp")]

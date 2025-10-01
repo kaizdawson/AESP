@@ -5,10 +5,10 @@ namespace AESP.Service.Contract
     public interface IAuthService
     {
         Task<LoginResult> SignUpAsync(SignUpDto dto);
-        Task<LoginResult> SignInAsync(LoginRequest request);
+        Task<LoginResult> SignInAsync(LoginRequest request, string? ipAddress, string? deviceInfo);
 
-        Task<LoginResult> RefreshTokenAsync(RefreshTokenRequestDto dto);
 
+        Task<LoginResult> RenewTokenAsync(string accessToken, string refreshToken, string? ipAddress, string? deviceInfo);
 
         Task SendOtpAsync(string email);
         Task<(bool Success, string Message)> VerifyOtpAsync(OtpVerifyDto dto);
