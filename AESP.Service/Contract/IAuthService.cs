@@ -21,6 +21,9 @@ namespace AESP.Service.Contract
 
         Task<(bool Success, string Message)> LogoutAsync(string refreshToken);
 
+        Task<AuthResultDto> SignInWithGoogleAsync(string email, string fullName, string avatarUrl);
+
+
 
     }
 }
