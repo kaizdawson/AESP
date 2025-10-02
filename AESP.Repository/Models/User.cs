@@ -14,6 +14,7 @@ namespace AESP.Repository.Models
         public string PhoneNumber { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
 
+        public string FirebaseUid { get; set; } = string.Empty;
         public string Status { get; set; } = "Active";
         public string AvatarUrl { get; set; } = string.Empty;
         public int RoleId { get; set; }
