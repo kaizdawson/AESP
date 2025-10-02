@@ -365,109 +365,82 @@ namespace AESP.Service.Implementation
             return Convert.ToBase64String(randomBytes);
         }
 
-
-        public async Task<AuthResultDto> SignInWithGoogleAsync(string email, string fullName, string avatarUrl)
+        public async Task<LoginResult> GoogleSignInAsync(string idToken, string? ipAddress, string? deviceInfo)
         {
-        
-            var user = await _userRepository.GetByExpression(u => u.Email == email, u => u.Role);
-
-        
-            if (user == null)
+            try
             {
-                user = new User
-                {
-                    UserId = Guid.NewGuid(),
-                    FullName = fullName,
-                    Email = email,
-                    PhoneNumber = "",
-                    PasswordHash = "", 
-                    RoleId = 2,        
-                    Status = "Active",
-                    AvatarUrl = avatarUrl
-                };
+                // Verify token với Firebase
+                var decodedToken = await FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(idToken);
 
-                await _userRepository.Insert(user);
-                await _unitOfWork.SaveChangeAsync();
+                string email = decodedToken.Claims.ContainsKey("email") ? decodedToken.Claims["email"].ToString()! : "";
+                string name = decodedToken.Claims.ContainsKey("name") ? decodedToken.Claims["name"].ToString()! : "";
 
-                
-                var learnerProfile = new LearnerProfile
-                {
-                    LearnerProfileId = Guid.NewGuid(),
-                    UserId = user.UserId
-                };
-                await _learnerProfileRepository.Insert(learnerProfile);
-                await _unitOfWork.SaveChangeAsync();
-            }
-            else
-            {
-                bool changed = false;
+                if (string.IsNullOrEmpty(email))
+                    return new LoginResult { Success = false, Message = "Không lấy được email từ Google." };
 
-                if (string.IsNullOrEmpty(user.AvatarUrl) && !string.IsNullOrEmpty(avatarUrl))
-                {
-                    user.AvatarUrl = avatarUrl;
-                    changed = true;
-                }
+                // Tìm user trong DB bằng email
+                var user = await _userRepository.GetByExpression(u => u.Email == email, u => u.Role);
 
-                if (user.Status == "InActive")
+                // Nếu chưa có thì tạo mới
+                if (user == null)
                 {
-                    user.Status = "Active"; 
-                    changed = true;
-                }
+                    user = new User
+                    {
+                        UserId = Guid.NewGuid(),
+                        FullName = string.IsNullOrEmpty(name) ? "New Learner" : name,
+                        Email = email,
+                        PhoneNumber = "",
+                        PasswordHash = HashPassword(Guid.NewGuid().ToString()), // random password
+                        RoleId = 2, // Learner
+                        Status = "Active"
+                    };
 
-                if (changed)
-                {
-                    await _userRepository.Update(user);
+                    await _userRepository.Insert(user);
+                    await _unitOfWork.SaveChangeAsync();
+
+                    // Tạo learner profile
+                    var learnerProfile = new LearnerProfile
+                    {
+                        LearnerProfileId = Guid.NewGuid(),
+                        UserId = user.UserId
+                    };
+                    await _learnerProfileRepository.Insert(learnerProfile);
                     await _unitOfWork.SaveChangeAsync();
                 }
+
+                // Sinh access token + refresh token
+                var accessToken = _jwtService.GenerateAccessToken(user);
+                var refreshToken = GenerateRefreshToken();
+
+                var refreshTokenEntity = new RefreshToken
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.UserId,
+                    Token = refreshToken,
+                    CreatedAt = DateTime.UtcNow,
+                    ExpiredAt = DateTime.UtcNow.AddDays(7),
+                    Revoked = false,
+                    IpAddress = ipAddress ?? "unknown",
+                    DeviceInfo = deviceInfo ?? "unknown"
+                };
+
+                await _refreshTokenRepository.Insert(refreshTokenEntity);
+                await _unitOfWork.SaveChangeAsync();
+
+                return new LoginResult
+                {
+                    Success = true,
+                    Message = "Đăng nhập Google thành công",
+                    Token = accessToken,
+                    RefreshToken = refreshToken,
+                    RoleName = user.Role?.RoleName
+                };
             }
-
-
-
-            var role = await _roleRepository.GetById(user.RoleId);
-
-           
-            var accessToken = _jwtService.GenerateAccessToken(user);
-
-        
-            var oldTokens = await _refreshTokenRepository.GetAllDataByExpression(
-                r => r.UserId == user.UserId && !r.Revoked,
-                0, 0, null, true
-            );
-            foreach (var old in oldTokens.Items)
+            catch (Exception ex)
             {
-                old.Revoked = true;
-                await _refreshTokenRepository.Update(old);
+                return new LoginResult { Success = false, Message = $"Google sign-in failed: {ex.Message}" };
             }
-
-        
-            var refreshToken = GenerateRefreshToken();
-            var refreshTokenEntity = new RefreshToken
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.UserId,
-                Token = refreshToken,
-                CreatedAt = DateTime.UtcNow,
-                ExpiredAt = DateTime.UtcNow.AddDays(7), 
-                Revoked = false,
-                IpAddress = "google-login",  
-                DeviceInfo = "google-oauth"
-            };
-
-            await _refreshTokenRepository.Insert(refreshTokenEntity);
-            await _unitOfWork.SaveChangeAsync();
-
-       
-            return new AuthResultDto
-            {
-                Success = true,
-                Message = "Đăng nhập Google thành công",
-                Token = accessToken,
-                RefreshToken = refreshToken,
-                RoleName = role?.RoleName ?? "Learner",
-                Email = user.Email
-            };
         }
-
 
     }
 
