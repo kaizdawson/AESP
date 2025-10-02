@@ -61,6 +61,18 @@ namespace AESP.Service.Implementation
             if (existingUser != null)
                 return new LoginResult { Success = false, Message = "Số điện thoại này đã tồn tại." };
 
+            var existingUserByEmail = await _userRepository.GetByExpression(u => u.Email == dto.Email);
+            if (existingUserByEmail != null)
+            {
+        
+                if (!string.IsNullOrEmpty(existingUserByEmail.FirebaseUid))
+                    return new LoginResult { Success = false, Message = "Email này đã được đăng ký bằng Google. Vui lòng đăng nhập bằng Google." };
+
+         
+                return new LoginResult { Success = false, Message = "Email này đã tồn tại." };
+            }
+
+
             var role = await _roleRepository.GetById((int)dto.Role);
             if (role == null)
                 return new LoginResult { Success = false, Message = "Role không hợp lệ." };
@@ -369,36 +381,57 @@ namespace AESP.Service.Implementation
         {
             try
             {
-                // Verify token với Firebase
                 var decodedToken = await FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(idToken);
 
+                string firebaseUid = decodedToken.Uid;
                 string email = decodedToken.Claims.ContainsKey("email") ? decodedToken.Claims["email"].ToString()! : "";
                 string name = decodedToken.Claims.ContainsKey("name") ? decodedToken.Claims["name"].ToString()! : "";
+                string avatar = decodedToken.Claims.ContainsKey("picture") ? decodedToken.Claims["picture"].ToString()! : "";
 
-                if (string.IsNullOrEmpty(email))
-                    return new LoginResult { Success = false, Message = "Không lấy được email từ Google." };
+                if (string.IsNullOrEmpty(firebaseUid))
+                    return new LoginResult { Success = false, Message = "Không lấy được Firebase UID." };
 
-                // Tìm user trong DB bằng email
-                var user = await _userRepository.GetByExpression(u => u.Email == email, u => u.Role);
+                User? user = null;
 
-                // Nếu chưa có thì tạo mới
+               
+                var usersByUid = await _userRepository.GetAllDataByExpression(u => u.FirebaseUid == firebaseUid, 0, 0, null, true);
+                user = usersByUid.Items.FirstOrDefault();
+
+             
+                if (user == null && !string.IsNullOrEmpty(email))
+                {
+                    var usersByEmail = await _userRepository.GetAllDataByExpression(u => u.Email == email, 0, 0, null, true);
+                    user = usersByEmail.Items.FirstOrDefault();
+
+                    if (user != null)
+                    {
+                        // thêm FirebaseUID nè
+                        user.FirebaseUid = firebaseUid;
+                        if (user.Status == "InActive") user.Status = "Active";
+                        await _userRepository.Update(user);
+                        await _unitOfWork.SaveChangeAsync();
+                    }
+                }
+
+                
                 if (user == null)
                 {
                     user = new User
                     {
                         UserId = Guid.NewGuid(),
+                        FirebaseUid = firebaseUid,
                         FullName = string.IsNullOrEmpty(name) ? "New Learner" : name,
                         Email = email,
                         PhoneNumber = "",
+                        AvatarUrl = avatar,
                         PasswordHash = HashPassword(Guid.NewGuid().ToString()), // random password
-                        RoleId = 2, // Learner
+                        RoleId = 2, // LEARNER
                         Status = "Active"
                     };
 
                     await _userRepository.Insert(user);
                     await _unitOfWork.SaveChangeAsync();
 
-                    // Tạo learner profile
                     var learnerProfile = new LearnerProfile
                     {
                         LearnerProfileId = Guid.NewGuid(),
@@ -407,8 +440,40 @@ namespace AESP.Service.Implementation
                     await _learnerProfileRepository.Insert(learnerProfile);
                     await _unitOfWork.SaveChangeAsync();
                 }
+                else
+                {
+                    // Nếu user tồn tại thì sao nào. up cái nào thiếu chứ seo
+                    bool changed = false;
 
-                // Sinh access token + refresh token
+                    if (string.IsNullOrEmpty(user.Email) && !string.IsNullOrEmpty(email))
+                    {
+                        user.Email = email;
+                        changed = true;
+                    }
+                    if (string.IsNullOrEmpty(user.FullName) && !string.IsNullOrEmpty(name))
+                    {
+                        user.FullName = name;
+                        changed = true;
+                    }
+                    if (string.IsNullOrEmpty(user.AvatarUrl) && !string.IsNullOrEmpty(avatar))
+                    {
+                        user.AvatarUrl = avatar;
+                        changed = true;
+                    }
+                    if (user.Status == "InActive")
+                    {
+                        user.Status = "Active";
+                        changed = true;
+                    }
+
+                    if (changed)
+                    {
+                        await _userRepository.Update(user);
+                        await _unitOfWork.SaveChangeAsync();
+                    }
+                }
+
+                
                 var accessToken = _jwtService.GenerateAccessToken(user);
                 var refreshToken = GenerateRefreshToken();
 
@@ -438,9 +503,12 @@ namespace AESP.Service.Implementation
             }
             catch (Exception ex)
             {
-                return new LoginResult { Success = false, Message = $"Google sign-in failed: {ex.Message}" };
+                return new LoginResult { Success = false, Message = $"Google sign-in failed: {ex.InnerException?.Message ?? ex.Message}" };
             }
         }
+
+
+
 
     }
 
