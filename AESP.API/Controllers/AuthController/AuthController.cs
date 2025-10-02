@@ -201,65 +201,26 @@ namespace AESP.API.Controllers
             return Ok(new { message = result.Message });
         }
 
-        [AllowAnonymous]
-        [HttpGet("google-login")]
-        public IActionResult GoogleLogin()
-        {
-            var clientId = _configuration["Authentication:Google:ClientId"];
-            var redirectUri = "https://localhost:7017/api/auth/google-callback"; 
-            var scope = "openid profile email";
-
-            var url = $"https://accounts.google.com/o/oauth2/v2/auth" +
-                      $"?response_type=code" +
-                      $"&client_id={clientId}" +
-                      $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
-                      $"&scope={Uri.EscapeDataString(scope)}";
-
-            return Ok(new { url });
-        }
 
         [AllowAnonymous]
-        [HttpGet("google-callback")]
-        public async Task<IActionResult> GoogleCallback([FromQuery] string code)
+        [HttpPost("google-login")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto dto)
         {
-            var clientId = _configuration["Authentication:Google:ClientId"];
-            var clientSecret = _configuration["Authentication:Google:ClientSecret"];
-            var redirectUri = "https://localhost:7017/api/auth/google-callback";
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var deviceInfo = Request.Headers["User-Agent"].ToString();
 
-            using var http = new HttpClient();
-
-            var tokenRequest = new Dictionary<string, string>
-    {
-        { "code", code },
-        { "client_id", clientId! },
-        { "client_secret", clientSecret! },
-        { "redirect_uri", redirectUri },
-        { "grant_type", "authorization_code" }
-    };
-
-            var response = await http.PostAsync("https://oauth2.googleapis.com/token", new FormUrlEncodedContent(tokenRequest));
-            var json = await response.Content.ReadAsStringAsync();
-
-            var tokenData = System.Text.Json.JsonDocument.Parse(json).RootElement;
-            var idToken = tokenData.GetProperty("id_token").GetString();
-
-            var handler = new JwtSecurityTokenHandler();
-            var jwt = handler.ReadJwtToken(idToken);
-
-            var email = jwt.Claims.FirstOrDefault(c => c.Type == "email")?.Value;
-            var name = jwt.Claims.FirstOrDefault(c => c.Type == "name")?.Value;
-            var avatar = jwt.Claims.FirstOrDefault(c => c.Type == "picture")?.Value;
-
-            if (string.IsNullOrEmpty(email))
-                return BadRequest(new { message = "Không lấy được email từ Google" });
-
-           
-            var result = await _authService.SignInWithGoogleAsync(email, name ?? "", avatar ?? "");
+            var result = await _authService.GoogleSignInAsync(dto.IdToken, ipAddress, deviceInfo);
 
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
-            return Ok(result);
+            return Ok(new
+            {
+                accessToken = result.Token,
+                refreshToken = result.RefreshToken,
+                message = result.Message,
+                roleName = result.RoleName
+            });
         }
 
 
