@@ -11,6 +11,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text.Json.Serialization;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +26,6 @@ builder.Services.AddAuthentication(options =>
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-.AddCookie()
 .AddJwtBearer(options =>
 {
     options.SaveToken = true;
@@ -56,12 +58,6 @@ builder.Services.AddAuthentication(options =>
             return context.Response.WriteAsync("{\"message\": \"Không đủ quyền hạn để truy cập\"}");
         }
     };
-}).AddGoogle(options =>
-{
-    var google = builder.Configuration.GetSection("Authentication:Google");
-    options.ClientId = google["ClientId"]!;
-    options.ClientSecret = google["ClientSecret"]!;
-    options.CallbackPath = "/signin-google";
 });
 
 
@@ -133,6 +129,14 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
+
+
+var firebaseConfig = builder.Configuration.GetSection("Firebase").Get<Dictionary<string, object>>();
+
+FirebaseApp.Create(new AppOptions()
+{
+    Credential = GoogleCredential.FromJson(JsonSerializer.Serialize(firebaseConfig))
+});
 var app = builder.Build();
 
 

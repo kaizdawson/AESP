@@ -9,13 +9,15 @@
 *.user
 *.userosscache
 *.sln.docstates
+firebase-key.json
+Key/firebase-key.json
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
 # Mono auto generated files
 mono_crash.*
-
+Key/firebase-key.json
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -54,7 +56,7 @@ nunit-*.xml
 [Dd]ebugPS/
 [Rr]eleasePS/
 dlldata.c
-
+Key/
 # Benchmark Results
 BenchmarkDotNet.Artifacts/
 
