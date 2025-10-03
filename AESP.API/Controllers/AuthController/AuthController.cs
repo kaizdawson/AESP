@@ -84,7 +84,7 @@ namespace AESP.API.Controllers
                 accessToken = result.Token,
                 refreshToken = result.RefreshToken,
                 message = result.Message,
-                roleName = result.RoleName,
+                role = result.Role,
                 isPlacementTestDone = result.IsPlacementTestDone,
                 isGoalSet = result.IsGoalSet,
                 isProfileCompleted = result.IsProfileCompleted
@@ -107,7 +107,7 @@ namespace AESP.API.Controllers
                 accessToken = result.Token,
                 refreshToken = result.RefreshToken,
                 message = result.Message,
-                roleName = result.RoleName
+                role = result.Role
             });
         }
 
@@ -219,7 +219,7 @@ namespace AESP.API.Controllers
                 accessToken = result.Token,
                 refreshToken = result.RefreshToken,
                 message = result.Message,
-                roleName = result.RoleName
+                role = result.Role
             });
         }
 

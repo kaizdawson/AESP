@@ -27,11 +27,6 @@ namespace AESP.Repository.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task<Role?> GetRoleByIdAsync(int roleId)
-        {
-            return await _context.Roles.FindAsync(roleId);
-        }
-
         public async Task<User?> GetUserByIdAsync(Guid id)
         {
             return await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.UserId == id);
