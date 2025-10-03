@@ -14,7 +14,6 @@ namespace AESP.Repository.DB
         }
 
         public DbSet<User> Users { get; set; }
-        public DbSet<Role> Roles { get; set; }
          public DbSet<LearnerProfile> LearnerProfiles { get; set; }
         public DbSet<MentorProfile> MentorProfiles { get; set; }
         public DbSet<MentorSchedule> MentorSchedules { get; set; }
@@ -98,21 +97,10 @@ namespace AESP.Repository.DB
             {
                 entity.HasKey(u => u.UserId);
 
-                entity.HasOne(u => u.Role)
-                      .WithMany(r => r.Users)
-                      .HasForeignKey(u => u.RoleId);
+                entity.Property(u => u.Role)
+                      .IsRequired()
+                      .HasMaxLength(50);
             });
-
-            modelBuilder.Entity<Role>(entity =>
-            {
-                entity.HasKey(r => r.RoleId);
-            });
-
-            modelBuilder.Entity<Role>().HasData(
-                new Role { RoleId = 1, RoleName = "Admin" },
-                new Role { RoleId = 2, RoleName = "Learner" },
-                new Role { RoleId = 3, RoleName = "Mentor" }
-            );
 
 
             modelBuilder.Entity<RefreshToken>()

@@ -15,7 +15,6 @@ namespace AESP.Service.Implementation
     public class AuthService : IAuthService
     {
         private readonly IGenericRepository<User> _userRepository;
-        private readonly IGenericRepository<Role> _roleRepository;
         private readonly IGenericRepository<LearnerProfile> _learnerProfileRepository;
         private readonly IGenericRepository<MentorProfile> _mentorProfileRepository;
         private readonly IGenericRepository<Assessment> _assessmentRepository;
@@ -29,7 +28,6 @@ namespace AESP.Service.Implementation
 
         public AuthService(
             IGenericRepository<User> userRepository,
-            IGenericRepository<Role> roleRepository,
             IGenericRepository<LearnerProfile> learnerProfileRepository,
             IGenericRepository<MentorProfile> mentorProfileRepository,
             IGenericRepository<Assessment> assessmentRepository,
@@ -42,7 +40,6 @@ namespace AESP.Service.Implementation
             IRefreshTokenRepository refreshTokenRepository)
         {
             _userRepository = userRepository;
-            _roleRepository = roleRepository;
             _learnerProfileRepository = learnerProfileRepository;
             _mentorProfileRepository = mentorProfileRepository;
             _assessmentRepository = assessmentRepository;
@@ -72,11 +69,6 @@ namespace AESP.Service.Implementation
                 return new LoginResult { Success = false, Message = "Email này đã tồn tại." };
             }
 
-
-            var role = await _roleRepository.GetById((int)dto.Role);
-            if (role == null)
-                return new LoginResult { Success = false, Message = "Role không hợp lệ." };
-
             var user = new User
             {
                 UserId = Guid.NewGuid(),
@@ -84,11 +76,11 @@ namespace AESP.Service.Implementation
                 PhoneNumber = dto.PhoneNumber,
                 Email = dto.Email,
                 PasswordHash = HashPassword(dto.Password),
-                RoleId = (int)dto.Role,
+                Role = dto.Role.ToString(),
                 Status = "InActive"
             };
 
-            await _userRepository.Insert(user);
+            await _userRepository.Insert(user); 
             await _unitOfWork.SaveChangeAsync();
 
             if (dto.Role == UserRole.LEARNER)
@@ -125,9 +117,10 @@ namespace AESP.Service.Implementation
 
         public async Task<LoginResult> SignInAsync(LoginRequest request, string? ipAddress, string? deviceInfo)
         {
-            var user = await _userRepository.GetByExpression(u => u.PhoneNumber == request.PhoneNumber, u => u.Role);
+            var user = await _userRepository.GetByExpression(u => u.Email == request.Email);
             if (user == null)
-                return new LoginResult { Success = false, Message = "Số điện thoại này chưa được đăng ký." };
+                return new LoginResult { Success = false, Message = "Email này chưa được đăng ký." };
+
             if (user.Status == "InActive")
                 return new LoginResult { Success = false, Message = "Tài khoản này chưa xác minh email. Vui lòng kích hoạt để được sử dụng." };
             if (user.Status == "Banned")
@@ -173,7 +166,7 @@ namespace AESP.Service.Implementation
             bool? isGoalSet = null;
             bool? isProfileCompleted = null;
 
-            if (user.RoleId == 2) 
+            if (user.Role == UserRole.LEARNER.ToString())
             {
                 var learnerProfile = await _learnerProfileRepository
                     .GetByExpression(lp => lp.UserId == user.UserId);
@@ -188,7 +181,7 @@ namespace AESP.Service.Implementation
                     isPlacementTestDone = assessment != null;
                 }
             }
-            else if (user.RoleId == 3) 
+            else if (user.Role == UserRole.MENTOR.ToString())
             {
                 var mentorProfile = await _mentorProfileRepository
                     .GetByExpression(mp => mp.UserId == user.UserId);
@@ -208,7 +201,7 @@ namespace AESP.Service.Implementation
                 Message = "Đăng nhập thành công",
                 Token = accessToken,
                 RefreshToken = refreshToken,
-                RoleName = user.Role?.RoleName,
+                Role = user.Role,
                 IsPlacementTestDone = isPlacementTestDone,
                 IsGoalSet = isGoalSet,
                 IsProfileCompleted = isProfileCompleted
@@ -258,7 +251,7 @@ namespace AESP.Service.Implementation
                 Message = "Renew thành công",
                 Token = newAccessToken,
                 RefreshToken = newRefreshToken,
-                RoleName = user.Role?.RoleName
+                Role = user.Role
             };
         }
 
@@ -425,7 +418,7 @@ namespace AESP.Service.Implementation
                         PhoneNumber = "",
                         AvatarUrl = avatar,
                         PasswordHash = HashPassword(Guid.NewGuid().ToString()), // random password
-                        RoleId = 2, // LEARNER
+                        Role = UserRole.LEARNER.ToString(),
                         Status = "Active"
                     };
 
@@ -498,7 +491,7 @@ namespace AESP.Service.Implementation
                     Message = "Đăng nhập Google thành công",
                     Token = accessToken,
                     RefreshToken = refreshToken,
-                    RoleName = user.Role?.RoleName
+                    Role = user.Role
                 };
             }
             catch (Exception ex)

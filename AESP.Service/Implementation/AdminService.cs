@@ -27,7 +27,7 @@ namespace AESP.Service.Implementation
                 null, 0, 0, null, true, u => u.Role);
 
             return result.Items
-                .Where(u => u.Role?.RoleName != "Admin")
+                .Where(u => u.Role != "Admin")
                 .Select(ToDto)
                 .ToList();
         }
@@ -35,7 +35,8 @@ namespace AESP.Service.Implementation
         public async Task<List<UserDto>> GetLearnersAsync()
         {
             var result = await _userRepository.GetAllDataByExpression(
-                u => u.Role.RoleName == "Learner", 0, 0, null, true, u => u.Role);
+                     u => u.Role == "Learner", 0, 0, null, true);
+
 
             return result.Items.Select(ToDto).ToList();
         }
@@ -43,7 +44,7 @@ namespace AESP.Service.Implementation
         public async Task<List<UserDto>> GetMentorsAsync()
         {
             var result = await _userRepository.GetAllDataByExpression(
-                u => u.Role.RoleName == "Mentor", 0, 0, null, true, u => u.Role);
+        u => u.Role == "Mentor", 0, 0, null, true);
 
             return result.Items.Select(ToDto).ToList();
         }
@@ -53,7 +54,7 @@ namespace AESP.Service.Implementation
             var user = await _userRepository.GetById(userId);
             if (user == null) return "User not found";
 
-            string roleName = user.Role?.RoleName ?? "Unknown";
+            string roleName = string.IsNullOrEmpty(user.Role) ? "Unknown" : user.Role;
             string message;
 
             if (user.Status == "Active")
@@ -80,7 +81,7 @@ namespace AESP.Service.Implementation
             Email = u.Email,
             PhoneNumber = u.PhoneNumber,
             Status = u.Status,
-            RoleName = u.Role?.RoleName ?? "Unknown"
+            Role = u.Role
         };
     }
 }

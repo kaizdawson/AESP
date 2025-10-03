@@ -22,7 +22,7 @@ namespace AESP.Service.Implementation
         public string GenerateAccessToken(User user)
         {
             // Lấy role từ DB nghen
-            var role = _context.Roles.FirstOrDefault(r => r.RoleId == user.RoleId)?.RoleName ?? "User";
+            var role = string.IsNullOrEmpty(user.Role) ? "User" : user.Role;
 
             // Tạo claims nè
             var claims = new List<Claim>
