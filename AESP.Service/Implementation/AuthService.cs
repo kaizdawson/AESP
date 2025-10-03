@@ -116,10 +116,10 @@ namespace AESP.Service.Implementation
             }
 
             var otp = OtpGenerator.GenerateOtp();
-            _cache.Set(user.Email, otp, TimeSpan.FromMinutes(5));
+            _cache.Set(user.Email, otp, TimeSpan.FromMinutes(2));
             await _emailService.SendEmailAsync(user.Email, "Xác thực tài khoản", $"Mã OTP của bạn là: {otp}");
 
-            return new LoginResult { Success = true, Message = "Đăng ký thành công. Vui lòng kiểm tra email để xác thực OTP." };
+            return new LoginResult { Success = true, Message = "Đăng ký thành công. Vui lòng kiểm tra email để xác thực OTP.", Email = user.Email };
         }
 
 
@@ -268,7 +268,7 @@ namespace AESP.Service.Implementation
         public async Task SendOtpAsync(string email)
         {
             var otp = OtpGenerator.GenerateOtp();
-            _cache.Set(email, otp, TimeSpan.FromMinutes(5));
+            _cache.Set(email, otp, TimeSpan.FromMinutes(2));
             await _emailService.SendEmailAsync(email, "Xác thực tài khoản", $"Mã OTP của bạn là: {otp}");
         }
 

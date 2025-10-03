@@ -12,5 +12,7 @@
         public bool? IsPlacementTestDone { get; set; }
         public bool? IsGoalSet { get; set; }
         public bool? IsProfileCompleted { get; set; }
+
+        public string? Email { get; set; }
     }
 }
