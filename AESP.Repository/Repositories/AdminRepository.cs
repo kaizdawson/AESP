@@ -22,7 +22,7 @@ namespace AESP.Repository.Repositories
         {
             return await _context.Users
                 .Include(u => u.Role)
-                .Where(u => u.Role!.RoleName == roleName)
+                .Where(u => u.Role == roleName)
                 .ToListAsync();
         }
 
