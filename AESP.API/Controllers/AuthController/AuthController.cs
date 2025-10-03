@@ -59,7 +59,7 @@ namespace AESP.API.Controllers
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
-            return Ok(new { message = result.Message });
+            return Ok(new { message = result.Message, email = result.Email });
         }
 
 
