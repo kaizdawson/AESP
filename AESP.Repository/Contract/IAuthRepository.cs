@@ -6,7 +6,6 @@ namespace AESP.Repository.Contract
     {
         Task<User?> GetUserByPhoneAsync(string phoneNumber);
         Task AddUserAsync(User user);
-        Task<Role?> GetRoleByIdAsync(int roleId);
         Task<User?> GetUserByIdAsync(Guid id);
 
         Task MarkUserVerifiedAsync(string email);

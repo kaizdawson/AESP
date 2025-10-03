@@ -17,9 +17,8 @@ namespace AESP.Repository.Models
         public string FirebaseUid { get; set; } = string.Empty;
         public string Status { get; set; } = "Active";
         public string AvatarUrl { get; set; } = string.Empty;
-        public int RoleId { get; set; }
-        [ForeignKey(nameof(RoleId))]
-        public Role Role { get; set; } = null!;
+        public string Role { get; set; } = string.Empty;
+
         public virtual LearnerProfile LearnerProfile { get; set; }
         public virtual MentorProfile MentorProfile { get; set; }
         public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
