@@ -1,5 +1,4 @@
 ﻿using AESP.Common.DTOs;
-using AESP.Common.Enums;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Repository.Repositories;
@@ -83,7 +82,7 @@ namespace AESP.Service.Implementation
             await _userRepository.Insert(user); 
             await _unitOfWork.SaveChangeAsync();
 
-            if (dto.Role == UserRole.LEARNER)
+            if (dto.Role.ToUpper() == "LEARNER")
             {
                 var learnerProfile = new LearnerProfile
                 {
@@ -95,7 +94,7 @@ namespace AESP.Service.Implementation
                 await _unitOfWork.SaveChangeAsync();
             }
 
-            if (dto.Role == UserRole.MENTOR)
+            if (dto.Role.ToUpper() == "MENTOR")
             {
                 var mentorProfile = new MentorProfile
                 {
@@ -166,7 +165,7 @@ namespace AESP.Service.Implementation
             bool? isGoalSet = null;
             bool? isProfileCompleted = null;
 
-            if (user.Role == UserRole.LEARNER.ToString())
+            if (user.Role.ToUpper() == "LEARNER")
             {
                 var learnerProfile = await _learnerProfileRepository
                     .GetByExpression(lp => lp.UserId == user.UserId);
@@ -181,7 +180,7 @@ namespace AESP.Service.Implementation
                     isPlacementTestDone = assessment != null;
                 }
             }
-            else if (user.Role == UserRole.MENTOR.ToString())
+            else if (user.Role.ToUpper() == "MENTOR")
             {
                 var mentorProfile = await _mentorProfileRepository
                     .GetByExpression(mp => mp.UserId == user.UserId);
@@ -418,7 +417,7 @@ namespace AESP.Service.Implementation
                         PhoneNumber = "",
                         AvatarUrl = avatar,
                         PasswordHash = HashPassword(Guid.NewGuid().ToString()), // random password
-                        Role = UserRole.LEARNER.ToString(),
+                        Role = "LEARNER",
                         Status = "Active"
                     };
 
