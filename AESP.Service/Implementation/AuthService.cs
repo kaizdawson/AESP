@@ -212,9 +212,22 @@ namespace AESP.Service.Implementation
         {
             var storedToken = await _refreshTokenRepository.GetByExpression(r => r.Token == refreshToken);
 
-            if (storedToken == null || storedToken.Revoked || storedToken.ExpiredAt <= DateTime.UtcNow)
+            if (storedToken == null || storedToken.Revoked)
             {
-                return new LoginResult { Success = false, Message = "Refresh token không hợp lệ hoặc đã hết hạn." };
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = "Refresh token không hợp lệ."
+                };
+            }
+
+            if (storedToken.ExpiredAt <= DateTime.UtcNow)
+            {
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = "Refresh token đã hết hạn."
+                };
             }
 
             var user = await _userRepository.GetById(storedToken.UserId);
