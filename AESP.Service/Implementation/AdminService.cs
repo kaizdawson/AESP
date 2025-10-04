@@ -8,16 +8,13 @@ namespace AESP.Service.Implementation
     public class AdminService : IAdminService
     {
         private readonly IGenericRepository<User> _userRepository;
-        private readonly IGenericRepository<Role> _roleRepository;
         private readonly IUnitOfWork _unitOfWork;
 
         public AdminService(
             IGenericRepository<User> userRepository,
-            IGenericRepository<Role> roleRepository,
             IUnitOfWork unitOfWork)
         {
             _userRepository = userRepository;
-            _roleRepository = roleRepository;
             _unitOfWork = unitOfWork;
         }
 
