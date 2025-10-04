@@ -23,26 +23,16 @@ namespace AESP.API.Controllers
         {
             if (!ModelState.IsValid)
             {
-                var errors = new List<string>();
+                var firstError = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .FirstOrDefault();
 
-                foreach (var entry in ModelState)
-                {
-                    var fieldErrors = entry.Value.Errors.Select(e => e.ErrorMessage).ToList();
-                    if (fieldErrors.Any(e => e.Contains("không được để trống")))
-                    {
-                        errors.Add(fieldErrors.First(e => e.Contains("không được để trống")));
-                    }
-                    else
-                    {
-                        errors.AddRange(fieldErrors);
-                    }
-                }
-
-                return BadRequest(new { messages = errors });
+                return BadRequest(new { message = firstError });
             }
-
             return null;
         }
+
 
 
 
