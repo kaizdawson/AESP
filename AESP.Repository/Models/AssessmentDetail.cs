@@ -13,22 +13,18 @@ namespace AESP.Repository.Models
         [Key]
         public Guid AssessmentDetailId { get; set; }
 
-        public string Skill { get; set; } = string.Empty;
-        public double Score { get; set; }
-        public string AI_Feedback { get; set; } = string.Empty;
-        public string MentorFeedback { get; set; } = string.Empty;
-        public string Answer { get; set; } = string.Empty;
-
-
-
-
+        [ForeignKey("Assessment")]
         public Guid AssessmentId { get; set; }
-        [ForeignKey(nameof(AssessmentId))]
-        public Assessment Assessment { get; set; } = null!;
 
+        [ForeignKey("QuestionAssessment")]
+        public Guid QuestionAssessmentId { get; set; }
 
-        public Guid QuestionId { get; set; }
-        [ForeignKey(nameof(QuestionId))]
-        public Question Question { get; set; } = null!;
+        public string Type { get; set; }             // Loại câu hỏi (Word / Sentence / Pronunciation)
+        public double Score { get; set; }            // Điểm cho từng câu
+        public string AI_Feedback { get; set; }      // Phản hồi từ AI
+        public string AnswerAudio { get; set; }      // Link âm thanh câu trả lời của học viên
+
+        public virtual Assessment Assessment { get; set; }
+        public virtual QuestionAssessment QuestionAssessment { get; set; }
     }
 }

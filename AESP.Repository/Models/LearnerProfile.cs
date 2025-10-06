@@ -12,34 +12,21 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid LearnerProfileId { get; set; }
-        public string Level { get; set; } = string.Empty;
-        public string Goal { get; set; } = string.Empty;
-        public string Favorite { get; set; } = string.Empty;
-        public double PronunciationScore { get; set; }
-
-
-        public ICollection<ProgressAnalytics> ProgressAnalytics { get; set; } = new List<ProgressAnalytics>();
-
         public Guid UserId { get; set; }
-        [ForeignKey(nameof(UserId))]
-        public User User { get; set; } = null!;
+        public string Level { get; set; }
+        public double PronunciationScore { get; set; }
+        public int DailyMinutes { get; set; }
 
-        public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
-        public ICollection<StudentAnswer> StudentAnswers { get; set; } = new List<StudentAnswer>();
-        public ICollection<GroupSessionMember> GroupSessionMembers { get; set; } = new List<GroupSessionMember>();
-        public ICollection<Purchase> Purchases { get; set; } = new List<Purchase>();
-        public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
 
-        public ICollection<PracticeSession> PracticeSessions { get; set; } = new List<PracticeSession>();
-        public ICollection<Assessment> Assessments { get; set; } = new List<Assessment>();
-        public ICollection<LearnerAchievement> LearnerAchievements { get; set; } = new List<LearnerAchievement>();
-        public ICollection<Report> Reports { get; set; } = new List<Report>();
-        public ICollection<SendToLearner> SendToLearners { get; set; } = new List<SendToLearner>();
-        public ICollection<GoalSetting> GoalSettings { get; set; } = new List<GoalSetting>();
-        public ICollection<LearnerChallenge> LearnerChallenges { get; set; } = new List<LearnerChallenge>();
-        public ICollection<LearningPath> LearningPaths { get; set; } = new List<LearningPath>();
+        [ForeignKey("UserId")]
+        public virtual User User { get; set; }
 
-        public virtual Leaderboard Leaderboard { get; set; } = null!;
-
+        public virtual ICollection<Assessment> Assessments { get; set; }
+        public virtual ICollection<LearnerCourse> LearnerCourses { get; set; }
+        public virtual ICollection<LearnerAnswer> LearnerAnswers { get; set; }
+        public virtual ICollection<LearnerRecordCategory> LearnerRecordCategories { get; set; }
+        public virtual ICollection<Purchase> Purchases { get; set; }
+        public virtual ICollection<Subscription> Subscriptions { get; set; }
+        public virtual ICollection<ProgressAnalytics> ProgressAnalytics { get; set; }
     }
 }

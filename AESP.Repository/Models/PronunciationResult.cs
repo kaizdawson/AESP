@@ -11,14 +11,17 @@ namespace AESP.Repository.Models
     public class PronunciationResult
     {
         [Key]
-        public Guid PronunciationResultId { get; set; }
+        public Guid ResultId { get; set; }
+
+        [ForeignKey("Assessment")]
+        public Guid AssessmentId { get; set; }
+
         public string WordOrPhoneme { get; set; }
         public string ExpectedSound { get; set; }
         public string LearnerSound { get; set; }
         public DateTime Timestamp { get; set; }
         public double AccuracyScore { get; set; }
-        public Guid AssessmentId { get; set; }
-        [ForeignKey(nameof(AssessmentId))]
-        public Assessment Assessment { get; set; }
+
+        public virtual Assessment Assessment { get; set; }
     }
 }

@@ -20,10 +20,9 @@ namespace AESP.Repository.Models
         public string Role { get; set; } = string.Empty;
 
         public virtual LearnerProfile LearnerProfile { get; set; }
-        public virtual MentorProfile MentorProfile { get; set; }
-        public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
-        public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
-        public virtual ICollection<SystemPolicy> SystemPolicies { get; set; } = new List<SystemPolicy>();
-        public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+        public virtual ReviewerProfile ReviewerProfile { get; set; }
+        public virtual ICollection<Feedback> Feedbacks { get; set; }
+        public virtual ICollection<Notification> Notifications { get; set; }
+        public virtual ICollection<RefreshToken> RefreshTokens { get; set; }
     }
 }

@@ -11,15 +11,10 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid ServicePackageId { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public double Price { get; set; }
-        public int Duration { get; set; }
-        public bool WithMentor { get; set; }
-        public int NumberOfMentorMeeting { get; set; }
+        public string Name { get; set; }
 
-
-
-        public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
+        public virtual ICollection<Subscription> Subscriptions { get; set; }
+        public virtual ICollection<SubServicePackage> SubServicePackages { get; set; }
+        public virtual ICollection<Feedback> Feedbacks { get; set; }
     }
 }

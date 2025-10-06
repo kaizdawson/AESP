@@ -15,32 +15,34 @@ namespace AESP.Service.Implementation
     {
         private readonly IGenericRepository<User> _userRepository;
         private readonly IGenericRepository<LearnerProfile> _learnerProfileRepository;
-        private readonly IGenericRepository<MentorProfile> _mentorProfileRepository;
+        private readonly IGenericRepository<ReviewerProfile> _reviewerProfileRepository;
         private readonly IGenericRepository<Assessment> _assessmentRepository;
-        private readonly IGenericRepository<TeachingCertificate> _certificateRepository;
+        private readonly IGenericRepository<Certificate> _certificateRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly JwtService _jwtService;
         private readonly IEmailService _emailService;
         private readonly IMemoryCache _cache;
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly IGenericRepository<Wallet> _walletRepository;
 
         public AuthService(
             IGenericRepository<User> userRepository,
             IGenericRepository<LearnerProfile> learnerProfileRepository,
-            IGenericRepository<MentorProfile> mentorProfileRepository,
+            IGenericRepository<ReviewerProfile> reviewerProfileRepository,
             IGenericRepository<Assessment> assessmentRepository,
-            IGenericRepository<TeachingCertificate> certificateRepository,
+            IGenericRepository<Certificate> certificateRepository,
             IUnitOfWork unitOfWork,
             JwtService jwtService,
             IEmailService emailService,
             IMemoryCache cache,
             IConfiguration configuration,
+            IGenericRepository<Wallet> walletRepository,
             IRefreshTokenRepository refreshTokenRepository)
         {
             _userRepository = userRepository;
             _learnerProfileRepository = learnerProfileRepository;
-            _mentorProfileRepository = mentorProfileRepository;
+            _reviewerProfileRepository = reviewerProfileRepository;
             _assessmentRepository = assessmentRepository;
             _certificateRepository = certificateRepository;
             _unitOfWork = unitOfWork;
@@ -49,6 +51,7 @@ namespace AESP.Service.Implementation
             _cache = cache;
             _configuration = configuration;
             _refreshTokenRepository = refreshTokenRepository; 
+            _walletRepository = walletRepository;
         }
 
         public async Task<LoginResult> SignUpAsync(SignUpDto dto)
@@ -94,15 +97,27 @@ namespace AESP.Service.Implementation
                 await _unitOfWork.SaveChangeAsync();
             }
 
-            if (dto.Role.ToUpper() == "MENTOR")
+            if (dto.Role.ToUpper() == "REVIEWER")
             {
-                var mentorProfile = new MentorProfile
+                var wallet = new Wallet
                 {
-                    MentorProfileId = Guid.NewGuid(),
-                    UserId = user.UserId
+                    WalletId = Guid.NewGuid(),
+                    Amount = 0
+                };
+                await _walletRepository.Insert(wallet);
+                await _unitOfWork.SaveChangeAsync();
+                var reviewerProfile = new ReviewerProfile
+                {
+                    ReviewerProfileId = Guid.NewGuid(),
+                    UserId = user.UserId,
+                    Experience = "No experience yet",
+                    Levels = "General",
+                    Rating = 0,
+                    Status = "Draft",
+                    WalletId = wallet.WalletId
                 };
 
-                await _mentorProfileRepository.Insert(mentorProfile);
+                await _reviewerProfileRepository.Insert(reviewerProfile);
                 await _unitOfWork.SaveChangeAsync();
             }
 
@@ -162,7 +177,6 @@ namespace AESP.Service.Implementation
 
         
             bool? isPlacementTestDone = null;
-            bool? isGoalSet = null;
             bool? isProfileCompleted = null;
 
             if (user.Role.ToUpper() == "LEARNER")
@@ -172,25 +186,40 @@ namespace AESP.Service.Implementation
 
                 if (learnerProfile != null)
                 {
-                    isGoalSet = !string.IsNullOrEmpty(learnerProfile.Goal);
-
                     var assessment = await _assessmentRepository
                         .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
 
                     isPlacementTestDone = assessment != null;
                 }
             }
-            else if (user.Role.ToUpper() == "MENTOR")
+            else if (user.Role.ToUpper() == "REVIEWER")
             {
-                var mentorProfile = await _mentorProfileRepository
-                    .GetByExpression(mp => mp.UserId == user.UserId);
-
-                if (mentorProfile != null)
+                var reviewerProfile = await _reviewerProfileRepository.GetByExpression(rp => rp.UserId == user.UserId);
+                if (reviewerProfile != null)
                 {
-                    var certificate = await _certificateRepository
-                        .GetByExpression(c => c.MentorProfileId == mentorProfile.MentorProfileId);
+                    if (reviewerProfile.Status == "Draft")
+                        return new LoginResult
+                        {
+                            Success = true,
+                            Message = "Vui lòng hoàn thiện hồ sơ reviewer để gửi admin duyệt.",
+                            Role = user.Role
+                        };
 
-                    isProfileCompleted = certificate != null;
+                    if (reviewerProfile.Status == "Pending")
+                        return new LoginResult
+                        {
+                            Success = true,
+                            Message = "Hồ sơ reviewer đang chờ admin duyệt.",
+                            Role = user.Role
+                        };
+
+                    if (reviewerProfile.Status == "Rejected")
+                        return new LoginResult
+                        {
+                            Success = true,
+                            Message = "Hồ sơ reviewer bị từ chối. Vui lòng chỉnh sửa và gửi lại.",
+                            Role = user.Role
+                        };
                 }
             }
 
@@ -202,7 +231,6 @@ namespace AESP.Service.Implementation
                 RefreshToken = refreshToken,
                 Role = user.Role,
                 IsPlacementTestDone = isPlacementTestDone,
-                IsGoalSet = isGoalSet,
                 IsProfileCompleted = isProfileCompleted
             };
         }

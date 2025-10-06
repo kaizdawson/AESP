@@ -12,16 +12,23 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid PurchaseId { get; set; }
+
+        [ForeignKey("LearnerProfile")]
+        public Guid LearnerId { get; set; }
+
+        [ForeignKey("Subscription")]
+        public Guid SubscriptionId { get; set; }
+
+        [ForeignKey("ReviewFee")]
+        public Guid ReviewFeeId { get; set; }
+
         public string PaymentStatus { get; set; }
         public DateTime PurchaseDate { get; set; }
-        public double Amount { get; set; }
-        public string Method { get; set; }
+        public double PriceServicePackage { get; set; }
+        public double PriceReviewFee { get; set; }
 
-        public Guid LearnerProfileId { get; set; }
-        [ForeignKey(nameof(LearnerProfileId))]
-        public LearnerProfile LearnerProfile { get; set; }
-
-
-
+        public virtual LearnerProfile LearnerProfile { get; set; }
+        public virtual Subscription Subscription { get; set; }
+        public virtual ReviewFee ReviewFee { get; set; }
     }
 }

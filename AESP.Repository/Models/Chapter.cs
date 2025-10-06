@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,20 +12,17 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid ChapterId { get; set; }
-        public Guid TopicId { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public int Level { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public int NumberOfModule { get; set; }
 
+        [ForeignKey("Course")]
+        public Guid CourseId { get; set; }
 
+        [Required]
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public int NumberOfExercise { get; set; }
 
-
-        public Topic Topic { get; set; } = null!;
-        public ICollection<ChapterModule> ChapterModules { get; set; } = new List<ChapterModule>();
-        public ICollection<Question> Questions { get; set; } = new List<Question>();
-        public ICollection<LearningPathChapter> LearningPathChapters { get; set; } = new List<LearningPathChapter>();
-
+        public virtual Course Course { get; set; }
+        public virtual ICollection<Exercise> Exercises { get; set; }
     }
 }
