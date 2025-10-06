@@ -15,32 +15,34 @@ namespace AESP.Service.Implementation
     {
         private readonly IGenericRepository<User> _userRepository;
         private readonly IGenericRepository<LearnerProfile> _learnerProfileRepository;
-        private readonly IGenericRepository<MentorProfile> _mentorProfileRepository;
+        private readonly IGenericRepository<ReviewerProfile> _reviewerProfileRepository;
         private readonly IGenericRepository<Assessment> _assessmentRepository;
-        private readonly IGenericRepository<TeachingCertificate> _certificateRepository;
+        private readonly IGenericRepository<Certificate> _certificateRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly JwtService _jwtService;
         private readonly IEmailService _emailService;
         private readonly IMemoryCache _cache;
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly IGenericRepository<Wallet> _walletRepository;
 
         public AuthService(
             IGenericRepository<User> userRepository,
             IGenericRepository<LearnerProfile> learnerProfileRepository,
-            IGenericRepository<MentorProfile> mentorProfileRepository,
+            IGenericRepository<ReviewerProfile> reviewerProfileRepository,
             IGenericRepository<Assessment> assessmentRepository,
-            IGenericRepository<TeachingCertificate> certificateRepository,
+            IGenericRepository<Certificate> certificateRepository,
             IUnitOfWork unitOfWork,
             JwtService jwtService,
             IEmailService emailService,
             IMemoryCache cache,
             IConfiguration configuration,
+            IGenericRepository<Wallet> walletRepository,
             IRefreshTokenRepository refreshTokenRepository)
         {
             _userRepository = userRepository;
             _learnerProfileRepository = learnerProfileRepository;
-            _mentorProfileRepository = mentorProfileRepository;
+            _reviewerProfileRepository = reviewerProfileRepository;
             _assessmentRepository = assessmentRepository;
             _certificateRepository = certificateRepository;
             _unitOfWork = unitOfWork;
@@ -48,8 +50,12 @@ namespace AESP.Service.Implementation
             _emailService = emailService;
             _cache = cache;
             _configuration = configuration;
-            _refreshTokenRepository = refreshTokenRepository; 
+            _refreshTokenRepository = refreshTokenRepository;
+            _walletRepository = walletRepository;
         }
+
+
+
 
         public async Task<LoginResult> SignUpAsync(SignUpDto dto)
         {
@@ -60,11 +66,11 @@ namespace AESP.Service.Implementation
             var existingUserByEmail = await _userRepository.GetByExpression(u => u.Email == dto.Email);
             if (existingUserByEmail != null)
             {
-        
+
                 if (!string.IsNullOrEmpty(existingUserByEmail.FirebaseUid))
                     return new LoginResult { Success = false, Message = "Email này đã được đăng ký bằng Google. Vui lòng đăng nhập bằng Google." };
 
-         
+
                 return new LoginResult { Success = false, Message = "Email này đã tồn tại." };
             }
 
@@ -79,7 +85,7 @@ namespace AESP.Service.Implementation
                 Status = "InActive"
             };
 
-            await _userRepository.Insert(user); 
+            await _userRepository.Insert(user);
             await _unitOfWork.SaveChangeAsync();
 
             if (dto.Role.ToUpper() == "LEARNER")
@@ -94,17 +100,17 @@ namespace AESP.Service.Implementation
                 await _unitOfWork.SaveChangeAsync();
             }
 
-            if (dto.Role.ToUpper() == "MENTOR")
-            {
-                var mentorProfile = new MentorProfile
-                {
-                    MentorProfileId = Guid.NewGuid(),
-                    UserId = user.UserId
-                };
+  //          if (dto.Role.ToUpper() == "MENTOR")
+  //          {
+  ////              var mentorProfile = new MentorProfile
+  //              {
+  //                  MentorProfileId = Guid.NewGuid(),
+  //                  UserId = user.UserId
+  //              };
 
-                await _mentorProfileRepository.Insert(mentorProfile);
-                await _unitOfWork.SaveChangeAsync();
-            }
+  //              await _mentorProfileRepository.Insert(mentorProfile);
+  //              await _unitOfWork.SaveChangeAsync();
+  //          }
 
             var otp = OtpGenerator.GenerateOtp();
             _cache.Set(user.Email, otp, TimeSpan.FromMinutes(2));
@@ -150,7 +156,7 @@ namespace AESP.Service.Implementation
                 UserId = user.UserId,
                 Token = refreshToken,
                 CreatedAt = DateTime.UtcNow,
-                ExpiredAt = DateTime.UtcNow.AddMinutes(2), 
+                ExpiredAt = DateTime.UtcNow.AddMinutes(2),
                 Revoked = false,
                 IpAddress = ipAddress ?? "unknown",
                 DeviceInfo = deviceInfo ?? "unknown"
@@ -160,39 +166,39 @@ namespace AESP.Service.Implementation
             await _refreshTokenRepository.Insert(refreshTokenEntity);
             await _unitOfWork.SaveChangeAsync();
 
-        
+
             bool? isPlacementTestDone = null;
             bool? isGoalSet = null;
             bool? isProfileCompleted = null;
 
-            if (user.Role.ToUpper() == "LEARNER")
-            {
-                var learnerProfile = await _learnerProfileRepository
-                    .GetByExpression(lp => lp.UserId == user.UserId);
+            //if (user.Role.ToUpper() == "LEARNER")
+            //{
+            //    var learnerProfile = await _learnerProfileRepository
+            //        .GetByExpression(lp => lp.UserId == user.UserId);
 
-                if (learnerProfile != null)
-                {
-                    isGoalSet = !string.IsNullOrEmpty(learnerProfile.Goal);
+            //    if (learnerProfile != null)
+            //    {
+            //        isGoalSet = !string.IsNullOrEmpty(learnerProfile.Goal);
 
-                    var assessment = await _assessmentRepository
-                        .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+            //        var assessment = await _assessmentRepository
+            //            .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
 
-                    isPlacementTestDone = assessment != null;
-                }
-            }
-            else if (user.Role.ToUpper() == "MENTOR")
-            {
-                var mentorProfile = await _mentorProfileRepository
-                    .GetByExpression(mp => mp.UserId == user.UserId);
+            //        isPlacementTestDone = assessment != null;
+            //    }
+            //}
+            //else if (user.Role.ToUpper() == "MENTOR")
+            //{
+            //    var mentorProfile = await _mentorProfileRepository
+            //        .GetByExpression(mp => mp.UserId == user.UserId);
 
-                if (mentorProfile != null)
-                {
-                    var certificate = await _certificateRepository
-                        .GetByExpression(c => c.MentorProfileId == mentorProfile.MentorProfileId);
+            //    if (mentorProfile != null)
+            //    {
+            //        var certificate = await _certificateRepository
+            //            .GetByExpression(c => c.MentorProfileId == mentorProfile.MentorProfileId);
 
-                    isProfileCompleted = certificate != null;
-                }
-            }
+            //        isProfileCompleted = certificate != null;
+            //    }
+            //}
 
             return new LoginResult
             {
@@ -234,11 +240,11 @@ namespace AESP.Service.Implementation
             if (user == null)
                 return new LoginResult { Success = false, Message = "Người dùng không tồn tại." };
 
-           
+
             storedToken.Revoked = true;
             await _refreshTokenRepository.Update(storedToken);
 
-        
+
             var newAccessToken = _jwtService.GenerateAccessToken(user);
             var newRefreshToken = GenerateRefreshToken();
 
@@ -398,11 +404,11 @@ namespace AESP.Service.Implementation
 
                 User? user = null;
 
-               
+
                 var usersByUid = await _userRepository.GetAllDataByExpression(u => u.FirebaseUid == firebaseUid, 0, 0, null, true);
                 user = usersByUid.Items.FirstOrDefault();
 
-             
+
                 if (user == null && !string.IsNullOrEmpty(email))
                 {
                     var usersByEmail = await _userRepository.GetAllDataByExpression(u => u.Email == email, 0, 0, null, true);
@@ -418,7 +424,7 @@ namespace AESP.Service.Implementation
                     }
                 }
 
-                
+
                 if (user == null)
                 {
                     user = new User
@@ -478,7 +484,7 @@ namespace AESP.Service.Implementation
                     }
                 }
 
-                
+
                 var accessToken = _jwtService.GenerateAccessToken(user);
                 var refreshToken = GenerateRefreshToken();
 
@@ -525,6 +531,4 @@ namespace AESP.Service.Implementation
             return string.Concat(Enumerable.Range(0, length).Select(_ => random.Next(0, 10).ToString()));
         }
     }
-
-
 }

@@ -12,23 +12,20 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid LearningPathChapterId { get; set; }
+
+        [ForeignKey("LearningPathCourse")]
+        public Guid LearningPathCourseId { get; set; }
+
         public string Status { get; set; }
-        public int OrderIndex { get; set; }
-        public string Progress { get; set; }
+        public double Progress { get; set; }
         public int NumberOfModule { get; set; }
+        public int OrderIndex { get; set; }
+        public Guid ChapterId { get; set; }
 
-        public Guid PathId { get; set; }
+        [ForeignKey("ChapterId")]
+        public virtual Chapter Chapter { get; set; }
+        public virtual LearningPathCourse LearningPathCourse { get; set; }
 
-        // FK -> LearningPathTopic
-        public Guid LearningPathTopicId { get; set; }
-        [ForeignKey(nameof(LearningPathTopicId))]
-        public LearningPathTopic LearningPathTopic { get; set; } = null!;
-
-        // FK -> Chapter
-        public Guid ChapterId { get; set; }   // 🔑 Thêm dòng này
-        [ForeignKey(nameof(ChapterId))]
-        public Chapter Chapter { get; set; } = null!;
-
-        public ICollection<LearningPathModule> LearningPathModules { get; set; } = new List<LearningPathModule>();
+        public virtual ICollection<LearningPathExercise> LearningPathExercises { get; set; }
     }
 }

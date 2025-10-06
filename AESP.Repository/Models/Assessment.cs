@@ -12,18 +12,19 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid AssessmentId { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public double Score { get; set; }
-        public string Type { get; set; } = string.Empty;
-        public string Feedback { get; set; } = string.Empty;
-        public double NumberOfQuestion { get; set; }
 
-
+        [ForeignKey("LearnerProfile")]
         public Guid LearnerProfileId { get; set; }
-        [ForeignKey(nameof(LearnerProfileId))]
-        public LearnerProfile LearnerProfile { get; set; } = null!;
-        public ICollection<AssessmentDetail> AssessmentDetails { get; set; } = new List<AssessmentDetail>();
-        public ICollection<PronunciationResult> PronunciationResults { get; set; } = new List<PronunciationResult>();
 
+        public double Score { get; set; }
+        public string Feedback { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string Type { get; set; }
+        public int NumberOfQuestion { get; set; }
+
+        public virtual LearnerProfile LearnerProfile { get; set; }
+
+        public virtual ICollection<PronunciationResult> PronunciationResults { get; set; }
+        public virtual ICollection<AssessmentDetail> AssessmentDetails { get; set; }
     }
 }

@@ -8,20 +8,19 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class Subscription
+    public class LearnerCourse
     {
         [Key]
-        public Guid SubscriptionId { get; set; }
+        public Guid LearnerCourseId { get; set; }
 
         [ForeignKey("LearnerProfile")]
-        public Guid LearnerProfileId { get; set; }
+        public Guid LearnerId { get; set; }
 
-        [ForeignKey("ServicePackage")]
-        public Guid ServicePackageId { get; set; }
+        public DateTime GeneratedDate { get; set; }
+        public string Status { get; set; }
+        public int NumberOfCourse { get; set; }
+        public double Progress { get; set; }
 
         public virtual LearnerProfile LearnerProfile { get; set; }
-        public virtual ServicePackage ServicePackage { get; set; }
-
-        public virtual Purchase Purchase { get; set; }
     }
 }

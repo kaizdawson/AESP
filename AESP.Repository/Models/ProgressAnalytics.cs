@@ -12,19 +12,17 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid ProgressAnalyticsId { get; set; }
+        public Guid LearnerProfileId { get; set; }
+
+        [ForeignKey("LearnerProfileId")]
         public DateTime DateRecorded { get; set; }
         public double SpeakingTime { get; set; }
         public int SessionsCompleted { get; set; }
         public double PronunciationScoreAvg { get; set; }
-        public double GrammarAccuracy { get; set; }
-        public double VocabularyUsage { get; set; }
         public double ConfidenceLevel { get; set; }
         public int StreakDays { get; set; }
         public string HeatmapData { get; set; }
 
-
-        public Guid LearnerProfileId { get; set; }
-        [ForeignKey(nameof(LearnerProfileId))]
-        public LearnerProfile LearnerProfile { get; set; }
+        public virtual LearnerProfile Learner { get; set; }
     }
 }
