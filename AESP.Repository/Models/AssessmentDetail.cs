@@ -12,14 +12,10 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid AssessmentDetailId { get; set; }
-
-        public string Skill { get; set; } = string.Empty;
         public double Score { get; set; }
+        public string Type { get; set; } = string.Empty;
         public string AI_Feedback { get; set; } = string.Empty;
-        public string MentorFeedback { get; set; } = string.Empty;
-        public string Answer { get; set; } = string.Empty;
-
-
+        public string AnswerAudio { get; set; } = string.Empty;
 
 
         public Guid AssessmentId { get; set; }
@@ -27,8 +23,8 @@ namespace AESP.Repository.Models
         public Assessment Assessment { get; set; } = null!;
 
 
-        public Guid QuestionId { get; set; }
-        [ForeignKey(nameof(QuestionId))]
-        public Question Question { get; set; } = null!;
+        public Guid QuestionAssessmentId { get; set; }
+        [ForeignKey(nameof(QuestionAssessmentId))]
+        public QuestionAssessment QuestionAssessment { get; set; } = null!;
     }
 }
