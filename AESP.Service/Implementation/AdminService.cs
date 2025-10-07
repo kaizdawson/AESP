@@ -80,5 +80,35 @@ namespace AESP.Service.Implementation
             Status = u.Status,
             Role = u.Role
         };
+
+        public async Task<(bool Success, string Message)> CreateManagerAsync(CreateManagerDto dto)
+        {
+            // Kiểm tra trùng email hoặc phone
+            var existingUser = await _userRepository.GetByExpression(u =>
+                u.Email == dto.Email || u.PhoneNumber == dto.PhoneNumber);
+
+            if (existingUser != null)
+                return (false, "Email hoặc số điện thoại này đã tồn tại trong hệ thống.");
+
+            // Hash mật khẩu (đơn giản hóa, có thể thay bằng bcrypt)
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            string hashedPassword = Convert.ToBase64String(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(dto.Password)));
+
+            var user = new User
+            {
+                UserId = Guid.NewGuid(),
+                FullName = dto.FullName,
+                Email = dto.Email,
+                PhoneNumber = dto.PhoneNumber,
+                PasswordHash = hashedPassword,
+                Role = "MANAGER",
+                Status = "Active"
+            };
+
+            await _userRepository.Insert(user);
+            await _unitOfWork.SaveChangeAsync();
+
+            return (true, "Tạo tài khoản Manager thành công.");
+        }
     }
 }
