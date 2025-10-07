@@ -1,4 +1,5 @@
-﻿using AESP.Service.Contract;
+﻿using AESP.Common.DTOs;
+using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -6,7 +7,7 @@ namespace AESP.API.Controllers.AdminController
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "ADMIN")]
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;
@@ -47,6 +48,15 @@ namespace AESP.API.Controllers.AdminController
             var mentors = await _adminService.GetMentorsAsync();
             return Ok(mentors);
         }
+        [HttpPost("create-manager")]
+        public async Task<IActionResult> CreateManager([FromBody] CreateManagerDto dto)
+        {
+            var result = await _adminService.CreateManagerAsync(dto);
 
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(new { message = result.Message });
+        }
     }
 }

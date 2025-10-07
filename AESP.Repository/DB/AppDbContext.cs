@@ -1,8 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
-using AESP.Repository.Models;
+﻿using AESP.Repository.Models;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection.Emit;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace AESP.Repository.DB
 {
@@ -66,6 +68,21 @@ namespace AESP.Repository.DB
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            // Hash password Admin
+            string password = "Admin@123";
+            using var sha = SHA256.Create();
+            string hash = Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(password)));
+
+            modelBuilder.Entity<User>().HasData(new User
+            {
+                UserId = Guid.Parse("11111111-1111-1111-1111-111111111111"), // cố định GUID để tránh lỗi
+                FullName = "Super Admin",
+                Email = "admin@aesp.com",
+                PhoneNumber = "0909000000",
+                PasswordHash = hash,
+                Role = "ADMIN",
+                Status = "Active"
+            });
 
             foreach (var fk in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
             {
