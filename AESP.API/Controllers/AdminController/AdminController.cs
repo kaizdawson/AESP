@@ -61,6 +61,15 @@ namespace AESP.API.Controllers.AdminController
                 return BadRequest(new { message = "Dữ liệu không hợp lệ", errors });
             }
 
+            // ⚡ Chặn cả trường hợp Swagger để "string"
+            if (string.IsNullOrWhiteSpace(dto.FullName) || dto.FullName == "string" ||
+                string.IsNullOrWhiteSpace(dto.Email) || dto.Email == "string" ||
+                string.IsNullOrWhiteSpace(dto.PhoneNumber) || dto.PhoneNumber == "string" ||
+                string.IsNullOrWhiteSpace(dto.Password) || dto.Password == "string")
+            {
+                return BadRequest(new { message = "Không được để trống hoặc để giá trị mặc định." });
+            }
+
             var result = await _adminService.CreateManagerAsync(dto);
 
             if (!result.Success)
