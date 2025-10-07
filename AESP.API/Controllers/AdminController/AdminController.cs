@@ -51,6 +51,16 @@ namespace AESP.API.Controllers.AdminController
         [HttpPost("create-manager")]
         public async Task<IActionResult> CreateManager([FromBody] CreateManagerDto dto)
         {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+
+                return BadRequest(new { message = "Dữ liệu không hợp lệ", errors });
+            }
+
             var result = await _adminService.CreateManagerAsync(dto);
 
             if (!result.Success)
