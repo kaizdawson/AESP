@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class Type
+    public class ReviewFee
     {
         [Key]
-        public Guid TypeId { get; set; }
-        public string Name { get; set; } = string.Empty;
+        public Guid ReviewFeeId { get; set; }
+        public double Price { get; set; }
+        public virtual ICollection<Purchase> Purchases { get; set; }
 
-        public ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
     }
 }
