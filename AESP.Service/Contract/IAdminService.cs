@@ -10,6 +10,6 @@ namespace AESP.Service.Contract
 
         Task<List<UserDto>> GetLearnersAsync();
         Task<List<UserDto>> GetMentorsAsync();
-
+        Task<(bool Success, string Message)> CreateManagerAsync(CreateManagerDto dto);
     }
 }
