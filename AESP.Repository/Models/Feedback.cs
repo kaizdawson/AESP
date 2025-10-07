@@ -12,20 +12,15 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid FeedbackId { get; set; }
-
-
+        public Guid UserId { get; set; }
         public string Content { get; set; } = string.Empty;
         public int Rating { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string Type { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public Guid TargetId { get; set; }
 
-        public Guid UserId { get; set; }
-
-        [ForeignKey(nameof(UserId))]
-        public User User { get; set; } = null!;
-
-        public Guid TypeId { get; set; }
-        [ForeignKey(nameof(TypeId))]
-        public Type Type { get; set; } = null!;
+        [ForeignKey("UserId")]
+        public virtual User User { get; set; }
     }
 }

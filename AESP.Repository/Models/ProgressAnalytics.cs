@@ -16,8 +16,7 @@ namespace AESP.Repository.Models
         public double SpeakingTime { get; set; }
         public int SessionsCompleted { get; set; }
         public double PronunciationScoreAvg { get; set; }
-        public double GrammarAccuracy { get; set; }
-        public double VocabularyUsage { get; set; }
+        
         public double ConfidenceLevel { get; set; }
         public int StreakDays { get; set; }
         public string HeatmapData { get; set; }

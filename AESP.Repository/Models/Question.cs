@@ -14,21 +14,21 @@ namespace AESP.Repository.Models
         public Guid QuestionId { get; set; }
         public string Text { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
-        public string AudioUrl { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
 
+        public string IPA { get; set; } = string.Empty;
+        public string PhonemeJson { get; set; } = string.Empty;
 
-        public Guid ModuleId { get; set; }
-        [ForeignKey(nameof(ModuleId))]
-        public ChapterModule ChapterModule { get; set; } = null!;
+        [ForeignKey("Exercise")]
+        public Guid ExerciseId { get; set; }
+        public virtual Exercise Exercise { get; set; }
 
 
-        public ICollection<AnswerOption> AnswerOptions { get; set; } = new List<AnswerOption>();
-        public ICollection<ImageOption> ImageOptions { get; set; } = new List<ImageOption>();
-        public ICollection<ChoiceOption> ChoiceOptions { get; set; } = new List<ChoiceOption>();
-        public ICollection<CorrectMatch> CorrectMatches { get; set; } = new List<CorrectMatch>();
-        public ICollection<StudentAnswer> StudentAnswers { get; set; } = new List<StudentAnswer>();
-        public ICollection<AssessmentDetail> AssessmentDetails { get; set; } = new List<AssessmentDetail>();
+        public virtual ICollection<QuestionMedia> QuestionMedias { get; set; }
+        public virtual ICollection<AssessmentDetail> AssessmentDetails { get; set; }
+        public virtual ICollection<LearnerAnswer> LearnerAnswers { get; set; }
+        public virtual ICollection<PhonemeResult> PhonemeResults { get; set; }
+        public virtual ICollection<PhonemeTemplate> PhonemeTemplates { get; set; }
 
     }
 }
