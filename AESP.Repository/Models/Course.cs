@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class Course
+    public class Course 
     {
         [Key]
         public Guid CourseId { get; set; }
