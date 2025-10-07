@@ -13,13 +13,17 @@ namespace AESP.Repository.Models
         public Guid ServicePackageId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string Level { get; set; } = string.Empty;
         public double Price { get; set; }
         public int Duration { get; set; }
-        public bool WithMentor { get; set; }
-        public int NumberOfMentorMeeting { get; set; }
+        public int NumberOfReview { get; set; }
 
 
 
         public ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
+        public virtual ICollection<SubServicePackage> SubServicePackages { get; set; }
+        
+
     }
 }

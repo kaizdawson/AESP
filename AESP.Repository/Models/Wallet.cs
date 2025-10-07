@@ -7,14 +7,12 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class Period
+    public class Wallet
     {
         [Key]
-        public Guid PeriodId { get; set; }
-        public string Name { get; set; }
+        public Guid WalletId { get; set; }
+        public double Amount { get; set; }
 
-
-
-        public ICollection<Report> Reports { get; set; }
+        public virtual ICollection<Transaction> Transactions { get; set; }
     }
 }
