@@ -132,5 +132,13 @@ namespace AESP.Repository.Implementation
             }
             return entities.ToList();
         }
+
+        public async Task<T> Delete(T entity)
+        {
+            _dbSet.Remove(entity);
+            await Task.CompletedTask;
+            return entity;
+        }
+
     }
 }
