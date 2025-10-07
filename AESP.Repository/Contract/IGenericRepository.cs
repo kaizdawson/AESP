@@ -29,5 +29,8 @@ namespace AESP.Repository.Contract
         Task<List<T>> UpdateRange(IEnumerable<T> entities);
 
         Task<T?> DeleteById(object id);
+
+        Task<T> Delete(T entity);
+
     }
 }
