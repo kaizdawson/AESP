@@ -80,10 +80,9 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IQuestionAssessmentService, QuestionAssessmentService>();
 
-<<<<<<< HEAD
-=======
+
 builder.Services.AddScoped<ICourseService, CourseService>();
->>>>>>> master
+
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
