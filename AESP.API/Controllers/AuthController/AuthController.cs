@@ -77,7 +77,8 @@ namespace AESP.API.Controllers
                 role = result.Role,
                 isPlacementTestDone = result.IsPlacementTestDone,
                 isGoalSet = result.IsGoalSet,
-                isProfileCompleted = result.IsProfileCompleted
+                isProfileCompleted = result.IsProfileCompleted,
+                 isReviewerActive = result.IsReviewerActive
             });
         }
 

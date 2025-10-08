@@ -139,6 +139,11 @@ namespace AESP.Repository.Implementation
             await Task.CompletedTask;
             return entity;
         }
+        public AppDbContext GetDbContext()
+        {
+            return _context;
 
+
+        }
     }
 }
