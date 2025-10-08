@@ -10,6 +10,9 @@ namespace AESP.Repository.Contract
     {
 
         public Task<int> SaveChangeAsync();
+        Task BeginTransactionAsync();
+        Task CommitAsync();
+        Task RollbackAsync();
 
     }
 }

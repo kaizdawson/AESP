@@ -99,18 +99,19 @@ namespace AESP.Service.Implementation
                 await _learnerProfileRepository.Insert(learnerProfile);
                 await _unitOfWork.SaveChangeAsync();
             }
+           
 
-  //          if (dto.Role.ToUpper() == "MENTOR")
-  //          {
-  ////              var mentorProfile = new MentorProfile
-  //              {
-  //                  MentorProfileId = Guid.NewGuid(),
-  //                  UserId = user.UserId
-  //              };
+            //          if (dto.Role.ToUpper() == "MENTOR")
+            //          {
+            ////              var mentorProfile = new MentorProfile
+            //              {
+            //                  MentorProfileId = Guid.NewGuid(),
+            //                  UserId = user.UserId
+            //              };
 
-  //              await _mentorProfileRepository.Insert(mentorProfile);
-  //              await _unitOfWork.SaveChangeAsync();
-  //          }
+            //              await _mentorProfileRepository.Insert(mentorProfile);
+            //              await _unitOfWork.SaveChangeAsync();
+            //          }
 
             var otp = OtpGenerator.GenerateOtp();
             _cache.Set(user.Email, otp, TimeSpan.FromMinutes(2));
@@ -200,6 +201,39 @@ namespace AESP.Service.Implementation
             //    }
             //}
 
+            bool isReviewerActive = false; // default false
+
+            if (user.Role.ToUpper() == "REVIEWER")
+            {
+                var reviewerProfile = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
+
+                if (reviewerProfile != null)
+                {
+                    isReviewerActive = reviewerProfile.Status?.ToUpper() == "ACTIVE";
+                }
+                else
+                {
+                    // tạo mới profile nếu chưa có
+                    var wallet = new Wallet
+                    {
+                        WalletId = Guid.NewGuid(),
+                        Amount = 0
+                    };
+                    await _walletRepository.Insert(wallet);
+                    await _unitOfWork.SaveChangeAsync();
+
+                    var newProfile = new ReviewerProfile
+                    {
+                        ReviewerProfileId = Guid.NewGuid(),
+                        UserId = user.UserId,
+                        WalletId = wallet.WalletId,
+                        Status = "Pending"
+                    };
+                    await _reviewerProfileRepository.Insert(newProfile);
+                    await _unitOfWork.SaveChangeAsync();
+                }
+            }
+
             return new LoginResult
             {
                 Success = true,
@@ -209,7 +243,8 @@ namespace AESP.Service.Implementation
                 Role = user.Role,
                 IsPlacementTestDone = isPlacementTestDone,
                 IsGoalSet = isGoalSet,
-                IsProfileCompleted = isProfileCompleted
+                IsProfileCompleted = isProfileCompleted,
+                IsReviewerActive = isReviewerActive
             };
         }
 
@@ -293,6 +328,29 @@ namespace AESP.Service.Implementation
                     user.Status = "Active";
                     await _userRepository.Update(user);
                     await _unitOfWork.SaveChangeAsync();
+                    //  Nếu là reviewer → tạo wallet + profile lúc này
+                    if (user.Role.ToUpper() == "REVIEWER")
+                    {
+                        // tạo ví
+                        var wallet = new Wallet
+                        {
+                            WalletId = Guid.NewGuid(),
+                            Amount = 0
+                        };
+                        await _walletRepository.Insert(wallet);
+                        await _unitOfWork.SaveChangeAsync();
+
+                        // tạo hồ sơ reviewer
+                        var reviewerProfile = new ReviewerProfile
+                        {
+                            ReviewerProfileId = Guid.NewGuid(),
+                            UserId = user.UserId,
+                            WalletId = wallet.WalletId,
+                            Status = "Draft" // chờ admin duyệt
+                        };
+                        await _reviewerProfileRepository.Insert(reviewerProfile);
+                        await _unitOfWork.SaveChangeAsync();
+                    }
                 }
                 return (true, "Xác thực thành công! Tài khoản đã được Active.");
             }

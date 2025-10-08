@@ -1,4 +1,5 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Repository.DB;
 using System.Linq.Expressions;
 
 namespace AESP.Repository.Contract
@@ -31,6 +32,6 @@ namespace AESP.Repository.Contract
         Task<T?> DeleteById(object id);
 
         Task<T> Delete(T entity);
-
+        AppDbContext GetDbContext();
     }
 }
