@@ -10,7 +10,7 @@ namespace AESP.Service.Contract
     public interface IReviewerProfileService
     {
         Task<ResponseDTO> GetByUserIdAsync(Guid userId);
-        Task<ResponseDTO> UpdateProfileAsync(Guid userId, UpdateReviewerProfileDTO request);
+        Task<ResponseDTO> UpdateProfileAsync(Guid userId, ReviewerProfileUpdateDto request);
 
     }
 }
