@@ -43,7 +43,7 @@ namespace AESP.Service.Implementation
                 issuer: _config["JWT:ValidIssuer"],
                 audience: _config["JWT:ValidAudience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(1), // 3 tiếng chắc đủ rồi
+                expires: DateTime.UtcNow.AddMinutes(15), // 3 tiếng chắc đủ rồi
                 signingCredentials: creds
             );
 
