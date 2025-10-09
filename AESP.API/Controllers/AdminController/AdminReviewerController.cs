@@ -26,18 +26,18 @@ namespace AESP.API.Controllers.AdminController
         }
 
         //  Duyệt reviewer
-        [HttpPut("{reviewerProfileId}/approve")]
-        public async Task<IActionResult> ApproveReviewer(Guid reviewerProfileId)
+        [HttpPut("approve/{certificateId}")]
+        public async Task<IActionResult> ApproveReviewer(Guid certificateId)
         {
-            var result = await _adminReviewerService.ApproveReviewerAsync(reviewerProfileId);
+            var result = await _adminReviewerService.ApproveReviewerByCertificateAsync(certificateId);
             return Ok(result);
         }
 
         //  Từ chối reviewer
-        [HttpPut("{reviewerProfileId}/reject")]
-        public async Task<IActionResult> RejectReviewer(Guid reviewerProfileId)
+        [HttpPut("reject/{certificateId}")]
+        public async Task<IActionResult> RejectReviewer(Guid certificateId)
         {
-            var result = await _adminReviewerService.RejectReviewerAsync(reviewerProfileId);
+            var result = await _adminReviewerService.RejectReviewerByCertificateAsync(certificateId);
             return Ok(result);
         }
     }
