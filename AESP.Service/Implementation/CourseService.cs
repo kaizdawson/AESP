@@ -21,8 +21,7 @@ namespace AESP.Service.Implementation
             _unitOfWork = unitOfWork;
         }
 
-        // ✅ GET ALL
-        public async Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize, string? level = null, string? keyword = null)
+        public async Task<ResponseDTO> GetAllCourseAsync(int pageNumber, int pageSize, string? level = null, string? keyword = null)
         {
             ResponseDTO dto = new ResponseDTO();
             try
@@ -40,7 +39,6 @@ namespace AESP.Service.Implementation
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy danh sách khóa học thành công.";
-
                 dto.Data = result;
             }
             catch (Exception ex)
@@ -53,8 +51,7 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        // ✅ GET BY ID
-        public async Task<ResponseDTO> GetByIdAsync(Guid id)
+        public async Task<ResponseDTO> GetByCourseIdAsync(Guid id)
         {
             ResponseDTO dto = new ResponseDTO();
             try
@@ -83,20 +80,70 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        // ✅ CREATE
-        public async Task<ResponseDTO> CreateAsync(CreateCourseDTO request)
+
+        public async Task<ResponseDTO> CreateCourseAsync(CreateCourseDTO request)
         {
             ResponseDTO dto = new ResponseDTO();
             try
             {
+                if (request == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Dữ liệu đầu vào không được để trống.";
+                    return dto;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Title))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Tên khóa học không được để trống.";
+                    return dto;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Type))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Loại khóa học không được để trống.";
+                    return dto;
+                }
+
+                // ✅ Bỏ kiểm tra string level vì giờ là enum
+                if (!Enum.IsDefined(typeof(CourseLevel), request.Level))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Cấp độ (Level) không hợp lệ. Giá trị hợp lệ: A1, A2, B1, B2, C1, C2.";
+                    return dto;
+                }
+
+                if (request.NumberOfChapter <= 0)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Số chương phải lớn hơn 0.";
+                    return dto;
+                }
+
+                if (request.OrderIndex < 0)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Thứ tự (OrderIndex) không được âm.";
+                    return dto;
+                }
+
                 var newCourse = new Course
                 {
                     CourseId = Guid.NewGuid(),
-                    Title = request.Title,
-                    Type = request.Type,
+                    Title = request.Title.Trim(),
+                    Type = request.Type.Trim(),
                     NumberOfChapter = request.NumberOfChapter,
                     OrderIndex = request.OrderIndex,
-                    Level = request.Level
+                    // ✅ Lưu enum dạng string để giữ tương thích DB
+                    Level = request.Level.ToString()
                 };
 
                 await _courseRepository.Insert(newCourse);
@@ -117,8 +164,7 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        // ✅ UPDATE
-        public async Task<ResponseDTO> UpdateAsync(Guid id, UpdateCourseDTO request)
+        public async Task<ResponseDTO> UpdateCourseAsync(Guid id, UpdateCourseDTO request)
         {
             ResponseDTO dto = new ResponseDTO();
             try
@@ -132,11 +178,61 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                course.Title = request.Title ?? course.Title;
-                course.Type = request.Type ?? course.Type;
+                if (request == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Dữ liệu đầu vào không được để trống.";
+                    return dto;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Title))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Tên khóa học không được để trống.";
+                    return dto;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Type))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Loại khóa học không được để trống.";
+                    return dto;
+                }
+
+                if (request.Level == null || !Enum.IsDefined(typeof(CourseLevel), request.Level))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Cấp độ (Level) không hợp lệ. Giá trị hợp lệ: A1, A2, B1, B2, C1, C2.";
+                    return dto;
+                }
+
+
+                if (request.NumberOfChapter.HasValue && request.NumberOfChapter <= 0)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Số chương phải lớn hơn 0.";
+                    return dto;
+                }
+
+                if (request.OrderIndex.HasValue && request.OrderIndex < 0)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Thứ tự (OrderIndex) không được âm.";
+                    return dto;
+                }
+
+                // Cập nhật hợp lệ
+                course.Title = request.Title.Trim();
+                course.Type = request.Type.Trim(); 
+                course.Level = request.Level.ToString();
                 course.NumberOfChapter = request.NumberOfChapter ?? course.NumberOfChapter;
                 course.OrderIndex = request.OrderIndex ?? course.OrderIndex;
-                course.Level = request.Level ?? course.Level;
 
                 await _courseRepository.Update(course);
                 await _unitOfWork.SaveChangeAsync();
@@ -156,8 +252,7 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        // ✅ DELETE
-        public async Task<ResponseDTO> DeleteAsync(Guid id)
+        public async Task<ResponseDTO> DeleteCourseAsync(Guid id)
         {
             ResponseDTO dto = new ResponseDTO();
             try

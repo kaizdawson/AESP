@@ -4,9 +4,6 @@ using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace AESP.Service.Implementation
@@ -24,10 +21,9 @@ namespace AESP.Service.Implementation
             _unitOfWork = unitOfWork;
         }
 
-        // ✅ LẤY TẤT CẢ (Phân trang + lọc)
-        public async Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize, string? type = null, string? keyword = null)
+        public async Task<ResponseDTO> GetAllQuestionAssessmentAsync(int pageNumber, int pageSize, string? type = null, string? keyword = null)
         {
-            ResponseDTO dto = new();
+            ResponseDTO dto = new ResponseDTO();
             try
             {
                 var result = await _questionRepo.GetAllDataByExpression(
@@ -49,16 +45,15 @@ namespace AESP.Service.Implementation
             {
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi lấy danh sách câu hỏi: " + ex.Message;
+                dto.Message = "Đã xảy ra lỗi khi lấy danh sách câu hỏi: " + ex.Message;
             }
 
             return dto;
         }
 
-        // ✅ LẤY THEO ID
-        public async Task<ResponseDTO> GetByIdAsync(Guid id)
+        public async Task<ResponseDTO> GetByQuestionAssessmentIdAsync(Guid id)
         {
-            ResponseDTO dto = new();
+            ResponseDTO dto = new ResponseDTO();
             try
             {
                 var question = await _questionRepo.GetById(id);
@@ -66,44 +61,59 @@ namespace AESP.Service.Implementation
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.AUTH_NOT_FOUND;
-                    dto.Message = "Không tìm thấy câu hỏi.";
+                    dto.Message = "Không tìm thấy câu hỏi đánh giá.";
                     return dto;
                 }
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy chi tiết câu hỏi thành công.";
+                dto.Message = "Lấy chi tiết câu hỏi đánh giá thành công.";
                 dto.Data = question;
             }
             catch (Exception ex)
             {
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi truy vấn câu hỏi: " + ex.Message;
+                dto.Message = "Lỗi khi lấy chi tiết câu hỏi: " + ex.Message;
             }
 
             return dto;
         }
 
-        // ✅ TẠO MỚI
-        public async Task<ResponseDTO> CreateAsync(CreateQuestionAssessmentDTO dtoRequest)
+        public async Task<ResponseDTO> CreateQuestionAssessmentAsync(CreateQuestionAssessmentDTO request)
         {
-            ResponseDTO dto = new();
+            ResponseDTO dto = new ResponseDTO();
             try
             {
-                if (string.IsNullOrWhiteSpace(dtoRequest.Type) || string.IsNullOrWhiteSpace(dtoRequest.Content))
+                if (request == null)
                 {
                     dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.EXCEPTION;
-                    dto.Message = "Trường 'Type' và 'Content' không được để trống.";
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Dữ liệu đầu vào không được để trống.";
+                    return dto;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Type))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Loại câu hỏi (Type) không được để trống.";
+                    return dto;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Content))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Nội dung câu hỏi (Content) không được để trống.";
                     return dto;
                 }
 
                 var newQuestion = new QuestionAssessment
                 {
                     QuestionAssessmentId = Guid.NewGuid(),
-                    Type = dtoRequest.Type,
-                    Content = dtoRequest.Content
+                    Type = request.Type.Trim(),
+                    Content = request.Content.Trim()
                 };
 
                 await _questionRepo.Insert(newQuestion);
@@ -111,23 +121,22 @@ namespace AESP.Service.Implementation
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.INSERT_SUCESSFULLY;
-                dto.Message = "Tạo câu hỏi đánh giá thành công.";
+                dto.Message = "Tạo câu hỏi đánh giá mới thành công.";
                 dto.Data = newQuestion;
             }
             catch (Exception ex)
             {
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi tạo câu hỏi: " + ex.Message;
+                dto.Message = "Không thể tạo câu hỏi mới: " + (ex.InnerException?.Message ?? ex.Message);
             }
 
             return dto;
         }
 
-        // ✅ CẬP NHẬT
-        public async Task<ResponseDTO> UpdateAsync(Guid id, UpdateQuestionAssessmentDTO dtoRequest)
+        public async Task<ResponseDTO> UpdateQuestionAssessmentAsync(Guid id, UpdateQuestionAssessmentDTO request)
         {
-            ResponseDTO dto = new();
+            ResponseDTO dto = new ResponseDTO();
             try
             {
                 var question = await _questionRepo.GetById(id);
@@ -135,12 +144,36 @@ namespace AESP.Service.Implementation
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.AUTH_NOT_FOUND;
-                    dto.Message = "Không tìm thấy câu hỏi để cập nhật.";
+                    dto.Message = "Không tìm thấy câu hỏi cần cập nhật.";
                     return dto;
                 }
 
-                question.Type = dtoRequest.Type ?? question.Type;
-                question.Content = dtoRequest.Content ?? question.Content;
+                if (request == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Dữ liệu đầu vào không được để trống.";
+                    return dto;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Type))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Loại câu hỏi (Type) không được để trống.";
+                    return dto;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Content))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Nội dung câu hỏi (Content) không được để trống.";
+                    return dto;
+                }
+
+                question.Type = request.Type.Trim();
+                question.Content = request.Content.Trim();
 
                 await _questionRepo.Update(question);
                 await _unitOfWork.SaveChangeAsync();
@@ -154,16 +187,15 @@ namespace AESP.Service.Implementation
             {
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi cập nhật câu hỏi: " + ex.Message;
+                dto.Message = "Không thể cập nhật câu hỏi: " + (ex.InnerException?.Message ?? ex.Message);
             }
 
             return dto;
         }
 
-        // ✅ XÓA (chưa liên kết)
-        public async Task<ResponseDTO> DeleteAsync(Guid id)
+        public async Task<ResponseDTO> DeleteQuestionAssessmentAsync(Guid id)
         {
-            ResponseDTO dto = new();
+            ResponseDTO dto = new ResponseDTO();
             try
             {
                 var question = await _questionRepo.GetById(id);
@@ -186,7 +218,7 @@ namespace AESP.Service.Implementation
             {
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi xóa câu hỏi: " + ex.Message;
+                dto.Message = "Không thể xóa câu hỏi: " + (ex.InnerException?.Message ?? ex.Message);
             }
 
             return dto;
