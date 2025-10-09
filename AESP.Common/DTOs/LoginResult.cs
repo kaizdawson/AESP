@@ -14,5 +14,6 @@
         public bool? IsProfileCompleted { get; set; }
 
         public string? Email { get; set; }
+        public bool IsReviewerActive { get; set; }
     }
 }
