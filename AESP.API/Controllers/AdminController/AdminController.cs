@@ -53,22 +53,27 @@ namespace AESP.API.Controllers.AdminController
         {
             if (!ModelState.IsValid)
             {
-                var errors = ModelState.Values
+                // Lấy lỗi đầu tiên thay vì tất cả
+                var firstError = ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage)
-                    .ToList();
+                    .FirstOrDefault();
 
-                return BadRequest(new { message = "Dữ liệu không hợp lệ", errors });
+                return BadRequest(new { message = firstError ?? "Dữ liệu không hợp lệ." });
             }
 
             // ⚡ Chặn cả trường hợp Swagger để "string"
-            if (string.IsNullOrWhiteSpace(dto.FullName) || dto.FullName == "string" ||
-                string.IsNullOrWhiteSpace(dto.Email) || dto.Email == "string" ||
-                string.IsNullOrWhiteSpace(dto.PhoneNumber) || dto.PhoneNumber == "string" ||
-                string.IsNullOrWhiteSpace(dto.Password) || dto.Password == "string")
-            {
-                return BadRequest(new { message = "Không được để trống hoặc để giá trị mặc định." });
-            }
+            if (string.IsNullOrWhiteSpace(dto.FullName) || dto.FullName == "string")
+                return BadRequest(new { message = "Họ và tên không được để trống hoặc để giá trị mặc định." });
+
+            if (string.IsNullOrWhiteSpace(dto.Email) || dto.Email == "string")
+                return BadRequest(new { message = "Email không được để trống hoặc để giá trị mặc định." });
+
+            if (string.IsNullOrWhiteSpace(dto.PhoneNumber) || dto.PhoneNumber == "string")
+                return BadRequest(new { message = "Số điện thoại không được để trống hoặc để giá trị mặc định." });
+
+            if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password == "string")
+                return BadRequest(new { message = "Mật khẩu không được để trống hoặc để giá trị mặc định." });
 
             var result = await _adminService.CreateManagerAsync(dto);
 

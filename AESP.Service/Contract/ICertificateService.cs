@@ -10,7 +10,7 @@ namespace AESP.Service.Contract
 {
     public interface ICertificateService
     {
-        Task<ResponseDTO> UploadCertificateAsync(Guid reviewerProfileId, IFormFile file);
+        Task<ResponseDTO> UploadCertificateAsync(Guid reviewerProfileId, IFormFile file, string certificateName);
         Task<ResponseDTO> GetByReviewerProfileIdAsync(Guid reviewerProfileId);
         Task<ResponseDTO> DeleteAsync(Guid certificateId);
 
