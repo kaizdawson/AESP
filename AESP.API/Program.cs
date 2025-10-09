@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Repository.Contract;
 using AESP.Repository.DB;
 using AESP.Repository.Implementation;
@@ -79,10 +80,28 @@ builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepositor
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 builder.Services.AddScoped<IQuestionAssessmentService, QuestionAssessmentService>();
-
-
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+builder.Services.AddScoped<ICertificateService, CertificateService>();
+builder.Services.AddScoped<IAdminReviewerService, AdminReviewerService>();
+builder.Services.AddScoped<IReviewerProfileService, ReviewerProfileService>();  
 builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
+var cloudinaryConfig = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
+if (cloudinaryConfig == null)
+    throw new Exception("❌ CloudinarySettings is missing in appsettings.json.");
+
+Account account = new Account(
+    cloudinaryConfig.CloudName,
+    cloudinaryConfig.ApiKey,
+    cloudinaryConfig.ApiSecret
+);
+
+Cloudinary cloudinary = new Cloudinary(account);
+cloudinary.Api.Secure = true;
+
+// Đăng ký đối tượng Cloudinary làm Singleton
+builder.Services.AddSingleton(cloudinary);
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -120,7 +139,10 @@ builder.Services.AddSwaggerGen(c =>
             new string[] {}
         }
     });
+
+    c.OperationFilter<FileUploadOperationFilter>();
 });
+
 
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
@@ -131,7 +153,8 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+       
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
 
 
