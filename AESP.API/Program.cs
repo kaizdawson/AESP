@@ -88,6 +88,8 @@ builder.Services.AddScoped<IReviewerProfileService, ReviewerProfileService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 builder.Services.AddScoped<IChapterService, ChapterService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+builder.Services.AddScoped<IServicePackageService, ServicePackageService>();
 
 
 var cloudinaryConfig = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
