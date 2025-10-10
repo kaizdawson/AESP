@@ -53,7 +53,7 @@ namespace AESP.Service.Implementation
                     profile.Experience,
                     profile.Rating,
                     profile.Status,
-                    profile.Levels,
+                    
                     Certificates = profile.Certificates?.Select(c => new
                     {
                         c.CertificateId,
@@ -72,15 +72,16 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> UpdateProfileAsync(Guid userId, UpdateReviewerProfileDTO request)
+        public async Task<ResponseDTO> UpdateProfileAsync(Guid userId, ReviewerProfileUpdateDto request)
         {
             ResponseDTO dto = new ResponseDTO();
+
             try
             {
-                // ✅ 1. Kiểm tra hồ sơ có tồn tại
                 var profile = await _reviewerProfileRepository.GetFirstByExpression(
                     x => x.UserId == userId,
-                    x => x.Certificates
+                    x => x.Certificates,
+                    x => x.User
                 );
 
                 if (profile == null)
@@ -91,16 +92,33 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ 2. Kiểm tra trạng thái hồ sơ (chỉ cho phép cập nhật khi Pending hoặc Rejected)
-                if (profile.Status == "Active")
+                // ✅ Chặn update khi vẫn là Draft (chưa nộp chứng chỉ)
+                if (profile.Status == "Draft")
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.INVALID_ACTION;
-                    dto.Message = "Hồ sơ Reviewer đã được duyệt, không thể chỉnh sửa.";
+                    dto.Message = "Vui lòng nộp chứng chỉ trước khi cập nhật hồ sơ.";
                     return dto;
                 }
 
-                // ✅ 3. Validate nội dung
+                // ✅ Validate input
+                if (string.IsNullOrWhiteSpace(request.FullName) || request.FullName.Length < 3)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "Họ và tên phải có ít nhất 3 ký tự.";
+                    return dto;
+                }
+
+                var phone = request.PhoneNumber?.Trim();
+                if (string.IsNullOrEmpty(phone) || !System.Text.RegularExpressions.Regex.IsMatch(phone, @"^0\d{9}$"))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "Số điện thoại không hợp lệ. Phải có 10 chữ số và bắt đầu bằng 0.";
+                    return dto;
+                }
+
                 if (string.IsNullOrWhiteSpace(request.Experience) || request.Experience.Length < 10)
                 {
                     dto.IsSucess = false;
@@ -109,34 +127,26 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                var validLevels = new[] { "A1", "A2", "B1", "B2", "C1", "C2" };
-                if (!validLevels.Contains(request.Levels))
-                {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
-                    dto.Message = "Trình độ không hợp lệ. Vui lòng chọn từ A1 đến C2.";
-                    return dto;
-                }
-
-                // ✅ 4. Cập nhật thông tin
+                // ✅ Cập nhật dữ liệu
                 profile.Experience = request.Experience.Trim();
-                profile.Levels = request.Levels.Trim().ToUpper();
-                profile.Status = "Pending"; // reset để admin duyệt lại
+                profile.User.FullName = request.FullName.Trim();
+                profile.User.PhoneNumber = request.PhoneNumber.Trim();
 
+                // Không đổi status ở đây nữa
                 await _reviewerProfileRepository.Update(profile);
                 await _unitOfWork.SaveChangeAsync();
 
-                // ✅ 5. Trả về kết quả
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                dto.Message = "Cập nhật hồ sơ Reviewer thành công. Vui lòng chờ Admin duyệt.";
+                dto.Message = "Cập nhật hồ sơ Reviewer thành công.";
                 dto.Data = new
                 {
                     profile.ReviewerProfileId,
                     profile.Status,
                     profile.Experience,
-                    profile.Levels,
-                    Certificates = profile.Certificates.Select(c => new
+                    FullName = profile.User.FullName,
+                    PhoneNumber = profile.User.PhoneNumber,
+                    Certificates = profile.Certificates?.Select(c => new
                     {
                         c.CertificateId,
                         c.Name,
@@ -147,7 +157,6 @@ namespace AESP.Service.Implementation
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackAsync();
-
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
                 dto.Message = "Lỗi khi cập nhật hồ sơ Reviewer: " + ex.Message;
