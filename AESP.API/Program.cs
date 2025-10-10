@@ -19,6 +19,7 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -86,6 +87,8 @@ builder.Services.AddScoped<IAdminReviewerService, AdminReviewerService>();
 builder.Services.AddScoped<IReviewerProfileService, ReviewerProfileService>();  
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+builder.Services.AddScoped<IChapterService, ChapterService>();
+
 
 var cloudinaryConfig = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
 if (cloudinaryConfig == null)
