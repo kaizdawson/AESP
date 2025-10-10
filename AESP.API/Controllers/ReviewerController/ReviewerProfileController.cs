@@ -28,10 +28,23 @@ namespace AESP.API.Controllers.ReviewerController
 
         // ✅ UPDATE PROFILE
         [HttpPut("{userId}")]
-        public async Task<IActionResult> UpdateReviewerProfile(Guid userId, [FromBody] UpdateReviewerProfileDTO dto)
+        public async Task<IActionResult> UpdateReviewerProfile(Guid userId, [FromBody] ReviewerProfileUpdateDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(new { success = false, message = "Dữ liệu không hợp lệ.", errors = ModelState });
+            {
+                // ⚡ Lấy lỗi đầu tiên theo thứ tự property trong DTO
+                var orderedFields = new[] { "Experience", "FullName", "PhoneNumber" };
+
+                var firstError = ModelState
+                    .Where(ms => ms.Value.Errors.Any())
+                    .OrderBy(ms => Array.IndexOf(orderedFields, ms.Key.Split('.').Last()))
+                    .SelectMany(ms => ms.Value.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .FirstOrDefault();
+
+                // ✅ Trả message duy nhất (ngắn gọn, đúng lỗi đầu tiên)
+                return BadRequest(new { message = firstError });
+            }
 
             var result = await _reviewerProfileService.UpdateProfileAsync(userId, dto);
             return Ok(result);

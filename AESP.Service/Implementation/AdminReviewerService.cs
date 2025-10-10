@@ -17,67 +17,69 @@ namespace AESP.Service.Implementation
     {
         private readonly IGenericRepository<ReviewerProfile> _reviewerProfileRepository;
         private readonly IGenericRepository<User> _userRepository;
+        private readonly IGenericRepository<Certificate> _certificateRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IEmailService _emailService;
 
-        public AdminReviewerService(IGenericRepository<ReviewerProfile> reviewerProfileRepository, IGenericRepository<User> userRepository, IUnitOfWork unitOfWork)
+        public AdminReviewerService(IGenericRepository<ReviewerProfile> reviewerProfileRepository, IGenericRepository<User> userRepository, IGenericRepository<Certificate> certificateRepository, IUnitOfWork unitOfWork, IEmailService emailService)
         {
             _reviewerProfileRepository = reviewerProfileRepository;
             _userRepository = userRepository;
+            _certificateRepository = certificateRepository;
             _unitOfWork = unitOfWork;
+            _emailService = emailService;
         }
 
-        public async Task<ResponseDTO> ApproveReviewerAsync(Guid reviewerProfileId)
+        public async Task<ResponseDTO> ApproveReviewerByCertificateAsync(Guid certificateId)
         {
             ResponseDTO dto = new ResponseDTO();
-
             try
             {
-                var reviewer = await _reviewerProfileRepository.GetByExpression(
-                    x => x.ReviewerProfileId == reviewerProfileId,
-                    x => x.User,
-                    x => x.Certificates
-                );
-
-                if (reviewer == null)
+                var certificate = await _certificateRepository.GetById(certificateId);
+                if (certificate == null)
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-                    dto.Message = "Reviewer không tồn tại hoặc đã bị xóa.";
+                    dto.Message = "Không tìm thấy chứng chỉ.";
                     return dto;
                 }
 
-                if (reviewer.Status == "Active")
+                var profile = await _reviewerProfileRepository.GetById(certificate.ReviewerProfileId);
+                if (profile == null)
                 {
                     dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.ALREADY_ACTIVE;
-                    dto.Message = "Reviewer đã được duyệt trước đó.";
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy hồ sơ reviewer tương ứng.";
                     return dto;
                 }
 
-                if (reviewer.Certificates == null || !reviewer.Certificates.Any())
+                // ✅ Chỉ duyệt reviewer nếu họ đang Pending
+                if (profile.Status != "Pending")
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.VALIDATION_ERROR;
-                    dto.Message = "Reviewer chưa có chứng chỉ. Không thể duyệt.";
+                    dto.Message = "Reviewer này không ở trạng thái Pending.";
                     return dto;
                 }
 
-                reviewer.Status = "Active";
-                await _reviewerProfileRepository.Update(reviewer);
+                // ✅ Đổi reviewer sang trạng thái Active
+                profile.Status = "Active";
+                await _reviewerProfileRepository.Update(profile);
                 await _unitOfWork.SaveChangeAsync();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                dto.Message = "Duyệt reviewer thành công. Reviewer có thể bắt đầu hoạt động.";
-
+                dto.Message = "Duyệt reviewer thành công.";
                 dto.Data = new
                 {
-                    reviewer.ReviewerProfileId,
-                    reviewer.UserId,
-                    FullName = reviewer.User?.FullName,
-                    Email = reviewer.User?.Email,
-                    reviewer.Status,
-                    CertificateCount = reviewer.Certificates.Count
+                    profile.ReviewerProfileId,
+                    profile.Status,
+                    Certificate = new
+                    {
+                        certificate.CertificateId,
+                        certificate.Name,
+                        certificate.Url
+                    }
                 };
             }
             catch (Exception ex)
@@ -136,7 +138,6 @@ namespace AESP.Service.Implementation
                         Email = x.User.Email,
                         Phone = x.User.PhoneNumber,
                         x.Experience,
-                        x.Levels,
                         x.Status,
                         HasCertificate = x.Certificates.Any(),
                         Certificates = x.Certificates.Select(c => new
@@ -159,24 +160,52 @@ namespace AESP.Service.Implementation
 
         }
 
-        public async Task<ResponseDTO> RejectReviewerAsync(Guid reviewerProfileId)
+        public async Task<ResponseDTO> RejectReviewerByCertificateAsync(Guid certificateId)
         {
             ResponseDTO dto = new ResponseDTO();
+
             try
             {
-                var profile = await _reviewerProfileRepository.GetById(reviewerProfileId);
+                var certificate = await _certificateRepository.GetById(certificateId);
+                if (certificate == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy chứng chỉ.";
+                    return dto;
+                }
+
+                var profile = await _reviewerProfileRepository
+                    .GetByExpression(x => x.ReviewerProfileId == certificate.ReviewerProfileId, x => x.User);
+
                 if (profile == null)
                 {
                     dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.AUTH_NOT_FOUND;
-                    dto.Message = "Không tìm thấy hồ sơ reviewer để từ chối.";
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy hồ sơ reviewer.";
                     return dto;
                 }
 
                 profile.Status = "Rejected";
                 await _reviewerProfileRepository.Update(profile);
                 await _unitOfWork.SaveChangeAsync();
-                await _unitOfWork.CommitAsync();
+
+                // ✅ Gửi email thông báo cho reviewer
+                if (!string.IsNullOrEmpty(profile.User?.Email))
+                {
+                    string subject = "AESP System - Chứng chỉ của bạn bị từ chối";
+                    string body =
+$@"Xin chào {profile.User.FullName},
+
+Chứng chỉ bạn gửi lên hệ thống đã bị từ chối do không hợp lệ hoặc không đạt yêu cầu.
+
+Vui lòng đăng nhập vào hệ thống AESP và gửi lại chứng chỉ mới để được xét duyệt lại.
+
+Trân trọng,
+Đội ngũ Quản trị viên AESP System.";
+
+                    await _emailService.SendEmailAsync(profile.User.Email, subject, body);
+                }
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
@@ -184,12 +213,17 @@ namespace AESP.Service.Implementation
                 dto.Data = new
                 {
                     profile.ReviewerProfileId,
-                    profile.Status
+                    profile.Status,
+                    Certificate = new
+                    {
+                        certificate.CertificateId,
+                        certificate.Name,
+                        certificate.Url
+                    }
                 };
             }
             catch (Exception ex)
             {
-                await _unitOfWork.RollbackAsync();
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
                 dto.Message = "Lỗi khi từ chối reviewer: " + ex.Message;

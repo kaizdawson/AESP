@@ -72,20 +72,33 @@ namespace AESP.Service.Implementation
                     return response;
                 }
 
+                // ❌ KHÔNG include ReviewerProfile, chỉ lấy danh sách certificate đơn thuần
                 var certificates = await _certificateRepository
-                    .GetAllDataByExpression(x => x.ReviewerProfileId == reviewerProfileId, 0, 0, null, true);
+                    .GetAllDataByExpression(
+                        x => x.ReviewerProfileId == reviewerProfileId,
+                        0, 0, null, false
+                    );
 
-                if (certificates.Items == null || !certificates.Items.Any())
+                var result = certificates.Items
+                    .Select(c => new
+                    {
+                        c.CertificateId,
+                        c.Name,
+                        c.Url
+                    })
+                    .ToList();
+
+                if (!result.Any())
                 {
                     response.IsSucess = true;
-                    response.Data = new List<Certificate>();
+                    response.Data = new List<object>();
                     response.BusinessCode = BusinessCode.INVALID_ACTION;
                     response.Message = "Reviewer chưa upload chứng chỉ nào.";
                     return response;
                 }
 
                 response.IsSucess = true;
-                response.Data = certificates.Items;
+                response.Data = result;
                 response.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 response.Message = "Lấy danh sách chứng chỉ thành công.";
             }
@@ -99,9 +112,10 @@ namespace AESP.Service.Implementation
             return response;
         }
 
-        public async Task<ResponseDTO> UploadCertificateAsync(Guid reviewerProfileId, IFormFile file)
+        public async Task<ResponseDTO> UploadCertificateAsync(Guid reviewerProfileId, IFormFile file, string certificateName)
         {
             ResponseDTO dto = new ResponseDTO();
+
             try
             {
                 var profile = await _reviewerProfileRepository.GetById(reviewerProfileId);
@@ -121,7 +135,15 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ Upload file lên Cloudinary
+                if (string.IsNullOrWhiteSpace(certificateName))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "Tên chứng chỉ không được để trống.";
+                    return dto;
+                }
+
+                // Upload file lên Cloudinary
                 var uploadResult = await _cloudinaryService.UploadFileAsync(file, "certificates");
                 if (!uploadResult.IsSuccess)
                 {
@@ -131,16 +153,23 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ Lưu vào DB
+                // Lưu chứng chỉ (dùng tên do user nhập)
                 var cert = new Certificate
                 {
                     CertificateId = Guid.NewGuid(),
                     ReviewerProfileId = reviewerProfileId,
-                    Name = file.FileName,
+                    Name = certificateName.Trim(),
                     Url = uploadResult.Url
                 };
-
                 await _certificateRepository.Insert(cert);
+
+                // Nếu profile còn Draft hoặc Rejected → chuyển sang Pending
+                if (profile.Status == "Draft" || profile.Status == "Rejected")
+                {
+                    profile.Status = "Pending";
+                    await _reviewerProfileRepository.Update(profile);
+                }
+
                 await _unitOfWork.SaveChangeAsync();
 
                 dto.IsSucess = true;
@@ -151,7 +180,7 @@ namespace AESP.Service.Implementation
                     cert.CertificateId,
                     cert.Name,
                     cert.Url,
-                    cert.ReviewerProfileId
+                    NewStatus = profile.Status
                 };
             }
             catch (Exception ex)
