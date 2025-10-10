@@ -1,12 +1,14 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AESP.API.Controllers.ManagerController
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "MANAGER")]
     public class ManagerCourseController : ControllerBase
     {
         private readonly ICourseService _courseService;
@@ -16,7 +18,7 @@ namespace AESP.API.Controllers.ManagerController
             _courseService = courseService;
         }
 
-        // ✅ GET ALL — /api/manager/courses?pageNumber=1&pageSize=10&level=A2&keyword=speaking
+        // ✅ GET ALL
         [HttpGet("courses")]
         public async Task<IActionResult> GetAllCourses(
             int pageNumber = 1,
@@ -24,46 +26,74 @@ namespace AESP.API.Controllers.ManagerController
             string? level = null,
             string? keyword = null)
         {
-            var result = await _courseService.GetAllAsync(pageNumber, pageSize, level, keyword);
-            return Ok(result);
+            var result = await _courseService.GetAllCourseAsync(pageNumber, pageSize, level, keyword);
+            return StatusFromResult(result);
         }
 
-        // ✅ GET BY ID — /api/manager/courses/{id}
+        // ✅ GET BY ID
         [HttpGet("courses/{id}")]
         public async Task<IActionResult> GetCourseById(Guid id)
         {
-            var result = await _courseService.GetByIdAsync(id);
-            return Ok(result);
+            var result = await _courseService.GetByCourseIdAsync(id);
+            return StatusFromResult(result);
         }
 
-        // ✅ CREATE — /api/manager/courses
+        // ✅ CREATE
         [HttpPost("courses")]
         public async Task<IActionResult> CreateCourse([FromBody] CreateCourseDTO dto)
         {
-            if (dto == null)
-                return BadRequest(new { message = "Invalid course data." });
+            if (!ModelState.IsValid)
+            {
+                // Nếu enum bị sai -> message sẽ có lỗi parse ở đây
+                var errorMessages = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
 
-            var result = await _courseService.CreateAsync(dto);
+                return BadRequest(new
+                {
+                    isSucess = false,
+                    businessCode = BusinessCode.VALIDATION_FAILED,
+                    message = "Cấp độ (Level) không hợp lệ. Giá trị hợp lệ: A1, A2, B1, B2, C1, C2."
+                });
+            }
+
+            var result = await _courseService.CreateCourseAsync(dto);
             return Ok(result);
         }
 
-        // ✅ UPDATE — /api/manager/courses/{id}
+
+
+        // ✅ UPDATE
         [HttpPut("courses/{id}")]
         public async Task<IActionResult> UpdateCourse(Guid id, [FromBody] UpdateCourseDTO dto)
         {
-            if (dto == null)
-                return BadRequest(new { message = "Invalid course data." });
-
-            var result = await _courseService.UpdateAsync(id, dto);
-            return Ok(result);
+            var result = await _courseService.UpdateCourseAsync(id, dto);
+            return StatusFromResult(result);
         }
 
-        // ✅ DELETE — /api/manager/courses/{id}
+        // ✅ DELETE
         [HttpDelete("courses/{id}")]
         public async Task<IActionResult> DeleteCourse(Guid id)
         {
-            var result = await _courseService.DeleteAsync(id);
-            return Ok(result);
+            var result = await _courseService.DeleteCourseAsync(id);
+            return StatusFromResult(result);
+        }
+
+        // ✅ Helper để tự động map status code đúng
+        private IActionResult StatusFromResult(ResponseDTO result)
+        {
+            if (result == null)
+                return StatusCode(500, new { message = "Không có phản hồi từ server." });
+
+            // Tùy theo BusinessCode mà chọn HTTP Code
+            return result.BusinessCode switch
+            {
+                BusinessCode.VALIDATION_FAILED => BadRequest(result),
+                BusinessCode.AUTH_NOT_FOUND => NotFound(result),
+                BusinessCode.EXCEPTION => StatusCode(500, result),
+                _ => Ok(result)
+            };
         }
     }
 }

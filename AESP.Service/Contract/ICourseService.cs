@@ -10,10 +10,10 @@ namespace AESP.Service.Contract
 {
     public interface ICourseService
     {
-        Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize, string? level = null, string? keyword = null);
-        Task<ResponseDTO> GetByIdAsync(Guid id);
-        Task<ResponseDTO> CreateAsync(CreateCourseDTO request);
-        Task<ResponseDTO> UpdateAsync(Guid id, UpdateCourseDTO request);
-        Task<ResponseDTO> DeleteAsync(Guid id); // soft delete
+        Task<ResponseDTO> GetAllCourseAsync(int pageNumber, int pageSize, string? level = null, string? keyword = null);
+        Task<ResponseDTO> GetByCourseIdAsync(Guid id);
+        Task<ResponseDTO> CreateCourseAsync(CreateCourseDTO request);
+        Task<ResponseDTO> UpdateCourseAsync(Guid id, UpdateCourseDTO request);
+        Task<ResponseDTO> DeleteCourseAsync(Guid id); // soft delete
     }
 }

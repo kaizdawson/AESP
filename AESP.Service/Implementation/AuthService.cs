@@ -99,19 +99,6 @@ namespace AESP.Service.Implementation
                 await _learnerProfileRepository.Insert(learnerProfile);
                 await _unitOfWork.SaveChangeAsync();
             }
-           
-
-            //          if (dto.Role.ToUpper() == "MENTOR")
-            //          {
-            ////              var mentorProfile = new MentorProfile
-            //              {
-            //                  MentorProfileId = Guid.NewGuid(),
-            //                  UserId = user.UserId
-            //              };
-
-            //              await _mentorProfileRepository.Insert(mentorProfile);
-            //              await _unitOfWork.SaveChangeAsync();
-            //          }
 
             var otp = OtpGenerator.GenerateOtp();
             _cache.Set(user.Email, otp, TimeSpan.FromMinutes(2));
@@ -172,34 +159,20 @@ namespace AESP.Service.Implementation
             bool? isGoalSet = null;
             bool? isProfileCompleted = null;
 
-            //if (user.Role.ToUpper() == "LEARNER")
-            //{
-            //    var learnerProfile = await _learnerProfileRepository
-            //        .GetByExpression(lp => lp.UserId == user.UserId);
+            if (user.Role.ToUpper() == "LEARNER")
+            {
+                var learnerProfile = await _learnerProfileRepository
+                    .GetByExpression(lp => lp.UserId == user.UserId);
 
-            //    if (learnerProfile != null)
-            //    {
-            //        isGoalSet = !string.IsNullOrEmpty(learnerProfile.Goal);
+                if (learnerProfile != null)
+                {
 
-            //        var assessment = await _assessmentRepository
-            //            .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+                    var assessment = await _assessmentRepository
+                        .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
 
-            //        isPlacementTestDone = assessment != null;
-            //    }
-            //}
-            //else if (user.Role.ToUpper() == "MENTOR")
-            //{
-            //    var mentorProfile = await _mentorProfileRepository
-            //        .GetByExpression(mp => mp.UserId == user.UserId);
-
-            //    if (mentorProfile != null)
-            //    {
-            //        var certificate = await _certificateRepository
-            //            .GetByExpression(c => c.MentorProfileId == mentorProfile.MentorProfileId);
-
-            //        isProfileCompleted = certificate != null;
-            //    }
-            //}
+                    isPlacementTestDone = assessment != null;
+                }
+            }
 
             bool isReviewerActive = false; // default false
 
@@ -213,7 +186,7 @@ namespace AESP.Service.Implementation
                 }
                 else
                 {
-                    // tạo mới profile nếu chưa có
+                   
                     var wallet = new Wallet
                     {
                         WalletId = Guid.NewGuid(),
@@ -289,7 +262,7 @@ namespace AESP.Service.Implementation
                 UserId = user.UserId,
                 Token = newRefreshToken,
                 CreatedAt = DateTime.UtcNow,
-                ExpiredAt = DateTime.UtcNow.AddMinutes(2),
+                ExpiredAt = DateTime.UtcNow.AddMinutes(60),
                 Revoked = false,
                 IpAddress = ipAddress ?? "unknown",
                 DeviceInfo = deviceInfo ?? "unknown"
