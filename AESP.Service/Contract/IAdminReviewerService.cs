@@ -10,8 +10,8 @@ namespace AESP.Service.Contract
     public interface IAdminReviewerService
     {
         Task<ResponseDTO> GetPendingReviewersAsync(int pageNumber, int pageSize);
-        Task<ResponseDTO> ApproveReviewerAsync(Guid reviewerProfileId);
-        Task<ResponseDTO> RejectReviewerAsync(Guid reviewerProfileId);
+        Task<ResponseDTO> ApproveReviewerByCertificateAsync(Guid certificateId);
+        Task<ResponseDTO> RejectReviewerByCertificateAsync(Guid certificateId);
 
     }
 }

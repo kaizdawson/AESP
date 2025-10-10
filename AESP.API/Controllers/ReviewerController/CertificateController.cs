@@ -27,12 +27,15 @@ namespace AESP.API.Controllers.ReviewerController
 
         //  UPLOAD FILE — /api/reviewer/certificates/upload/{profileId}
         [HttpPost("upload/{reviewerProfileId}")]
-        public async Task<IActionResult> UploadCertificate(Guid reviewerProfileId, IFormFile file)
+        public async Task<IActionResult> UploadCertificate(Guid reviewerProfileId, IFormFile file, string name)
         {
-            if (file == null)
+            if (file == null || file.Length == 0)
                 return BadRequest(new { message = "File không hợp lệ." });
 
-            var result = await _certificateService.UploadCertificateAsync(reviewerProfileId, file);
+            if (string.IsNullOrWhiteSpace(name))
+                return BadRequest(new { message = "Tên chứng chỉ không được để trống." });
+
+            var result = await _certificateService.UploadCertificateAsync(reviewerProfileId, file, name.Trim());
             return Ok(result);
         }
 
