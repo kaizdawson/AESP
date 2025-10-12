@@ -21,46 +21,51 @@ namespace AESP.Repository.Implementation
             _context = context;
             _dbSet = context.Set<T>();
         }
-        public async Task<PagedResult<T>> GetAllDataByExpression(Expression<Func<T, bool>>? filter,
-           int pageNumber, int pageSize,
-           Expression<Func<T, object>>? orderBy = null,
-           bool isAscending = true,
-           params Expression<Func<T, object>>[]? includes)
+        public async Task<PagedResult<T>> GetAllDataByExpression(
+            Expression<Func<T, bool>>? filter,
+            int pageNumber,
+            int pageSize,
+            Expression<Func<T, object>>? orderBy = null,
+            bool isAscending = true,
+            params Expression<Func<T, object>>[]? includes)
         {
             IQueryable<T> query = _dbSet;
 
             if (filter != null)
-            {
                 query = query.Where(filter);
-            }
+
             if (includes != null)
             {
                 foreach (var include in includes)
-                {
                     query = query.Include(include);
-                }
             }
+
             if (orderBy != null)
-            {
                 query = isAscending ? query.OrderBy(orderBy) : query.OrderByDescending(orderBy);
-            }
+
             var totalItems = await query.CountAsync();
+
             var result = new PagedResult<T>
             {
                 Items = null,
                 TotalPages = 0
             };
+
+            // ✅ Có phân trang
             if (pageNumber > 0 && pageSize > 0)
             {
                 var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
                 query = query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
+
                 result.Items = await query.AsNoTracking().ToListAsync();
                 result.TotalPages = totalPages;
                 return result;
             }
-            var data = await query.ToListAsync();
+
+            // ✅ Không phân trang → lấy toàn bộ
+            var data = await query.AsNoTracking().ToListAsync();
             result.Items = data;
-            result.TotalPages = data.Count() > 0 ? 1 : 0;
+            result.TotalPages = data.Count > 0 ? 1 : 0;
             return result;
         }
         public async Task<T> GetById(object id)

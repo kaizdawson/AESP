@@ -86,6 +86,9 @@ builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IAdminReviewerService, AdminReviewerService>();
 builder.Services.AddScoped<IReviewerProfileService, ReviewerProfileService>();  
 builder.Services.AddScoped<ICourseService, CourseService>();
+builder.Services.AddScoped<IChapterService, ChapterService>();
+builder.Services.AddScoped<IExerciseService, ExerciseService>();
+
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 builder.Services.AddScoped<IChapterService, ChapterService>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();

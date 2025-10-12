@@ -78,7 +78,7 @@ namespace AESP.Service.Implementation
                 await _unitOfWork.SaveChangeAsync();
 
                 dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.CREATE_SUCCESSFULLY;
+                dto.BusinessCode = BusinessCode.INSERT_SUCESSFULLY;
                 dto.Message = "Tạo gói dịch vụ thành công.";
                 dto.Data = new
                 {

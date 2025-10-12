@@ -6,11 +6,15 @@ namespace AESP.Repository.Contract
 {
     public interface IGenericRepository<T> where T : class
     {
-        Task<PagedResult<T>> GetAllDataByExpression(Expression<Func<T, bool>>? filter,
-            int pageNumber, int pageSize,
-            Expression<Func<T, object>>? orderBy = null,
-            bool isAscending = true,
-            params Expression<Func<T, object>>[]? includes);
+        Task<PagedResult<T>> GetAllDataByExpression(
+     Expression<Func<T, bool>>? filter,
+     int pageNumber,
+     int pageSize,
+     Expression<Func<T, object>>? orderBy = null,
+     bool isAscending = true,
+     params Expression<Func<T, object>>[]? includes
+ );
+
 
         Task<T> GetById(object id);
 
