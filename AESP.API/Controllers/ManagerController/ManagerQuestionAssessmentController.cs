@@ -10,6 +10,7 @@ namespace AESP.API.Controllers.ManagerController
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "MANAGER")]
+
     public class ManagerQuestionAssessmentController : ControllerBase
     {
         private readonly IQuestionAssessmentService _service;

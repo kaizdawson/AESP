@@ -2,6 +2,7 @@
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AESP.API.Controllers.ManagerController
@@ -9,6 +10,7 @@ namespace AESP.API.Controllers.ManagerController
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "MANAGER")]
+
     public class ManagerCourseController : ControllerBase
     {
         private readonly ICourseService _courseService;
