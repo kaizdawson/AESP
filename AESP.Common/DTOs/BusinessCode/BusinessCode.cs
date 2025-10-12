@@ -15,7 +15,7 @@ namespace AESP.Common.DTOs.BusinessCode
         UPDATE_SUCESSFULLY = 2004,
         INSERT_SUCESSFULLY = 2005,
         DELETE_SUCESSFULLY = 2006,
-
+        CREATE_SUCCESSFULLY = 2007,
         EXCEPTION = 4000,
   
         AUTH_NOT_FOUND = 401,
