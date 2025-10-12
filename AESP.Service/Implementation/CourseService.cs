@@ -37,7 +37,7 @@ namespace AESP.Service.Implementation
         }
 
         // ✅ GET ALL (Load luôn chapters)
-        public async Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize, string? level = null, string? keyword = null)
+        public async Task<ResponseDTO> GetAllCourseAsync(int pageNumber, int pageSize, string? level = null, string? keyword = null)
         {
             ResponseDTO dto = new();
             try
@@ -130,7 +130,7 @@ namespace AESP.Service.Implementation
         }
 
         // ✅ CREATE (valid toàn bộ field)
-        public async Task<ResponseDTO> CreateAsync(CreateCourseDTO request)
+        public async Task<ResponseDTO> CreateCourseAsync(CreateCourseDTO request)
         {
             try
             {
