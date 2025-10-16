@@ -14,48 +14,40 @@ namespace AESP.Service.Implementation
     {
         private readonly IGenericRepository<Exercise> _exerciseRepository;
         private readonly IGenericRepository<Chapter> _chapterRepository;
-        private readonly IGenericRepository<Course> _courseRepository;
+        private readonly IGenericRepository<Question> _questionRepository;
         private readonly IUnitOfWork _unitOfWork;
 
         public ExerciseService(
             IGenericRepository<Exercise> exerciseRepository,
             IGenericRepository<Chapter> chapterRepository,
-            IGenericRepository<Course> courseRepository,
+            IGenericRepository<Question> questionRepository,
             IUnitOfWork unitOfWork)
         {
             _exerciseRepository = exerciseRepository;
             _chapterRepository = chapterRepository;
-            _courseRepository = courseRepository;
+            _questionRepository = questionRepository;
             _unitOfWork = unitOfWork;
         }
 
         private static ResponseDTO Fail(BusinessCode code, string msg)
-        {
-            return new ResponseDTO
-            {
-                IsSucess = false,
-                BusinessCode = code,
-                Message = msg
-            };
-        }
+            => new ResponseDTO { IsSucess = false, BusinessCode = code, Message = msg };
 
-        // ✅ GET ALL (load cả Chapter + Course)
+        // ============================================================
+        // 🔹 GET ALL
+        // ============================================================
         public async Task<ResponseDTO> GetAllExercisesAsync(int pageNumber, int pageSize, Guid? chapterId = null, string? keyword = null)
         {
-            ResponseDTO dto = new();
             try
             {
                 var result = await _exerciseRepository.GetAllDataByExpression(
-     filter: x =>
-         (!chapterId.HasValue || x.ChapterId == chapterId) &&
-         (string.IsNullOrEmpty(keyword) || x.Title.Contains(keyword)),
-     pageNumber: pageNumber,
-     pageSize: pageSize,
-     orderBy: x => x.OrderIndex,
-     isAscending: true,
-     x => x.Chapter, x => x.Chapter.Course   // ✅ include bằng expression thay vì string
- );
-
+                    x => (!chapterId.HasValue || x.ChapterId == chapterId)
+                      && (string.IsNullOrEmpty(keyword) || x.Title.Contains(keyword)),
+                    pageNumber,
+                    pageSize,
+                    x => x.OrderIndex,
+                    true,
+                    x => x.Questions
+                );
 
                 var mapped = result.Items.Select(ex => new ReadExerciseDTO
                 {
@@ -65,55 +57,51 @@ namespace AESP.Service.Implementation
                     OrderIndex = ex.OrderIndex,
                     NumberOfQuestion = ex.NumberOfQuestion,
                     ChapterId = ex.ChapterId,
-                    Chapter = ex.Chapter == null ? null : new ReadChapterDTO
+                    Questions = ex.Questions?.Select(q => new ReadExerciseQuestionDTO
                     {
-                        ChapterId = ex.Chapter.ChapterId,
-                        Title = ex.Chapter.Title,
-                        CourseId = ex.Chapter.CourseId,
-                        Course = ex.Chapter.Course == null ? null : new ReadCourseDTO
-                        {
-                            CourseId = ex.Chapter.Course.CourseId,
-                            Title = ex.Chapter.Course.Title,
-                            Level = ex.Chapter.Course.Level
-                        }
-                    }
+                        QuestionId = q.QuestionId,
+                        Text = q.Text,
+                        Type = q.Type,
+                        OrderIndex = q.OrderIndex,
+                        IPA = q.IPA,
+                        PhonemeJson = q.PhonemeJson
+                    }).ToList()
                 }).ToList();
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy danh sách bài tập thành công.";
-                dto.Data = new PagedResult<ReadExerciseDTO>
+                return new ResponseDTO
                 {
-                    Items = mapped,
-                    TotalPages = result.TotalPages
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                    Message = "Lấy danh sách bài tập thành công.",
+                    Data = new PagedResult<ReadExerciseDTO>
+                    {
+                        Items = mapped,
+                        TotalPages = result.TotalPages
+                    }
                 };
             }
             catch (Exception ex)
             {
-                dto = Fail(BusinessCode.EXCEPTION, "Lỗi khi lấy danh sách bài tập: " + ex.Message);
+                return Fail(BusinessCode.EXCEPTION, $"Lỗi khi lấy danh sách bài tập: {ex.Message}");
             }
-            return dto;
         }
 
-        // ✅ GET BY ID
+        // ============================================================
+        // 🔹 GET BY ID
+        // ============================================================
         public async Task<ResponseDTO> GetExerciseByIdAsync(Guid id)
         {
-            ResponseDTO dto = new();
             try
             {
                 var exercise = await _exerciseRepository.GetFirstByExpression(
                     x => x.ExerciseId == id,
-                    x => x.Chapter,
-                    x => x.Chapter.Course
+                    x => x.Questions
                 );
 
                 if (exercise == null)
-                    return Fail(BusinessCode.AUTH_NOT_FOUND, "Không tìm thấy bài tập.");
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài tập.");
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy thông tin bài tập thành công.";
-                dto.Data = new ReadExerciseDTO
+                var dto = new ReadExerciseDTO
                 {
                     ExerciseId = exercise.ExerciseId,
                     Title = exercise.Title,
@@ -121,35 +109,40 @@ namespace AESP.Service.Implementation
                     OrderIndex = exercise.OrderIndex,
                     NumberOfQuestion = exercise.NumberOfQuestion,
                     ChapterId = exercise.ChapterId,
-                    Chapter = exercise.Chapter == null ? null : new ReadChapterDTO
+                    Questions = exercise.Questions?.Select(q => new ReadExerciseQuestionDTO
                     {
-                        ChapterId = exercise.Chapter.ChapterId,
-                        Title = exercise.Chapter.Title,
-                        CourseId = exercise.Chapter.CourseId,
-                        Course = exercise.Chapter.Course == null ? null : new ReadCourseDTO
-                        {
-                            CourseId = exercise.Chapter.Course.CourseId,
-                            Title = exercise.Chapter.Course.Title,
-                            Level = exercise.Chapter.Course.Level
-                        }
-                    }
+                        QuestionId = q.QuestionId,
+                        Text = q.Text,
+                        Type = q.Type,
+                        OrderIndex = q.OrderIndex,
+                        IPA = q.IPA,
+                        PhonemeJson = q.PhonemeJson
+                    }).ToList()
+                };
+
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                    Message = "Lấy bài tập thành công.",
+                    Data = dto
                 };
             }
             catch (Exception ex)
             {
-                dto = Fail(BusinessCode.EXCEPTION, "Lỗi khi lấy bài tập: " + ex.Message);
+                return Fail(BusinessCode.EXCEPTION, $"Lỗi khi lấy bài tập: {ex.Message}");
             }
-            return dto;
         }
 
-        // ✅ CREATE
+        // ============================================================
+        // 🔹 CREATE
+        // ============================================================
         public async Task<ResponseDTO> CreateExerciseAsync(CreateExerciseDTO request)
         {
-            ResponseDTO dto = new();
             try
             {
                 if (request == null)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu đầu vào không được để trống.");
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
                 if (string.IsNullOrWhiteSpace(request.Title))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Tên bài tập không được để trống.");
                 if (string.IsNullOrWhiteSpace(request.Description))
@@ -159,12 +152,9 @@ namespace AESP.Service.Implementation
 
                 var chapter = await _chapterRepository.GetById(request.ChapterId);
                 if (chapter == null)
-                    return Fail(BusinessCode.AUTH_NOT_FOUND, "Không tìm thấy chương học tương ứng.");
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy chương học.");
 
-                if (request.NumberOfQuestion < 0)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Số câu hỏi không được âm.");
-
-                var newExercise = new Exercise
+                var exercise = new Exercise
                 {
                     ExerciseId = Guid.NewGuid(),
                     Title = request.Title.Trim(),
@@ -173,97 +163,153 @@ namespace AESP.Service.Implementation
                     NumberOfQuestion = request.NumberOfQuestion,
                     ChapterId = request.ChapterId
                 };
-
-                await _exerciseRepository.Insert(newExercise);
+                await _exerciseRepository.Insert(exercise);
                 await _unitOfWork.SaveChangeAsync();
 
-                // ✅ Load lại Course/Chapter để trả ra
-                var fullExercise = await _exerciseRepository.GetFirstByExpression(
-                    x => x.ExerciseId == newExercise.ExerciseId,
-                    x => x.Chapter,
-                    x => x.Chapter.Course
+                // ✅ Thêm question nếu có
+                if (request.Questions != null && request.Questions.Any())
+                {
+                    foreach (var q in request.Questions)
+                    {
+                        var question = new Question
+                        {
+                            QuestionId = Guid.NewGuid(),
+                            Text = q.Text.Trim(),
+                            Type = q.Type.Trim(),
+                            OrderIndex = q.OrderIndex,
+                            IPA = q.IPA.Trim(),
+                            PhonemeJson = q.PhonemeJson.Trim(),
+                            ExerciseId = exercise.ExerciseId
+                        };
+                        await _questionRepository.Insert(question);
+                    }
+                    await _unitOfWork.SaveChangeAsync();
+                }
+
+                // ✅ Load lại Exercise sau khi thêm
+                var loaded = await _exerciseRepository.GetFirstByExpression(
+                    x => x.ExerciseId == exercise.ExerciseId,
+                    x => x.Questions
                 );
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.INSERT_SUCESSFULLY;
-                dto.Message = "Tạo bài tập mới thành công.";
-                dto.Data = fullExercise;
+                var dto = new ReadExerciseDTO
+                {
+                    ExerciseId = loaded.ExerciseId,
+                    Title = loaded.Title,
+                    Description = loaded.Description,
+                    OrderIndex = loaded.OrderIndex,
+                    NumberOfQuestion = loaded.NumberOfQuestion,
+                    ChapterId = loaded.ChapterId,
+                    Questions = loaded.Questions?.Select(q => new ReadExerciseQuestionDTO
+                    {
+                        QuestionId = q.QuestionId,
+                        Text = q.Text,
+                        Type = q.Type,
+                        OrderIndex = q.OrderIndex,
+                        IPA = q.IPA,
+                        PhonemeJson = q.PhonemeJson
+                    }).ToList()
+                };
+
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
+                    Message = "Tạo bài tập mới thành công.",
+                    Data = dto
+                };
             }
             catch (Exception ex)
             {
-                dto = Fail(BusinessCode.EXCEPTION, "Không thể tạo bài tập: " + (ex.InnerException?.Message ?? ex.Message));
+                return Fail(BusinessCode.EXCEPTION, $"Không thể tạo bài tập: {ex.Message}");
             }
-            return dto;
         }
 
-        // ✅ UPDATE
+        // ============================================================
+        // 🔹 UPDATE
+        // ============================================================
         public async Task<ResponseDTO> UpdateExerciseAsync(Guid id, UpdateExerciseDTO request)
         {
-            ResponseDTO dto = new();
             try
             {
-                if (request == null)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu đầu vào không được để trống.");
-                var exercise = await _exerciseRepository.GetById(id);
+                var exercise = await _exerciseRepository.GetFirstByExpression(
+                    x => x.ExerciseId == id,
+                    x => x.Questions
+                );
                 if (exercise == null)
-                    return Fail(BusinessCode.AUTH_NOT_FOUND, "Không tìm thấy bài tập cần cập nhật.");
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài tập.");
 
                 if (string.IsNullOrWhiteSpace(request.Title))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Tên bài tập không được để trống.");
                 if (string.IsNullOrWhiteSpace(request.Description))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Mô tả bài tập không được để trống.");
-                if (request.NumberOfQuestion.HasValue && request.NumberOfQuestion < 0)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Số câu hỏi không được âm.");
 
                 exercise.Title = request.Title.Trim();
                 exercise.Description = request.Description.Trim();
                 exercise.OrderIndex = request.OrderIndex ?? exercise.OrderIndex;
                 exercise.NumberOfQuestion = request.NumberOfQuestion ?? exercise.NumberOfQuestion;
-
                 await _exerciseRepository.Update(exercise);
                 await _unitOfWork.SaveChangeAsync();
 
-                // ✅ Load lại Exercise sau khi cập nhật
-                var updatedExercise = await _exerciseRepository.GetFirstByExpression(
-                    x => x.ExerciseId == exercise.ExerciseId,
-                    x => x.Chapter,
-                    x => x.Chapter.Course
-                );
+                // ✅ Update question nếu có
+                if (request.Questions != null && request.Questions.Any())
+                {
+                    foreach (var q in request.Questions)
+                    {
+                        var existing = exercise.Questions.FirstOrDefault(x => x.QuestionId == q.QuestionId);
+                        if (existing == null) continue;
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                dto.Message = "Cập nhật bài tập thành công.";
-                dto.Data = updatedExercise;
+                        existing.Text = q.Text ?? existing.Text;
+                        existing.Type = q.Type ?? existing.Type;
+                        existing.OrderIndex = q.OrderIndex ?? existing.OrderIndex;
+                        existing.IPA = q.IPA ?? existing.IPA;
+                        existing.PhonemeJson = q.PhonemeJson ?? existing.PhonemeJson;
+
+                        await _questionRepository.Update(existing);
+                    }
+                    await _unitOfWork.SaveChangeAsync();
+                }
+
+                // ✅ Load lại sau khi update
+                return await GetExerciseByIdAsync(id);
             }
             catch (Exception ex)
             {
-                dto = Fail(BusinessCode.EXCEPTION, "Không thể cập nhật bài tập: " + (ex.InnerException?.Message ?? ex.Message));
+                return Fail(BusinessCode.EXCEPTION, $"Không thể cập nhật bài tập: {ex.Message}");
             }
-            return dto;
         }
 
-        // ✅ DELETE
+        // ============================================================
+        // 🔹 DELETE
+        // ============================================================
         public async Task<ResponseDTO> DeleteExerciseAsync(Guid id)
         {
-            ResponseDTO dto = new();
             try
             {
-                var exercise = await _exerciseRepository.GetById(id);
-                if (exercise == null)
-                    return Fail(BusinessCode.AUTH_NOT_FOUND, "Không tìm thấy bài tập để xóa.");
+                var exercise = await _exerciseRepository.GetFirstByExpression(
+                    x => x.ExerciseId == id,
+                    x => x.Questions
+                );
 
+                if (exercise == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài tập để xoá.");
+
+                // xoá question → exercise
+                await _questionRepository.DeleteRange(exercise.Questions);
                 await _exerciseRepository.Delete(exercise);
                 await _unitOfWork.SaveChangeAsync();
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.DELETE_SUCESSFULLY;
-                dto.Message = "Xóa bài tập thành công.";
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.DELETE_SUCESSFULLY,
+                    Message = "Xoá bài tập thành công."
+                };
             }
             catch (Exception ex)
             {
-                dto = Fail(BusinessCode.EXCEPTION, "Không thể xóa bài tập: " + (ex.InnerException?.Message ?? ex.Message));
+                return Fail(BusinessCode.EXCEPTION, $"Không thể xoá bài tập: {ex.Message}");
             }
-            return dto;
         }
     }
 }
