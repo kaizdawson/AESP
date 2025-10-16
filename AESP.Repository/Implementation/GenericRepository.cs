@@ -150,5 +150,11 @@ namespace AESP.Repository.Implementation
 
 
         }
+
+
+        public IQueryable<T> AsQueryable()
+        {
+            return _dbSet.AsQueryable();
+        }
     }
 }
