@@ -11,9 +11,9 @@ namespace AESP.Service.Contract
     public interface ICourseService
     {
         Task<ResponseDTO> GetAllCourseAsync(int pageNumber, int pageSize, string? level = null, string? keyword = null);
-        Task<ResponseDTO> GetByCourseIdAsync(Guid id);
-        Task<ResponseDTO> CreateCourseAsync(CreateCourseDTO request);
-        Task<ResponseDTO> UpdateCourseAsync(Guid id, UpdateCourseDTO request);
-        Task<ResponseDTO> DeleteCourseAsync(Guid id); // soft delete
+        Task<ResponseDTO> GetFullCourseByIdAsync(Guid id);
+        Task<ResponseDTO> CreateFullCourseAsync(CreateCourseFullDTO request);
+        Task<ResponseDTO> UpdateFullCourseAsync(Guid id, UpdateCourseFullDTO request);
+        Task<ResponseDTO> DeleteFullCourseAsync(Guid id);
     }
 }

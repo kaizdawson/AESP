@@ -13,6 +13,6 @@ namespace AESP.Repository.Contract
         Task BeginTransactionAsync();
         Task CommitAsync();
         Task RollbackAsync();
-
+        void ClearChangeTracker();
     }
 }
