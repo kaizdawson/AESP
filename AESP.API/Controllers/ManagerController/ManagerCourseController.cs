@@ -36,49 +36,62 @@ namespace AESP.API.Controllers.ManagerController
         [HttpGet("courses/{id}")]
         public async Task<IActionResult> GetCourseById(Guid id)
         {
-            var result = await _courseService.GetByCourseIdAsync(id);
+            var result = await _courseService.GetFullCourseByIdAsync(id);
             return StatusFromResult(result);
         }
 
         // ✅ CREATE
         [HttpPost("courses")]
-        public async Task<IActionResult> CreateCourse([FromBody] CreateCourseDTO dto)
+        public async Task<IActionResult> CreateCourse([FromBody] CreateSimpleCourseDTO dto)
         {
-            if (!ModelState.IsValid)
+            var fullDto = new CreateCourseFullDTO
             {
-                // Nếu enum bị sai -> message sẽ có lỗi parse ở đây
-                var errorMessages = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage)
-                    .ToList();
-
-                return BadRequest(new
+                Title = dto.Title,
+                Type = dto.Type,
+                NumberOfChapter = dto.NumberOfChapter,
+                OrderIndex = dto.OrderIndex,
+                Level = dto.Level,
+                Chapters = dto.Chapters?.Select(ch => new CreateCourseChapterForCourseDTO
                 {
-                    isSucess = false,
-                    businessCode = BusinessCode.VALIDATION_FAILED,
-                    message = "Cấp độ (Level) không hợp lệ. Giá trị hợp lệ: A1, A2, B1, B2, C1, C2."
-                });
-            }
+                    Title = ch.Title,
+                    Description = ch.Description,
+                    NumberOfExercise = ch.NumberOfExercise
+                }).ToList()
+            };
 
-            var result = await _courseService.CreateCourseAsync(dto);
-            return Ok(result);
-        }
-
-
-
-        // ✅ UPDATE
-        [HttpPut("courses/{id}")]
-        public async Task<IActionResult> UpdateCourse(Guid id, [FromBody] UpdateCourseDTO dto)
-        {
-            var result = await _courseService.UpdateCourseAsync(id, dto);
+            var result = await _courseService.CreateFullCourseAsync(fullDto);
             return StatusFromResult(result);
         }
+
+        [HttpPut("courses/{id}")]
+        public async Task<IActionResult> UpdateCourse(Guid id, [FromBody] UpdateSimpleCourseDTO dto)
+        {
+            var fullDto = new UpdateCourseFullDTO
+            {
+                Title = dto.Title,
+                Type = dto.Type,
+                NumberOfChapter = dto.NumberOfChapter,
+                OrderIndex = dto.OrderIndex,
+                Level = dto.Level,
+                Chapters = dto.Chapters?.Select(ch => new UpdateCourseChapterForCourseDTO
+                {
+                    ChapterId = ch.ChapterId,
+                    Title = ch.Title,
+                    Description = ch.Description,
+                    NumberOfExercise = ch.NumberOfExercise
+                }).ToList()
+            };
+
+            var result = await _courseService.UpdateFullCourseAsync(id, fullDto);
+            return StatusFromResult(result);
+        }
+
 
         // ✅ DELETE
         [HttpDelete("courses/{id}")]
         public async Task<IActionResult> DeleteCourse(Guid id)
         {
-            var result = await _courseService.DeleteCourseAsync(id);
+            var result = await _courseService.DeleteFullCourseAsync(id);
             return StatusFromResult(result);
         }
 
