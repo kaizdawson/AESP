@@ -37,5 +37,9 @@ namespace AESP.Repository.Contract
 
         Task<T> Delete(T entity);
         AppDbContext GetDbContext();
+
+
+        IQueryable<T> AsQueryable();
+
     }
 }

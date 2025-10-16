@@ -90,6 +90,7 @@ builder.Services.AddScoped<IChapterService, ChapterService>();
 builder.Services.AddScoped<IExerciseService, ExerciseService>();
 builder.Services.AddScoped<IAssessmentService, AssessmentService>();
 builder.Services.AddScoped<IAssessmentDetailService, AssessmentDetailService>();
+builder.Services.AddScoped<IQuestionService, QuestionService>();
 
 
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
