@@ -22,6 +22,7 @@ namespace AESP.Service.Contract
         Task<(bool Success, string Message)> LogoutAsync(string refreshToken);
 
         Task<LoginResult> GoogleSignInAsync(string idToken, string? ipAddress, string? deviceInfo);
+        Task<LoginResult> GoogleSignInReviewerAsync(string idToken, string? ipAddress, string? deviceInfo);
 
 
 

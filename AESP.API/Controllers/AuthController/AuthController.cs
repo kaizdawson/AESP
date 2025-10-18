@@ -213,6 +213,27 @@ namespace AESP.API.Controllers
                 role = result.Role
             });
         }
+        [AllowAnonymous]
+        [HttpPost("google-login-reviewer")]
+        public async Task<IActionResult> GoogleLoginReviewer([FromBody] GoogleLoginRequestDto dto)
+        {
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var deviceInfo = Request.Headers["User-Agent"].ToString();
+
+            var result = await _authService.GoogleSignInReviewerAsync(dto.IdToken, ipAddress, deviceInfo);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(new
+            {
+                accessToken = result.Token,
+                refreshToken = result.RefreshToken,
+                message = result.Message,
+                role = result.Role,
+                isReviewerActive = result.IsReviewerActive
+            });
+        }
 
 
     }
