@@ -182,15 +182,19 @@ namespace AESP.API.Controllers
         }
 
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout([FromBody] LogoutRequestDto dto)
+        public async Task<IActionResult> Logout([FromHeader(Name = "refreshToken")] string refreshToken)
         {
-            var result = await _authService.LogoutAsync(dto.RefreshToken);
+            if (string.IsNullOrEmpty(refreshToken))
+                return BadRequest(new { message = "Missing refresh token" });
+
+            var result = await _authService.LogoutAsync(refreshToken);
 
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
             return Ok(new { message = result.Message });
         }
+
 
 
         [AllowAnonymous]
