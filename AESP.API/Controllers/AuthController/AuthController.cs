@@ -182,15 +182,19 @@ namespace AESP.API.Controllers
         }
 
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout([FromBody] LogoutRequestDto dto)
+        public async Task<IActionResult> Logout([FromHeader(Name = "refreshToken")] string refreshToken)
         {
-            var result = await _authService.LogoutAsync(dto.RefreshToken);
+            if (string.IsNullOrEmpty(refreshToken))
+                return BadRequest(new { message = "Missing refresh token" });
+
+            var result = await _authService.LogoutAsync(refreshToken);
 
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
             return Ok(new { message = result.Message });
         }
+
 
 
         [AllowAnonymous]
@@ -211,6 +215,27 @@ namespace AESP.API.Controllers
                 refreshToken = result.RefreshToken,
                 message = result.Message,
                 role = result.Role
+            });
+        }
+        [AllowAnonymous]
+        [HttpPost("google-login-reviewer")]
+        public async Task<IActionResult> GoogleLoginReviewer([FromBody] GoogleLoginRequestDto dto)
+        {
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var deviceInfo = Request.Headers["User-Agent"].ToString();
+
+            var result = await _authService.GoogleSignInReviewerAsync(dto.IdToken, ipAddress, deviceInfo);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
+
+            return Ok(new
+            {
+                accessToken = result.Token,
+                refreshToken = result.RefreshToken,
+                message = result.Message,
+                role = result.Role,
+                isReviewerActive = result.IsReviewerActive
             });
         }
 
