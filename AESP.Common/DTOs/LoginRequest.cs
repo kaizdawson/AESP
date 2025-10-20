@@ -15,6 +15,8 @@ namespace AESP.Common.DTOs
 
         [Required(ErrorMessage = "Mật khẩu không được để trống.")]
         public string Password { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Role không được để trống.")]
+        public string Role { get; set; } = null!;
     }
 
 }
