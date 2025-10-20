@@ -110,9 +110,27 @@ namespace AESP.Service.Implementation
 
         public async Task<LoginResult> SignInAsync(LoginRequest request, string? ipAddress, string? deviceInfo)
         {
+            if (string.IsNullOrWhiteSpace(request.Role))
+            {
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = "Role không được để trống."
+                };
+            }
+
             var user = await _userRepository.GetByExpression(u => u.Email == request.Email);
             if (user == null)
                 return new LoginResult { Success = false, Message = "Email này chưa được đăng ký." };
+
+            if (!string.Equals(user.Role, request.Role, StringComparison.OrdinalIgnoreCase))
+            {
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = $"Role không phù hợp. Tài khoản này thuộc role '{user.Role}'."
+                };
+            }
 
             if (user.Status == "InActive")
                 return new LoginResult { Success = false, Message = "Tài khoản này chưa xác minh email. Vui lòng kích hoạt để được sử dụng." };
@@ -353,10 +371,16 @@ namespace AESP.Service.Implementation
             var user = await _userRepository.GetByExpression(u => u.Email == dto.Email);
             if (user == null) return (false, "Email không tồn tại trong hệ thống.");
 
+            if (string.IsNullOrWhiteSpace(user.PasswordHash))
+            {
+                return (false, "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng nút 'Đăng nhập với Google' để vào hệ thống.");
+            }
+
             var token = Guid.NewGuid().ToString("N");
             _cache.Set($"reset_{dto.Email}", token, TimeSpan.FromMinutes(15));
 
-            var resetLink = $"https://your-frontend.com/reset-password?email={dto.Email}&token={token}";
+
+            var resetLink = $"https://englishcarehub.vercel.app/reset-password?email={dto.Email}&token={token}";
             await _emailService.SendEmailAsync(dto.Email, "Reset Password",
                 $"<p>Click để reset mật khẩu:</p><a href='{resetLink}'>Đặt lại mật khẩu</a>");
 
@@ -466,7 +490,7 @@ namespace AESP.Service.Implementation
                         Email = email,
                         PhoneNumber = "",
                         AvatarUrl = avatar,
-                        PasswordHash = HashPassword(Guid.NewGuid().ToString()), // random password
+                        PasswordHash = "",
                         Role = "LEARNER",
                         Status = "Active"
                     };
@@ -594,7 +618,7 @@ namespace AESP.Service.Implementation
                         Email = email,
                         PhoneNumber = "",
                         AvatarUrl = avatar,
-                        PasswordHash = HashPassword(Guid.NewGuid().ToString()), // random password
+                        PasswordHash = "",
                         Role = "REVIEWER",
                         Status = "Active"
                     };
