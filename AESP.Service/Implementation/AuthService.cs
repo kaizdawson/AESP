@@ -110,9 +110,27 @@ namespace AESP.Service.Implementation
 
         public async Task<LoginResult> SignInAsync(LoginRequest request, string? ipAddress, string? deviceInfo)
         {
+            if (string.IsNullOrWhiteSpace(request.Role))
+            {
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = "Role không được để trống."
+                };
+            }
+
             var user = await _userRepository.GetByExpression(u => u.Email == request.Email);
             if (user == null)
                 return new LoginResult { Success = false, Message = "Email này chưa được đăng ký." };
+
+            if (!string.Equals(user.Role, request.Role, StringComparison.OrdinalIgnoreCase))
+            {
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = $"Role không phù hợp. Tài khoản này thuộc role '{user.Role}'."
+                };
+            }
 
             if (user.Status == "InActive")
                 return new LoginResult { Success = false, Message = "Tài khoản này chưa xác minh email. Vui lòng kích hoạt để được sử dụng." };
