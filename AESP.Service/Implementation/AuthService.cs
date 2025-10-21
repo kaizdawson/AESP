@@ -387,8 +387,9 @@ namespace AESP.Service.Implementation
 
         public async Task<(bool Success, string Message)> ResetPasswordByLinkAsync(string token, ResetPasswordByLinkDto dto)
         {
-            if (string.IsNullOrWhiteSpace(token))
-                return (false, "Token không hợp lệ hoặc đã hết hạn.");
+            // Model đã có [Compare], check này để phản hồi rõ ràng hơn (cũng OK nếu bỏ)
+            if (dto.NewPassword != dto.ConfirmPassword)
+                return (false, "Mật khẩu xác nhận không khớp.");
 
             var email = _jwtService.ValidateAndGetEmailFromResetToken(token);
             if (string.IsNullOrEmpty(email))
@@ -398,15 +399,16 @@ namespace AESP.Service.Implementation
             if (user == null)
                 return (false, "Người dùng không tồn tại.");
 
-            if (dto.NewPassword != dto.ConfirmPassword)
-                return (false, "Mật khẩu xác nhận không khớp.");
-
+            // TODO: Dùng thuật toán hash mạnh. Ví dụ với BCrypt.Net-Next:
+            // user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
             user.PasswordHash = HashPassword(dto.NewPassword);
+
             await _userRepository.Update(user);
             await _unitOfWork.SaveChangeAsync();
 
             return (true, "Đặt lại mật khẩu thành công.");
         }
+
 
 
         public async Task<(bool Success, string Message)> LogoutAsync(string refreshToken)

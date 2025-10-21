@@ -54,11 +54,11 @@ namespace AESP.Service.Implementation
         public string GenerateResetPasswordToken(string email)
         {
             var claims = new List<Claim>
-    {
+        {
         new Claim(JwtRegisteredClaimNames.Sub, email),
         new Claim("type", "reset-password"),
         new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-    };
+        };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
@@ -75,36 +75,77 @@ namespace AESP.Service.Implementation
         }
 
 
-        // 🧩 Giải mã token reset password, lấy email ra
         public string? ValidateAndGetEmailFromResetToken(string token)
         {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                Console.WriteLine("❌ Token trống hoặc null");
+                return null;
+            }
+
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.UTF8.GetBytes(_config["JWT:Secret"]!);
 
+            var parameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key),
+                ValidateIssuer = true,
+                ValidIssuer = _config["JWT:ValidIssuer"],
+                ValidateAudience = true,
+                ValidAudience = _config["JWT:ValidAudience"],
+                ValidateLifetime = true,
+                RequireExpirationTime = true,
+                ClockSkew = TimeSpan.FromMinutes(5)
+            };
+
             try
             {
-                var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+                Console.WriteLine($"🔍 BẮT ĐẦU KIỂM TRA TOKEN...");
+                Console.WriteLine($"  ➤ Issuer trong config: {_config["JWT:ValidIssuer"]}");
+                Console.WriteLine($"  ➤ Audience trong config: {_config["JWT:ValidAudience"]}");
+                Console.WriteLine($"  ➤ Secret length: {_config["JWT:Secret"]?.Length}");
+
+                var principal = tokenHandler.ValidateToken(token, parameters, out var validatedToken);
+
+                if (validatedToken is not JwtSecurityToken jwt ||
+                    !jwt.Header.Alg.Equals(SecurityAlgorithms.HmacSha512, StringComparison.OrdinalIgnoreCase))
                 {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidIssuer = _config["JWT:ValidIssuer"],
-                    ValidAudience = _config["JWT:ValidAudience"],
-                    ClockSkew = TimeSpan.Zero
-                }, out var validatedToken);
+                    Console.WriteLine("❌ Thuật toán không khớp (không phải HS512).");
+                    return null;
+                }
 
-                // chỉ dùng token đúng loại reset-password
-                var typeClaim = principal.FindFirst("type")?.Value;
-                if (typeClaim != "reset-password") return null;
+                var type = principal.FindFirst("type")?.Value;
+                if (type != "reset-password")
+                {
+                    Console.WriteLine($"❌ Claim 'type' không hợp lệ: {type}");
+                    return null;
+                }
 
-                return principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+                var email =
+    principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value ??
+    principal.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+    principal.FindFirst("sub")?.Value ??
+    principal.Identity?.Name;
+
+                Console.WriteLine($"📩 Email claim đọc được: {email ?? "null"}");
+                return string.IsNullOrEmpty(email) ? null : email;
+
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine("❌ JWT validation failed!");
+                Console.WriteLine($"  ➤ Lỗi chính: {ex.GetType().Name} - {ex.Message}");
+                if (ex.InnerException != null)
+                    Console.WriteLine($"  ➤ Inner: {ex.InnerException.GetType().Name} - {ex.InnerException.Message}");
                 return null;
             }
+
+
         }
+
+
+
 
     }
 
