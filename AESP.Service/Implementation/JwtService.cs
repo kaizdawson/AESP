@@ -49,5 +49,63 @@ namespace AESP.Service.Implementation
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        // 🧩 Sinh JWT cho link reset password (chỉ có email và type)
+        public string GenerateResetPasswordToken(string email)
+        {
+            var claims = new List<Claim>
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, email),
+        new Claim("type", "reset-password"),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]!));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
+
+            var token = new JwtSecurityToken(
+                issuer: _config["JWT:ValidIssuer"],
+                audience: _config["JWT:ValidAudience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(15), // chỉ sống 15 phút
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+
+        // 🧩 Giải mã token reset password, lấy email ra
+        public string? ValidateAndGetEmailFromResetToken(string token)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.UTF8.GetBytes(_config["JWT:Secret"]!);
+
+            try
+            {
+                var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidIssuer = _config["JWT:ValidIssuer"],
+                    ValidAudience = _config["JWT:ValidAudience"],
+                    ClockSkew = TimeSpan.Zero
+                }, out var validatedToken);
+
+                // chỉ dùng token đúng loại reset-password
+                var typeClaim = principal.FindFirst("type")?.Value;
+                if (typeClaim != "reset-password") return null;
+
+                return principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
     }
+
 }
