@@ -179,17 +179,13 @@ namespace AESP.API.Controllers
 
         [AllowAnonymous]
         [HttpPost("reset-password-by-link")]
-        public async Task<IActionResult> ResetPasswordByLink([FromBody] ResetPasswordByLinkDto dto)
+        public async Task<IActionResult> ResetPasswordByLink([FromHeader(Name = "Token")] string token,[FromBody] ResetPasswordByLinkDto dto)
         {
             var validationResult = ValidateModel();
             if (validationResult != null) return validationResult;
 
-            // 🔹 Lấy token từ header Authorization
-            var authHeader = Request.Headers["Authorization"].ToString();
-            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
-                return Unauthorized(new { message = "Thiếu token hoặc định dạng không hợp lệ." });
-
-            var token = authHeader.Replace("Bearer ", "").Trim();
+            if (string.IsNullOrEmpty(token))
+                return Unauthorized(new { message = "Thiếu token trong header." });
 
             var result = await _authService.ResetPasswordByLinkAsync(token, dto);
             if (!result.Success)
@@ -197,6 +193,8 @@ namespace AESP.API.Controllers
 
             return Ok(new { message = result.Message });
         }
+
+
 
 
 
