@@ -96,7 +96,7 @@ builder.Services.AddScoped<IQuestionService, QuestionService>();
 
 
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
-builder.Services.AddScoped<IChapterService, ChapterService>();
+
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IServicePackageService, ServicePackageService>();
 
@@ -153,8 +153,27 @@ builder.Services.AddSwaggerGen(c =>
             new string[] {}
         }
     });
-
+    c.OperationFilter<AESP.API.Helpers.CookieParameterOperationFilter>();
     c.OperationFilter<FileUploadOperationFilter>();
+});
+
+
+var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: MyAllowSpecificOrigins,
+        policy =>
+        {
+            policy.WithOrigins(
+                "https://fa-25-se-161-ai-english-speaking-pr.vercel.app",
+                "https://localhost:3000",
+                "https://aespwithai.com"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+        });
 });
 
 
@@ -182,6 +201,9 @@ FirebaseApp.Create(new AppOptions()
 var app = builder.Build();
 
 
+
+
+
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -193,6 +215,7 @@ app.UseSwaggerUI(c =>
 
 app.UseHttpsRedirection();
 app.UseRouting();
+app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
 
