@@ -40,5 +40,27 @@ namespace AESP.API.Controllers.AdminController
             var result = await _adminReviewerService.RejectReviewerByCertificateAsync(certificateId);
             return Ok(result);
         }
+        [HttpGet("active")]
+        public async Task<IActionResult> GetActiveReviewers(
+   [FromQuery] string? search,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] string? filterStatus = "Actived")
+        {
+            var result = await _adminReviewerService.GetActiveReviewersAsync(search, pageNumber, pageSize, filterStatus);
+            return Ok(result);
+        }
+        [HttpGet("{reviewerProfileId}/detail")]
+        public async Task<IActionResult> GetReviewerDetail(Guid reviewerProfileId)
+        {
+            var result = await _adminReviewerService.GetReviewerDetailAsync(reviewerProfileId);
+            return Ok(result);
+        }
+        [HttpPut("ban/{userId}")]
+        public async Task<IActionResult> BanReviewer(Guid userId)
+        {
+            var result = await _adminReviewerService.BanReviewerAsync(userId);
+            return Ok(result);
+        }
     }
 }
