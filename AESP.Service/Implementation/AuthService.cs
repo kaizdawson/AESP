@@ -562,13 +562,38 @@ namespace AESP.Service.Implementation
                 await _refreshTokenRepository.Insert(refreshTokenEntity);
                 await _unitOfWork.SaveChangeAsync();
 
+                bool? isPlacementTestDone = null;
+                bool? isGoalSet = null;
+                bool? isProfileCompleted = null;
+
+                if (user.Role.ToUpper() == "LEARNER")
+                {
+                    var learnerProfile = await _learnerProfileRepository
+                        .GetByExpression(lp => lp.UserId == user.UserId);
+
+                    if (learnerProfile != null)
+                    {
+                        // Đã có bài Placement Test chưa
+                        var assessment = await _assessmentRepository
+                            .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+                        isPlacementTestDone = assessment != null;
+
+                        // Cờ này hiện chưa dùng logic cụ thể → để null (giống SignInAsync)
+                        isGoalSet = null;
+                        isProfileCompleted = null;
+                    }
+                }
+
                 return new LoginResult
                 {
                     Success = true,
                     Message = "Đăng nhập Google thành công",
                     Token = accessToken,
                     RefreshToken = refreshToken,
-                    Role = user.Role
+                    Role = user.Role,
+                    IsPlacementTestDone = isPlacementTestDone,
+                    IsGoalSet = isGoalSet,
+                    IsProfileCompleted = isProfileCompleted
                 };
             }
             catch (Exception ex)
@@ -591,7 +616,7 @@ namespace AESP.Service.Implementation
                 if (string.IsNullOrEmpty(firebaseUid))
                     return new LoginResult { Success = false, Message = "Không lấy được Firebase UID." };
 
-                // ✅ Tìm user theo UID hoặc Email
+                //  Tìm user theo UID hoặc Email
                 User? user = null;
                 var usersByUid = await _userRepository.GetAllDataByExpression(u => u.FirebaseUid == firebaseUid, 0, 0, null, true);
                 user = usersByUid.Items.FirstOrDefault();
@@ -601,11 +626,25 @@ namespace AESP.Service.Implementation
                     var usersByEmail = await _userRepository.GetAllDataByExpression(u => u.Email == email, 0, 0, null, true);
                     user = usersByEmail.Items.FirstOrDefault();
 
+                    if (user != null && string.Equals(user.Role, "LEARNER", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new LoginResult
+                        {
+                            Success = false,
+                            Message = "Email này đã được đăng ký cho tài khoản Learner. Vui lòng dùng tài khoản khác cho Reviewer."
+                        };
+                    }
                     if (user != null)
                     {
                         user.FirebaseUid = firebaseUid;
                         if (user.Status == "InActive") user.Status = "Active";
-                        if (string.IsNullOrEmpty(user.Role)) user.Role = "REVIEWER";
+
+                        //  Cập nhật role về REVIEWER nếu đang đăng nhập qua endpoint Reviewer
+                        if (!string.Equals(user.Role, "REVIEWER", StringComparison.OrdinalIgnoreCase))
+                        {
+                            user.Role = "REVIEWER";
+                        }
+
                         await _userRepository.Update(user);
                         await _unitOfWork.SaveChangeAsync();
                     }
@@ -656,7 +695,13 @@ namespace AESP.Service.Implementation
                     if (string.IsNullOrEmpty(user.FullName) && !string.IsNullOrEmpty(name)) { user.FullName = name; changed = true; }
                     if (string.IsNullOrEmpty(user.AvatarUrl) && !string.IsNullOrEmpty(avatar)) { user.AvatarUrl = avatar; changed = true; }
                     if (user.Status == "InActive") { user.Status = "Active"; changed = true; }
-                    if (string.IsNullOrEmpty(user.Role)) { user.Role = "REVIEWER"; changed = true; }
+                    
+
+                    if (!string.Equals(user.Role, "REVIEWER", StringComparison.OrdinalIgnoreCase))
+                    {
+                        user.Role = "REVIEWER";
+                        changed = true;
+                    }
 
                     if (changed)
                     {
