@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class ReviewerProfile
+    public class ReviewerProfile : BaseEntity
+
     {
         [Key]
         public Guid ReviewerProfileId { get; set; }

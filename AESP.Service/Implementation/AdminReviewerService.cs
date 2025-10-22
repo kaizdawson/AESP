@@ -53,7 +53,7 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ Chỉ duyệt reviewer nếu họ đang Pending
+                //  Chỉ duyệt reviewer nếu họ đang Pending
                 if (profile.Status != "Pending")
                 {
                     dto.IsSucess = false;
@@ -62,7 +62,7 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ Đổi reviewer sang trạng thái Active
+                //  Đổi reviewer sang trạng thái Active
                 profile.Status = "Active";
                 await _reviewerProfileRepository.Update(profile);
                 await _unitOfWork.SaveChangeAsync();
@@ -87,6 +87,201 @@ namespace AESP.Service.Implementation
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
                 dto.Message = "Lỗi khi duyệt reviewer: " + ex.Message;
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> BanReviewerAsync(Guid userId)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                // Lấy thông tin user
+                var user = await _userRepository.GetById(userId);
+                if (user == null)
+                {
+                    dto.IsSucess = false;
+                    dto.Message = "Không tìm thấy người dùng.";
+                    return dto;
+                }
+
+                // Lấy reviewer profile tương ứng
+                var reviewerProfile = await _reviewerProfileRepository
+                      .GetFirstByExpression(r => r.UserId == userId);
+
+                // Toggle trạng thái IsDeleted
+                bool isCurrentlyBanned = user.IsDeleted || reviewerProfile?.IsDeleted == true || reviewerProfile?.Status == "Banned";
+
+                if (!isCurrentlyBanned)
+                {
+                    // ========== CASE 1: BAN reviewer ==========
+                    user.IsDeleted = true;
+
+                    if (reviewerProfile != null)
+                    {
+                        reviewerProfile.IsDeleted = true;
+                        reviewerProfile.Status = "Banned";
+                        await _reviewerProfileRepository.Update(reviewerProfile);
+                    }
+
+                    await _userRepository.Update(user);
+                    await _unitOfWork.SaveChangeAsync();
+                    if (!string.IsNullOrEmpty(user.Email))
+                    {
+                    string subject = "AESP System - Tài khoản của bạn đã bị chặn";
+
+                    string body = $@"
+Xin chào {user.FullName},
+
+Tài khoản reviewer của bạn trên hệ thống AESP đã bị tạm khóa do vi phạm chính sách hoạt động hoặc yêu cầu quản trị hệ thống.
+
+   Lý do chặn có thể bao gồm:
+- Hoạt động không đúng quy định của hệ thống AESP.
+- Đánh giá không chính xác hoặc không tuân thủ quy trình kiểm duyệt.
+- Vi phạm điều khoản sử dụng hoặc quy định ứng xử chuyên môn.
+
+Nếu bạn tin rằng đây là nhầm lẫn, vui lòng phản hồi lại email này để yêu cầu xem xét lại.
+
+Trân trọng,
+Đội ngũ Quản trị viên AESP System
+";
+
+                    await _emailService.SendEmailAsync(user.Email, subject, body);
+                }
+
+                    dto.IsSucess = true;
+                    dto.Message = "Đã chặn reviewer và gửi thông báo qua email.";
+                    dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                }
+                else
+                {
+                    // ========== CASE 2: UNBAN reviewer ==========
+                    user.IsDeleted = false;
+
+                    if (reviewerProfile != null)
+                    {
+                        reviewerProfile.IsDeleted = false;
+                        reviewerProfile.Status = "Active";
+                        await _reviewerProfileRepository.Update(reviewerProfile);
+                    }
+
+                    await _userRepository.Update(user);
+                    await _unitOfWork.SaveChangeAsync();
+
+                    // Gửi mail thông báo mở khóa
+                    if (!string.IsNullOrEmpty(user.Email))
+                    {
+                        string subject = "AESP System - Tài khoản của bạn đã được mở khóa";
+                        string body = $@"
+Xin chào {user.FullName},
+
+Tài khoản reviewer của bạn trên hệ thống AESP đã được mở khóa và có thể hoạt động trở lại bình thường.
+
+Vui lòng tuân thủ các quy định và hướng dẫn của hệ thống trong quá trình đánh giá để tránh bị khóa lần nữa.
+
+Trân trọng,
+Đội ngũ Quản trị viên AESP System
+";
+                        await _emailService.SendEmailAsync(user.Email, subject, body);
+                    }
+
+                    dto.IsSucess = true;
+                    dto.Message = "Đã mở khóa reviewer và gửi thông báo qua email.";
+                    dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                }
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.Message = "Lỗi khi cập nhật trạng thái chặn reviewer: " + ex.Message;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> GetActiveReviewersAsync(string? search, int pageNumber, int pageSize, string? filterStatus)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                var db = _reviewerProfileRepository.GetDbContext();
+
+                // Lấy toàn bộ reviewer (đã duyệt) — không loại bỏ bị ban, để còn sort hiển thị
+                var query = db.ReviewerProfiles
+                    .Include(r => r.User)
+                    .Where(r => r.User.Role == "REVIEWER" && r.Status == "Active" || r.Status == "Banned");
+
+                // 🔍 Tìm kiếm theo tên hoặc email
+                if (!string.IsNullOrEmpty(search))
+                {
+                    string keyword = search.Trim().ToLower();
+                    query = query.Where(r => r.User.FullName.ToLower().Contains(keyword)
+                                          || r.User.Email.ToLower().Contains(keyword));
+                }
+
+                var reviewers = await query.ToListAsync();
+                DateTime now = DateTime.UtcNow;
+
+                // ✅ Xử lý logic trạng thái động (3 loại)
+                var mapped = reviewers.Select(r =>
+                {
+                    double daysInactive = (now - (r.User.LastActiveAt ?? r.User.CreatedAt)).TotalDays;
+
+                    string status;
+                    if (r.User.IsDeleted || r.IsDeleted)
+                        status = "Banned";
+                    else if (daysInactive > 30)
+                        status = "Inactived";
+                    else
+                        status = "Actived";
+
+                    return new
+                    {
+                        r.ReviewerProfileId,
+                        FullName = r.User.FullName,
+                        Email = r.User.Email,
+                        Phone = r.User.PhoneNumber,
+                        Level = r.Levels,
+                        Experience = r.Experience,
+                        Rating = r.Rating,
+                        Status = status,
+                        LastActiveAt = r.User.LastActiveAt,
+                        CreatedAt = r.User.CreatedAt
+                    };
+                });
+
+                // ✅ Lọc theo trạng thái FE truyền vào
+                if (!string.IsNullOrEmpty(filterStatus))
+                {
+                    mapped = mapped.Where(m => m.Status.Equals(filterStatus, StringComparison.OrdinalIgnoreCase));
+                }
+
+                // ✅ Sort thứ tự ưu tiên: Actived -> Inactived -> Banned
+                mapped = mapped.OrderBy(m => m.Status == "Banned" ? 3 : m.Status == "Inactived" ? 2 : 1)
+                               .ThenByDescending(m => m.Rating);
+
+                // ✅ Phân trang
+                var totalItems = mapped.Count();
+                var pagedItems = mapped.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách reviewer thành công.";
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    Items = pagedItems
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy danh sách reviewer: " + ex.Message;
             }
 
             return dto;
@@ -158,6 +353,57 @@ namespace AESP.Service.Implementation
 
             return dto;
 
+        }
+
+        public async Task<ResponseDTO> GetReviewerDetailAsync(Guid reviewerProfileId)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                var db = _reviewerProfileRepository.GetDbContext();
+
+                var reviewer = await db.ReviewerProfiles
+                    .Include(r => r.User)
+                    .Include(r => r.Certificates)
+                    .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                if (reviewer == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy thông tin reviewer.";
+                    return dto;
+                }
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy thông tin chi tiết reviewer thành công.";
+                dto.Data = new
+                {
+                    reviewer.ReviewerProfileId,
+                    reviewer.User.FullName,
+                    reviewer.User.Email,
+                    reviewer.Experience,
+                    reviewer.Levels,
+                    reviewer.Rating,
+                    reviewer.Status,
+                    reviewer.User.CreatedAt,
+                    Certificates = reviewer.Certificates.Select(c => new
+                    {
+                        c.CertificateId,
+                        c.Name,
+                        c.Url
+                    })
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy chi tiết reviewer: " + ex.Message;
+            }
+
+            return dto;
         }
 
         public async Task<ResponseDTO> RejectReviewerByCertificateAsync(Guid certificateId)

@@ -4,7 +4,8 @@ using System.Data;
 
 namespace AESP.Repository.Models
 {
-    public class User
+    public class User : BaseEntity
+
     {
         [Key]
         public Guid UserId { get; set; } = Guid.NewGuid();
@@ -19,6 +20,7 @@ namespace AESP.Repository.Models
         public string AvatarUrl { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
 
+        public DateTime? LastActiveAt { get; set; }
         public virtual LearnerProfile LearnerProfile { get; set; }
         public virtual ReviewerProfile ReviewerProfile { get; set; }
         public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
