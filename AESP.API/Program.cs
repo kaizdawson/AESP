@@ -217,6 +217,7 @@ app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
+app.UseMiddleware<UpdateLastActiveMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
