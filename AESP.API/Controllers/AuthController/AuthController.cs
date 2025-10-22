@@ -69,6 +69,15 @@ namespace AESP.API.Controllers
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
+            var encodedToken = Uri.EscapeDataString(result.RefreshToken!);
+            Response.Cookies.Append("refreshToken", encodedToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(7)
+            });
+
             return Ok(new
             {
                 accessToken = result.Token,
@@ -170,30 +179,51 @@ namespace AESP.API.Controllers
 
         [AllowAnonymous]
         [HttpPost("reset-password-by-link")]
-        public async Task<IActionResult> ResetPasswordByLink([FromBody] ResetPasswordByLinkDto dto)
+        public async Task<IActionResult> ResetPasswordByLink([FromHeader(Name = "Token")] string token,[FromBody] ResetPasswordByLinkDto dto)
         {
             var validationResult = ValidateModel();
             if (validationResult != null) return validationResult;
 
-            var result = await _authService.ResetPasswordByLinkAsync(dto);
+            if (string.IsNullOrEmpty(token))
+                return Unauthorized(new { message = "Thiếu token trong header." });
+
+            var result = await _authService.ResetPasswordByLinkAsync(token, dto);
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
+
             return Ok(new { message = result.Message });
         }
+
+
+
+
+
 
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout([FromHeader(Name = "refreshToken")] string refreshToken)
+        public async Task<IActionResult> Logout()
         {
+
+            var encoded = Request.Cookies["refreshToken"];
+
+            var refreshToken = Uri.UnescapeDataString(encoded ?? "");
+
+         
             if (string.IsNullOrEmpty(refreshToken))
-                return BadRequest(new { message = "Missing refresh token" });
+                return BadRequest(new { message = "Missing refresh token in cookies" });
 
+         
             var result = await _authService.LogoutAsync(refreshToken);
-
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
+         
+            Response.Cookies.Delete("refreshToken");
+
             return Ok(new { message = result.Message });
         }
+
+
+
 
 
 
@@ -208,6 +238,16 @@ namespace AESP.API.Controllers
 
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
+
+
+            var encodedToken = Uri.EscapeDataString(result.RefreshToken!);
+            Response.Cookies.Append("refreshToken", encodedToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(7)
+            });
 
             return Ok(new
             {
@@ -228,6 +268,17 @@ namespace AESP.API.Controllers
 
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
+
+
+            var encodedToken = Uri.EscapeDataString(result.RefreshToken!);
+            Response.Cookies.Append("refreshToken", encodedToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(7)
+            });
+
 
             return Ok(new
             {
