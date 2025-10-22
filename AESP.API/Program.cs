@@ -194,6 +194,7 @@ app.UseSwaggerUI(c =>
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseAuthentication();
+app.UseMiddleware<UpdateLastActiveMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
