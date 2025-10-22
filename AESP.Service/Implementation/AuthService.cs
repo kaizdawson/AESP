@@ -376,36 +376,40 @@ namespace AESP.Service.Implementation
                 return (false, "Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng nút 'Đăng nhập với Google' để vào hệ thống.");
             }
 
-            var token = Guid.NewGuid().ToString("N");
-            _cache.Set($"reset_{dto.Email}", token, TimeSpan.FromMinutes(15));
-
-
-            var resetLink = $"https://englishcarehub.vercel.app/reset-password?email={dto.Email}&token={token}";
+            var token = _jwtService.GenerateResetPasswordToken(user.Email);
+            var resetLink = $"http://localhost:3000/reset-password?token={token}";
             await _emailService.SendEmailAsync(dto.Email, "Reset Password",
                 $"<p>Click để reset mật khẩu:</p><a href='{resetLink}'>Đặt lại mật khẩu</a>");
+
 
             return (true, "Link đặt lại mật khẩu đã được gửi tới email.");
         }
 
-        public async Task<(bool Success, string Message)> ResetPasswordByLinkAsync(ResetPasswordByLinkDto dto)
+        public async Task<(bool Success, string Message)> ResetPasswordByLinkAsync(string token, ResetPasswordByLinkDto dto)
         {
-            if (!_cache.TryGetValue($"reset_{dto.Email}", out string? cachedToken) || cachedToken != dto.Token)
-                return (false, "Token không hợp lệ hoặc đã hết hạn.");
-
+            // Model đã có [Compare], check này để phản hồi rõ ràng hơn (cũng OK nếu bỏ)
             if (dto.NewPassword != dto.ConfirmPassword)
                 return (false, "Mật khẩu xác nhận không khớp.");
 
-            var user = await _userRepository.GetByExpression(u => u.Email == dto.Email);
-            if (user == null) return (false, "Người dùng không tồn tại.");
+            var email = _jwtService.ValidateAndGetEmailFromResetToken(token);
+            if (string.IsNullOrEmpty(email))
+                return (false, "Token không hợp lệ hoặc đã hết hạn.");
 
+            var user = await _userRepository.GetByExpression(u => u.Email == email);
+            if (user == null)
+                return (false, "Người dùng không tồn tại.");
+
+            // TODO: Dùng thuật toán hash mạnh. Ví dụ với BCrypt.Net-Next:
+            // user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
             user.PasswordHash = HashPassword(dto.NewPassword);
+
             await _userRepository.Update(user);
             await _unitOfWork.SaveChangeAsync();
 
-            _cache.Remove($"reset_{dto.Email}");
-
             return (true, "Đặt lại mật khẩu thành công.");
         }
+
+
 
         public async Task<(bool Success, string Message)> LogoutAsync(string refreshToken)
         {
