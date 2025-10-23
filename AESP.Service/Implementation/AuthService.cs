@@ -466,12 +466,31 @@ namespace AESP.Service.Implementation
 
                 var usersByUid = await _userRepository.GetAllDataByExpression(u => u.FirebaseUid == firebaseUid, 0, 0, null, true);
                 user = usersByUid.Items.FirstOrDefault();
+                // ✅ Extra prevent login if Firebase UID belongs to Reviewer
+                if (user != null && string.Equals(user.Role, "REVIEWER", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new LoginResult
+                    {
+                        Success = false,
+                        Message = "Tài khoản này thuộc Reviewer. Vui lòng đăng nhập qua cổng Reviewer."
+                    };
+                }
 
 
                 if (user == null && !string.IsNullOrEmpty(email))
                 {
                     var usersByEmail = await _userRepository.GetAllDataByExpression(u => u.Email == email, 0, 0, null, true);
                     user = usersByEmail.Items.FirstOrDefault();
+
+                    // ✅ ADDED: Prevent cross-role login
+                    if (user != null && string.Equals(user.Role, "REVIEWER", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return new LoginResult
+                        {
+                            Success = false,
+                            Message = "Email này đã được đăng ký cho tài khoản Reviewer. Vui lòng dùng tài khoản khác cho Learner."
+                        };
+                    }
 
                     if (user != null)
                     {
@@ -620,6 +639,15 @@ namespace AESP.Service.Implementation
                 User? user = null;
                 var usersByUid = await _userRepository.GetAllDataByExpression(u => u.FirebaseUid == firebaseUid, 0, 0, null, true);
                 user = usersByUid.Items.FirstOrDefault();
+                // ✅ Extra prevent login if Firebase UID belongs to Learner
+                if (user != null && string.Equals(user.Role, "LEARNER", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new LoginResult
+                    {
+                        Success = false,
+                        Message = "Tài khoản này thuộc Learner. Vui lòng đăng nhập qua cổng Learner."
+                    };
+                }
 
                 if (user == null && !string.IsNullOrEmpty(email))
                 {
