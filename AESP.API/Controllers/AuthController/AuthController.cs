@@ -258,7 +258,10 @@ namespace AESP.API.Controllers
                 accessToken = result.Token,
                 refreshToken = result.RefreshToken,
                 message = result.Message,
-                role = result.Role
+                role = result.Role,
+                isPlacementTestDone = result.IsPlacementTestDone,
+                isGoalSet = result.IsGoalSet,
+                isProfileCompleted = result.IsProfileCompleted
             });
         }
         [AllowAnonymous]
