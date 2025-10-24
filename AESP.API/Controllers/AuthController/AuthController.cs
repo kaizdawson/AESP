@@ -1,9 +1,11 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Repository.Contract;
+using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace AESP.API.Controllers
 {
@@ -13,11 +15,17 @@ namespace AESP.API.Controllers
     {
         private readonly IAuthService _authService;
         private readonly IConfiguration _configuration;
+        private readonly IGenericRepository<User> _userRepository;
+        private readonly IGenericRepository<LearnerProfile> _learnerProfileRepository;
+        private readonly IGenericRepository<ReviewerProfile> _reviewerProfileRepository;
 
-        public AuthController(IAuthService authService, IConfiguration configuration)
+        public AuthController(IAuthService authService, IConfiguration configuration, IGenericRepository<LearnerProfile> learnerProfileRepository, IGenericRepository<ReviewerProfile> reviewerProfileRepository, IGenericRepository<User> userRepository)
         {
+            _userRepository = userRepository;
             _authService = authService;
             _configuration = configuration;
+            _learnerProfileRepository = learnerProfileRepository;
+            _reviewerProfileRepository = reviewerProfileRepository;
         }
         private IActionResult? ValidateModel()
         {
@@ -75,7 +83,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(2)
+                Expires = DateTime.UtcNow.AddMinutes(60)
             });
 
             return Ok(new
@@ -251,7 +259,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(2)
+                Expires = DateTime.UtcNow.AddMinutes(60)
             });
 
             return Ok(new
@@ -284,7 +292,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(2)
+                Expires = DateTime.UtcNow.AddMinutes(60)
             });
 
 
@@ -298,6 +306,51 @@ namespace AESP.API.Controllers
             });
         }
 
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetUserInfo()
+        {
+            // Lấy userId từ Claims của token (JWT token)
+            var userIdClaim = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                                ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "Không xác định được người dùng." });
+            }
+
+            // Truy vấn thông tin người dùng từ database
+            var user = await _userRepository.GetById(userId);
+            if (user == null)
+            {
+                return NotFound(new { message = "Người dùng không tồn tại." });
+            }
+
+            // Truy vấn các thông tin liên quan (ví dụ: profile)
+            var learnerProfile = user.Role.ToUpper() == "LEARNER"
+                                 ? await _learnerProfileRepository.GetByExpression(lp => lp.UserId == user.UserId)
+                                 : null;
+
+            var reviewerProfile = user.Role.ToUpper() == "REVIEWER"
+                                 ? await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId)
+                                 : null;
+
+            // Cấu trúc dữ liệu trả về
+            var userInfo = new
+            {
+                user.UserId,
+                user.FullName,
+                user.Email,
+                user.PhoneNumber,
+                user.Role,
+                user.AvatarUrl,
+                user.Status,
+                LearnerProfile = learnerProfile,
+                ReviewerProfile = reviewerProfile
+            };
+
+            return Ok(userInfo);
+        }
 
     }
 
