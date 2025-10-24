@@ -140,7 +140,7 @@ namespace AESP.Service.Implementation
             if (!VerifyPassword(request.Password, user.PasswordHash))
                 return new LoginResult { Success = false, Message = "Mật khẩu không đúng." };
 
-            var accessToken = _jwtService.GenerateAccessToken(user);
+           
 
             var result = await _refreshTokenRepository.GetAllDataByExpression(
                 r => r.UserId == user.UserId && !r.Revoked,
@@ -174,8 +174,7 @@ namespace AESP.Service.Implementation
 
 
             bool? isPlacementTestDone = null;
-            bool? isGoalSet = null;
-            bool? isProfileCompleted = null;
+            bool isReviewerActive = false;  
 
             if (user.Role.ToUpper() == "LEARNER")
             {
@@ -192,7 +191,7 @@ namespace AESP.Service.Implementation
                 }
             }
 
-            bool isReviewerActive = false; // default false
+            
 
             if (user.Role.ToUpper() == "REVIEWER")
             {
@@ -225,6 +224,12 @@ namespace AESP.Service.Implementation
                 }
             }
 
+            var accessToken = _jwtService.GenerateAccessToken(
+        user,
+        isPlacementTestDone,
+        isReviewerActive
+    );
+
             return new LoginResult
             {
                 Success = true,
@@ -233,8 +238,6 @@ namespace AESP.Service.Implementation
                 RefreshToken = refreshToken,
                 Role = user.Role,
                 IsPlacementTestDone = isPlacementTestDone,
-                IsGoalSet = isGoalSet,
-                IsProfileCompleted = isProfileCompleted,
                 IsReviewerActive = isReviewerActive
             };
         }
@@ -565,8 +568,28 @@ namespace AESP.Service.Implementation
                     }
                 }
 
+                bool? isPlacementTestDone = null;
+                bool isReviewerActive = false;
 
-                var accessToken = _jwtService.GenerateAccessToken(user);
+                if (user.Role.ToUpper() == "LEARNER")
+                {
+                    var learnerProfile = await _learnerProfileRepository
+                        .GetByExpression(lp => lp.UserId == user.UserId);
+
+                    if (learnerProfile != null)
+                    {
+                        // Đã có bài Placement Test chưa
+                        var assessment = await _assessmentRepository
+                            .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+                        isPlacementTestDone = assessment != null;
+
+                        // Cờ này hiện chưa dùng logic cụ thể → để null (giống SignInAsync)
+                        isPlacementTestDone = assessment != null;
+                    }
+                }
+
+                var accessToken = _jwtService.GenerateAccessToken(user, isPlacementTestDone, isReviewerActive);
+
                 var refreshToken = GenerateRefreshToken();
 
                 var refreshTokenEntity = new RefreshToken
@@ -584,28 +607,6 @@ namespace AESP.Service.Implementation
                 await _refreshTokenRepository.Insert(refreshTokenEntity);
                 await _unitOfWork.SaveChangeAsync();
 
-                bool? isPlacementTestDone = null;
-                bool? isGoalSet = null;
-                bool? isProfileCompleted = null;
-
-                if (user.Role.ToUpper() == "LEARNER")
-                {
-                    var learnerProfile = await _learnerProfileRepository
-                        .GetByExpression(lp => lp.UserId == user.UserId);
-
-                    if (learnerProfile != null)
-                    {
-                        // Đã có bài Placement Test chưa
-                        var assessment = await _assessmentRepository
-                            .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
-                        isPlacementTestDone = assessment != null;
-
-                        // Cờ này hiện chưa dùng logic cụ thể → để null (giống SignInAsync)
-                        isGoalSet = null;
-                        isProfileCompleted = null;
-                    }
-                }
-
                 return new LoginResult
                 {
                     Success = true,
@@ -614,8 +615,7 @@ namespace AESP.Service.Implementation
                     RefreshToken = refreshToken,
                     Role = user.Role,
                     IsPlacementTestDone = isPlacementTestDone,
-                    IsGoalSet = isGoalSet,
-                    IsProfileCompleted = isProfileCompleted
+                    IsReviewerActive = isReviewerActive
                 };
             }
             catch (Exception ex)
@@ -764,8 +764,18 @@ namespace AESP.Service.Implementation
                     }
                 }
 
+                
+
+                //  Check trạng thái reviewer
+                bool isReviewerActive = false;
+                var reviewer = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
+                if (reviewer != null && reviewer.Status?.ToUpper() == "ACTIVE")
+                {
+                    isReviewerActive = true;
+                }
+
                 //  Tạo accessToken + refreshToken
-                var accessToken = _jwtService.GenerateAccessToken(user);
+                var accessToken = _jwtService.GenerateAccessToken(user,null,isReviewerActive);
                 var refreshToken = GenerateRefreshToken();
 
                 var refreshTokenEntity = new RefreshToken
@@ -783,13 +793,6 @@ namespace AESP.Service.Implementation
                 await _refreshTokenRepository.Insert(refreshTokenEntity);
                 await _unitOfWork.SaveChangeAsync();
 
-                //  Check trạng thái reviewer
-                bool isReviewerActive = false;
-                var reviewer = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
-                if (reviewer != null && reviewer.Status?.ToUpper() == "ACTIVE")
-                {
-                    isReviewerActive = true;
-                }
 
                 return new LoginResult
                 {

@@ -87,7 +87,7 @@ namespace AESP.API.Controllers
                 isPlacementTestDone = result.IsPlacementTestDone,
                 isGoalSet = result.IsGoalSet,
                 isProfileCompleted = result.IsProfileCompleted,
-                 isReviewerActive = result.IsReviewerActive
+                isReviewerActive = result.IsReviewerActive
             });
         }
 
