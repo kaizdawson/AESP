@@ -75,7 +75,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
+                Expires = DateTime.UtcNow.AddMinutes(2)
             });
 
             return Ok(new
@@ -206,25 +206,26 @@ namespace AESP.API.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-
             var encoded = Request.Cookies["refreshToken"];
-
             var refreshToken = Uri.UnescapeDataString(encoded ?? "");
 
-         
             if (string.IsNullOrEmpty(refreshToken))
-                return BadRequest(new { message = "Missing refresh token in cookies" });
+                return BadRequest(new { message = "Thiếu refresh token trong cookie." });
 
-         
             var result = await _authService.LogoutAsync(refreshToken);
+
+
+            if (!result.Success && (result.ErrorType == "Revoked" || result.ErrorType == "Expired" || result.ErrorType == "Invalid"))
+                return Unauthorized(new { message = result.Message });
+
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 
-         
+           
             Response.Cookies.Delete("refreshToken");
-
             return Ok(new { message = result.Message });
         }
+
 
 
 
@@ -250,7 +251,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
+                Expires = DateTime.UtcNow.AddMinutes(2)
             });
 
             return Ok(new
@@ -283,7 +284,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
+                Expires = DateTime.UtcNow.AddMinutes(2)
             });
 
 
