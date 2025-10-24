@@ -255,12 +255,17 @@ namespace AESP.Service.Implementation
 
             if (storedToken.ExpiredAt <= DateTime.UtcNow)
             {
+                storedToken.Revoked = true; 
+                await _refreshTokenRepository.Update(storedToken);
+                await _unitOfWork.SaveChangeAsync();
+
                 return new LoginResult
                 {
                     Success = false,
                     Message = "Refresh token đã hết hạn."
                 };
             }
+
 
             var user = await _userRepository.GetById(storedToken.UserId);
             if (user == null)
@@ -570,7 +575,7 @@ namespace AESP.Service.Implementation
                     UserId = user.UserId,
                     Token = refreshToken,
                     CreatedAt = DateTime.UtcNow,
-                    ExpiredAt = DateTime.UtcNow.AddDays(7),
+                    ExpiredAt = DateTime.UtcNow.AddMinutes(2),
                     Revoked = false,
                     IpAddress = ipAddress ?? "unknown",
                     DeviceInfo = deviceInfo ?? "unknown"
@@ -769,7 +774,7 @@ namespace AESP.Service.Implementation
                     UserId = user.UserId,
                     Token = refreshToken,
                     CreatedAt = DateTime.UtcNow,
-                    ExpiredAt = DateTime.UtcNow.AddDays(7),
+                    ExpiredAt = DateTime.UtcNow.AddMinutes(2),
                     Revoked = false,
                     IpAddress = ipAddress ?? "unknown",
                     DeviceInfo = deviceInfo ?? "unknown"
