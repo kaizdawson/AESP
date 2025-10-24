@@ -266,38 +266,26 @@ namespace AESP.Service.Implementation
             if (user == null)
                 return new LoginResult { Success = false, Message = "Người dùng không tồn tại." };
 
-
-            storedToken.Revoked = true;
+           
+            storedToken.IpAddress = ipAddress ?? storedToken.IpAddress;
+            storedToken.DeviceInfo = deviceInfo ?? storedToken.DeviceInfo;
             await _refreshTokenRepository.Update(storedToken);
 
-
+           
             var newAccessToken = _jwtService.GenerateAccessToken(user);
-            var newRefreshToken = GenerateRefreshToken();
-
-            var refreshTokenEntity = new RefreshToken
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.UserId,
-                Token = newRefreshToken,
-                CreatedAt = DateTime.UtcNow,
-                ExpiredAt = DateTime.UtcNow.AddMinutes(60),
-                Revoked = false,
-                IpAddress = ipAddress ?? "unknown",
-                DeviceInfo = deviceInfo ?? "unknown"
-            };
-
-            await _refreshTokenRepository.Insert(refreshTokenEntity);
             await _unitOfWork.SaveChangeAsync();
 
+           
             return new LoginResult
             {
                 Success = true,
                 Message = "Renew thành công",
                 Token = newAccessToken,
-                RefreshToken = newRefreshToken,
+                RefreshToken = refreshToken, 
                 Role = user.Role
             };
         }
+
 
 
 
@@ -411,18 +399,28 @@ namespace AESP.Service.Implementation
 
 
 
-        public async Task<(bool Success, string Message)> LogoutAsync(string refreshToken)
+        public async Task<(bool Success, string Message, string? ErrorType)> LogoutAsync(string refreshToken)
         {
             var storedToken = await _refreshTokenRepository.GetByExpression(r => r.Token == refreshToken);
 
-            if (storedToken == null || storedToken.Revoked)
-                return (false, "Refresh token không hợp lệ hoặc đã logout rồi.");
+           
+            if (storedToken == null)
+                return (false, "Refresh token không hợp lệ.", "Invalid");
 
+        
+            if (storedToken.Revoked)
+                return (false, "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", "Expired");
+
+          
+            if (storedToken.ExpiredAt <= DateTime.UtcNow)
+                return (false, "Refresh token đã hết hạn.", "Expired");
+
+        
             storedToken.Revoked = true;
             await _refreshTokenRepository.Update(storedToken);
             await _unitOfWork.SaveChangeAsync();
 
-            return (true, "Đăng xuất thành công.");
+            return (true, "Đăng xuất thành công.", null);
         }
 
 
