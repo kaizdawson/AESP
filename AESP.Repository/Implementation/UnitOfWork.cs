@@ -1,5 +1,6 @@
 ﻿using AESP.Repository.Contract;
 using AESP.Repository.DB;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
@@ -57,6 +58,11 @@ namespace AESP.Repository.Implementation
         public void ClearChangeTracker()
         {
             _context.ChangeTracker.Clear();
+        }
+
+        public DbContext GetDbContext()
+        {
+            return _context;
         }
     }
 }
