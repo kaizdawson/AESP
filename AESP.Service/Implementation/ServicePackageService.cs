@@ -2,6 +2,7 @@
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
+using Microsoft.EntityFrameworkCore;
 using Org.BouncyCastle.Tls;
 using System;
 using System.Collections.Generic;
@@ -30,48 +31,64 @@ namespace AESP.Service.Implementation
 
             try
             {
-                // ✅ Kiểm tra dữ liệu null hoặc thiếu
                 if (request == null)
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Dữ liệu đầu vào không được để trống.";
+                    dto.Message = "Dữ liệu không hợp lệ.";
                     return dto;
                 }
 
-                // ✅ Kiểm tra Name rỗng
                 if (string.IsNullOrWhiteSpace(request.Name))
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Tên gói dịch vụ không được để trống.";
+                    dto.Message = "Tên gói không được để trống.";
                     return dto;
                 }
 
-                // ✅ Kiểm tra tên trùng
+                if (string.IsNullOrWhiteSpace(request.Level))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Level của gói không được để trống (A1, A2, B1, B2, C1, C2).";
+                    return dto;
+                }
+
+                // Kiểm tra Level hợp lệ
+                var validLevels = new[] { "A1", "A2", "B1", "B2", "C1", "C2" };
+                if (!validLevels.Contains(request.Level.ToUpper()))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Level không hợp lệ. Chỉ chấp nhận A1, A2, B1, B2, C1, C2.";
+                    return dto;
+                }
+
+                // Kiểm tra trùng tên
                 var existed = await _servicePackageRepository.GetByExpression(
-                    x => x.Name.ToLower() == request.Name.Trim().ToLower()
-                );
+                    p => p.Name.ToLower() == request.Name.Trim().ToLower());
 
                 if (existed != null)
                 {
                     dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.BusinessCode = BusinessCode.DUPLICATE_DATA;
                     dto.Message = "Tên gói dịch vụ đã tồn tại.";
                     return dto;
                 }
 
-                // ✅ Gói hợp lệ → tạo entity
                 var entity = new ServicePackage
                 {
                     ServicePackageId = Guid.NewGuid(),
                     Name = request.Name.Trim(),
-                    Description = request.Description?.Trim() ?? "",
-                    Level = request.Level?.Trim() ?? "",
+                    Description = request.Description?.Trim(),
                     Price = request.Price,
                     Duration = request.Duration,
+                    Level = request.Level.ToUpper(),
                     NumberOfReview = request.NumberOfReview,
-                    Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim()
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    Status = "Active"
                 };
 
                 await _servicePackageRepository.Insert(entity);
@@ -86,7 +103,7 @@ namespace AESP.Service.Implementation
                     entity.Name,
                     entity.Level,
                     entity.Price,
-                    entity.Status
+                    entity.Duration
                 };
             }
             catch (Exception ex)
@@ -113,7 +130,8 @@ namespace AESP.Service.Implementation
                     dto.Message = "Không tìm thấy gói dịch vụ.";
                     return dto;
                 }
-
+                entity.IsDeleted = true;
+                entity.UpdatedAt = DateTime.UtcNow;
                 await _servicePackageRepository.Delete(entity);
                 await _unitOfWork.SaveChangeAsync();
 
@@ -138,8 +156,15 @@ namespace AESP.Service.Implementation
 
             try
             {
-                var entity = await _servicePackageRepository.GetById(id);
-                if (entity == null)
+                var db = _servicePackageRepository.GetDbContext();
+
+                var package = await db.ServicePackages
+                 .Include(p => p.Subscriptions)
+                 .ThenInclude(s => s.LearnerProfile)
+                 .ThenInclude(lp => lp.User)
+                 .FirstOrDefaultAsync(p => p.ServicePackageId == id);
+
+                if (package == null)
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
@@ -147,19 +172,29 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
+                var learners = package.Subscriptions.Select(s => new
+                {
+                    LearnerProfileId = s.LearnerProfileId,
+                    FullName = s.LearnerProfile.User.FullName,
+                    Email = s.LearnerProfile.User.Email,
+                    Phone = s.LearnerProfile.User.PhoneNumber,
+                    Status = s.Status
+                }).ToList();
+
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy chi tiết gói dịch vụ thành công.";
                 dto.Data = new
                 {
-                    entity.ServicePackageId,
-                    entity.Name,
-                    entity.Description,
-                    entity.Level,
-                    entity.Price,
-                    entity.Duration,
-                    entity.NumberOfReview,
-                    entity.Status
+                    package.ServicePackageId,
+                    package.Name,
+                    package.Description,
+                    package.Level,
+                    package.Price,
+                    package.Duration,
+                    package.NumberOfReview,
+                    LearnerCount = learners.Count(),
+                    Learners = learners
                 };
             }
             catch (Exception ex)
@@ -172,7 +207,7 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> GetListAsync()
+        public async Task<ResponseDTO> GetListAsync(string? search, int pageNumber, int pageSize)
         {
             var dto = new ResponseDTO();
 
@@ -180,33 +215,48 @@ namespace AESP.Service.Implementation
             {
                 var db = _servicePackageRepository.GetDbContext();
 
-                var packages = db.ServicePackages
-                    .OrderByDescending(p => p.Price)
-                    .Select(x => new
-                    {
-                        x.ServicePackageId,
-                        x.Name,
-                        x.Description,
-                        x.Level,
-                        x.Price,
-                        x.Duration,
-                        x.NumberOfReview,
-                        x.Status
-                    })
-                    .ToList();
+                var query = db.ServicePackages.AsQueryable();
 
-                if (packages == null || !packages.Any())
+              
+
+                // Search theo tên
+                if (!string.IsNullOrEmpty(search))
                 {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-                    dto.Message = "Không có gói dịch vụ nào trong hệ thống.";
-                    return dto;
+                    string keyword = search.Trim().ToLower();
+                    query = query.Where(p => p.Name.ToLower().Contains(keyword));
                 }
+
+                var total = await query.CountAsync();
+
+                var packages = await query
+                    .OrderBy(p => p.Level)
+                    .ThenBy(p => p.Name)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(p => new
+                    {
+                        p.ServicePackageId,
+                        p.Name,
+                        p.Description,
+                        p.Level,
+                        p.Price,
+                        p.Duration,
+                        p.NumberOfReview,
+                        p.CreatedAt,
+                        p.UpdatedAt
+                    })
+                    .ToListAsync();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy danh sách gói dịch vụ thành công.";
-                dto.Data = packages;
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = total,
+                    Items = packages
+                };
             }
             catch (Exception ex)
             {
@@ -232,6 +282,22 @@ namespace AESP.Service.Implementation
                     dto.Message = "Không tìm thấy gói dịch vụ.";
                     return dto;
                 }
+                if (string.IsNullOrWhiteSpace(request.Level))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Level không được để trống.";
+                    return dto;
+                }
+
+                var validLevels = new[] { "A1", "A2", "B1", "B2", "C1", "C2" };
+                if (!validLevels.Contains(request.Level.ToUpper()))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Level không hợp lệ. Chỉ chấp nhận A1, A2, B1, B2, C1, C2.";
+                    return dto;
+                }
 
                 // kiểm tra trùng tên (trừ chính nó)
                 var name = request.Name.Trim().ToLower();
@@ -253,6 +319,7 @@ namespace AESP.Service.Implementation
                 entity.Duration = request.Duration;
                 entity.NumberOfReview = request.NumberOfReview;
                 entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status!.Trim();
+                entity.Level = request.Level.ToUpper();
 
                 await _servicePackageRepository.Update(entity);
                 await _unitOfWork.SaveChangeAsync();
