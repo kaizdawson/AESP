@@ -162,7 +162,7 @@ namespace AESP.Service.Implementation
                 UserId = user.UserId,
                 Token = refreshToken,
                 CreatedAt = DateTime.UtcNow,
-                ExpiredAt = DateTime.UtcNow.AddMinutes(2),
+                ExpiredAt = DateTime.UtcNow.AddMinutes(60),
                 Revoked = false,
                 IpAddress = ipAddress ?? "unknown",
                 DeviceInfo = deviceInfo ?? "unknown"
@@ -598,7 +598,7 @@ namespace AESP.Service.Implementation
                     UserId = user.UserId,
                     Token = refreshToken,
                     CreatedAt = DateTime.UtcNow,
-                    ExpiredAt = DateTime.UtcNow.AddMinutes(2),
+                    ExpiredAt = DateTime.UtcNow.AddMinutes(60),
                     Revoked = false,
                     IpAddress = ipAddress ?? "unknown",
                     DeviceInfo = deviceInfo ?? "unknown"
@@ -784,7 +784,7 @@ namespace AESP.Service.Implementation
                     UserId = user.UserId,
                     Token = refreshToken,
                     CreatedAt = DateTime.UtcNow,
-                    ExpiredAt = DateTime.UtcNow.AddMinutes(2),
+                    ExpiredAt = DateTime.UtcNow.AddMinutes(60),
                     Revoked = false,
                     IpAddress = ipAddress ?? "unknown",
                     DeviceInfo = deviceInfo ?? "unknown"
