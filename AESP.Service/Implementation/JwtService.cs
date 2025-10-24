@@ -19,7 +19,7 @@ namespace AESP.Service.Implementation
             _context = context;
         }
 
-        public string GenerateAccessToken(User user)
+        public string GenerateAccessToken(User user, bool? isPlacementTestDone = null, bool isReviewerActive = false)
         {
             // Lấy role từ DB nghen
             var role = string.IsNullOrEmpty(user.Role) ? "User" : user.Role;
@@ -31,6 +31,8 @@ namespace AESP.Service.Implementation
                 new Claim("FullName", user.FullName),
                 new Claim("PhoneNumber", user.PhoneNumber),
                 new Claim(ClaimTypes.Role, role),
+                new Claim("IsPlacementTestDone", (isPlacementTestDone ?? false).ToString()),
+                new Claim("IsReviewerActive", isReviewerActive.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
