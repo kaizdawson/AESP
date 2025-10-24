@@ -19,7 +19,7 @@ namespace AESP.Service.Contract
         Task<(bool Success, string Message)> ForgotPasswordAsync(ForgotPasswordRequestDto dto);
         Task<(bool Success, string Message)> ResetPasswordByLinkAsync(string token, ResetPasswordByLinkDto dto);
 
-        Task<(bool Success, string Message)> LogoutAsync(string refreshToken);
+        Task<(bool Success, string Message, string? ErrorType)> LogoutAsync(string refreshToken);
 
         Task<LoginResult> GoogleSignInAsync(string idToken, string? ipAddress, string? deviceInfo);
         Task<LoginResult> GoogleSignInReviewerAsync(string idToken, string? ipAddress, string? deviceInfo);
