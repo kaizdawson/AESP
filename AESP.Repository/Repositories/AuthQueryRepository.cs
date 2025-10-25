@@ -40,5 +40,11 @@ namespace AESP.Repository.Repositories
                 .Include(r => r.User)
                 .FirstOrDefaultAsync(r => r.UserId == userId);
         }
+
+        public async Task<Wallet?> GetWalletByIdAsync(Guid walletId)
+        {
+            return await _context.Wallets.FirstOrDefaultAsync(w => w.WalletId == walletId);
+        }
+
     }
 }

@@ -173,7 +173,7 @@ namespace AESP.Service.Implementation
             await _unitOfWork.SaveChangeAsync();
 
 
-            bool? isPlacementTestDone = null;
+            bool isPlacementTestDone = false;
             bool isReviewerActive = false;  
 
             if (user.Role.ToUpper() == "LEARNER")
@@ -571,7 +571,7 @@ namespace AESP.Service.Implementation
                     }
                 }
 
-                bool? isPlacementTestDone = null;
+                bool isPlacementTestDone = false;
                 bool isReviewerActive = false;
 
                 if (user.Role.ToUpper() == "LEARNER")
