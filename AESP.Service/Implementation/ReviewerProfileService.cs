@@ -22,7 +22,13 @@ namespace AESP.Service.Implementation
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<ResponseDTO> GetByUserIdAsync(Guid userId)
+        public async Task<ReviewerProfile?> GetByUserIdAsync(Guid userId)
+        {
+            var reviewerProfile = await _reviewerProfileRepository.GetByExpression(x => x.UserId == userId);
+            return reviewerProfile;
+        }
+
+        public async Task<ResponseDTO> GetProfileResponseByUserIdAsync(Guid userId)
         {
             ResponseDTO dto = new ResponseDTO();
             try
