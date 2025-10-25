@@ -31,13 +31,35 @@ namespace AESP.Service.Implementation
             }
 
             object? profile = null;
+
             if (user.Role.Equals("LEARNER", StringComparison.OrdinalIgnoreCase))
             {
                 profile = await _authQueryRepository.GetLearnerProfileAsync(userId);
             }
             else if (user.Role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase))
             {
-                profile = await _authQueryRepository.GetReviewerProfileAsync(userId);
+                var reviewerProfile = await _authQueryRepository.GetReviewerProfileAsync(userId);
+
+                if (reviewerProfile != null)
+                {
+                    // 👇 lấy thêm thông tin ví
+                    var wallet = await _authQueryRepository.GetWalletByIdAsync(reviewerProfile.WalletId);
+
+                    profile = new
+                    {
+                        reviewerProfile.ReviewerProfileId,
+                        reviewerProfile.UserId,
+                        reviewerProfile.Experience,
+                        reviewerProfile.Rating,
+                        reviewerProfile.Status,
+                        reviewerProfile.Levels,
+                        reviewerProfile.WalletId,
+                        Balance = wallet?.Amount ?? 0, // 🧩 thêm balance
+                        reviewerProfile.CreatedAt,
+                        reviewerProfile.UpdatedAt,
+                        reviewerProfile.IsDeleted
+                    };
+                }
             }
 
             dto.IsSucess = true;
@@ -57,5 +79,6 @@ namespace AESP.Service.Implementation
 
             return dto;
         }
+
     }
 }
