@@ -19,38 +19,43 @@ namespace AESP.Service.Implementation
             _context = context;
         }
 
-        public string GenerateAccessToken(User user, bool? isPlacementTestDone = null, bool isReviewerActive = false)
+        public string GenerateAccessToken(User user, bool? isPlacementTestDone = null, bool? isReviewerActive = null)
         {
-            // Lấy role từ DB nghen
             var role = string.IsNullOrEmpty(user.Role) ? "User" : user.Role;
 
-            // Tạo claims nè
             var claims = new List<Claim>
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
-                new Claim("FullName", user.FullName),
-                new Claim("PhoneNumber", user.PhoneNumber),
-                new Claim(ClaimTypes.Role, role),
-                new Claim("IsPlacementTestDone", (isPlacementTestDone ?? false).ToString()),
-                new Claim("IsReviewerActive", isReviewerActive.ToString()),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
+        new Claim("FullName", user.FullName ?? string.Empty),
+        new Claim("PhoneNumber", user.PhoneNumber ?? string.Empty),
+        new Claim(ClaimTypes.Role, role),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    };
 
-            // Secret key
+            // 🎯 Chỉ thêm flag theo role tương ứng và giữ kiểu bool thật
+            if (role.Equals("LEARNER", StringComparison.OrdinalIgnoreCase) && isPlacementTestDone.HasValue)
+            {
+                claims.Add(new Claim("IsPlacementTestDone", isPlacementTestDone.Value.ToString().ToLower(), System.Security.Claims.ClaimValueTypes.Boolean));
+            }
+            else if (role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase) && isReviewerActive.HasValue)
+            {
+                claims.Add(new Claim("IsReviewerActive", isReviewerActive.Value.ToString().ToLower(), System.Security.Claims.ClaimValueTypes.Boolean));
+            }
+
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
 
-            // Tạo token ở đây
             var token = new JwtSecurityToken(
                 issuer: _config["JWT:ValidIssuer"],
                 audience: _config["JWT:ValidAudience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15), // 15 p chắc đủ rồi
+                expires: DateTime.UtcNow.AddMinutes(15),
                 signingCredentials: creds
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
 
         // 🧩 Sinh JWT cho link reset password (chỉ có email và type)
         public string GenerateResetPasswordToken(string email)

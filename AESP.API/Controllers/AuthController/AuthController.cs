@@ -90,8 +90,6 @@ namespace AESP.API.Controllers
                 message = result.Message,
                 role = result.Role,
                 isPlacementTestDone = result.IsPlacementTestDone,
-                isGoalSet = result.IsGoalSet,
-                isProfileCompleted = result.IsProfileCompleted,
                 isReviewerActive = result.IsReviewerActive
             });
         }
@@ -266,8 +264,6 @@ namespace AESP.API.Controllers
                 message = result.Message,
                 role = result.Role,
                 isPlacementTestDone = result.IsPlacementTestDone,
-                isGoalSet = result.IsGoalSet,
-                isProfileCompleted = result.IsProfileCompleted
             });
         }
         [AllowAnonymous]
