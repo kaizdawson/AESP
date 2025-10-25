@@ -18,7 +18,8 @@ namespace AESP.Repository.Models
         public Guid UserId { get; set; }
         public string Experience { get; set; } = string.Empty;
         public double Rating { get; set; }
-        public string Status { get; set; } = string.Empty;
+        [Required]
+        public string Status { get; set; } = "Draft";
         public string Levels { get; set; } = string.Empty;
 
         [ForeignKey("Wallet")]
