@@ -13,6 +13,6 @@ namespace AESP.Repository.Contract
         Task<ResponseDTO> UpdateAsync(Guid id, UpdateServicePackageDto request);
         Task<ResponseDTO> DeleteAsync(Guid id);
         Task<ResponseDTO> GetByIdAsync(Guid id);
-        Task<ResponseDTO> GetListAsync();
+        Task<ResponseDTO> GetListAsync(string? search, int pageNumber, int pageSize);
     }
 }
