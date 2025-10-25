@@ -1,7 +1,10 @@
-﻿using AESP.Service.Contract;
+﻿using AESP.Common.DTOs;
+using AESP.Service.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace AESP.API.Controllers.ReviewerController
 {
@@ -11,10 +14,12 @@ namespace AESP.API.Controllers.ReviewerController
     public class CertificateController : ControllerBase
     {
         private readonly ICertificateService _certificateService;
+        private readonly IReviewerProfileService _reviewerProfileService;
 
-        public CertificateController(ICertificateService certificateService)
+        public CertificateController(ICertificateService certificateService, IReviewerProfileService reviewerProfileService)
         {
             _certificateService = certificateService;
+            _reviewerProfileService = reviewerProfileService;
         }
 
         //  GET ALL — /api/reviewer/certificates/{profileId}
@@ -26,16 +31,25 @@ namespace AESP.API.Controllers.ReviewerController
         }
 
         //  UPLOAD FILE — /api/reviewer/certificates/upload/{profileId}
-        [HttpPost("upload/{reviewerProfileId}")]
-        public async Task<IActionResult> UploadCertificate(Guid reviewerProfileId, IFormFile file, string name)
+        [HttpPost("upload")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadCertificate(IFormFile file, [FromForm] string name)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null)
+                return Unauthorized(new { message = "Không xác định được người dùng từ token." });
+
+            var reviewerProfile = await _reviewerProfileService.GetByUserIdAsync(Guid.Parse(userIdClaim));
+            if (reviewerProfile == null)
+                return NotFound(new { message = "Không tìm thấy hồ sơ reviewer." });
+
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "File không hợp lệ." });
 
             if (string.IsNullOrWhiteSpace(name))
                 return BadRequest(new { message = "Tên chứng chỉ không được để trống." });
 
-            var result = await _certificateService.UploadCertificateAsync(reviewerProfileId, file, name.Trim());
+            var result = await _certificateService.UploadCertificateAsync(reviewerProfile.ReviewerProfileId, file, name.Trim());
             return Ok(result);
         }
 
