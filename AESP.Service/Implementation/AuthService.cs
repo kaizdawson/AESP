@@ -199,7 +199,9 @@ namespace AESP.Service.Implementation
 
                 if (reviewerProfile != null)
                 {
-                    isReviewerActive = reviewerProfile.Status?.ToUpper() == "ACTIVE";
+                    var st = reviewerProfile.Status?.ToUpperInvariant();
+                    // FE cần true khi Pending hoặc Active; Draft => false
+                    isReviewerActive = st == "PENDING" || st == "ACTIVE";
                 }
                 else
                 {
@@ -217,10 +219,11 @@ namespace AESP.Service.Implementation
                         ReviewerProfileId = Guid.NewGuid(),
                         UserId = user.UserId,
                         WalletId = wallet.WalletId,
-                        Status = "Pending"
+                        Status = "Draft"
                     };
                     await _reviewerProfileRepository.Insert(newProfile);
                     await _unitOfWork.SaveChangeAsync();
+                    isReviewerActive = false; // Draft => false
                 }
             }
 
@@ -769,9 +772,10 @@ namespace AESP.Service.Implementation
                 //  Check trạng thái reviewer
                 bool isReviewerActive = false;
                 var reviewer = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
-                if (reviewer != null && reviewer.Status?.ToUpper() == "ACTIVE")
+                if (reviewer != null)
                 {
-                    isReviewerActive = true;
+                    var st = reviewer.Status?.ToUpperInvariant();
+                    isReviewerActive = st == "PENDING" || st == "ACTIVE";
                 }
 
                 //  Tạo accessToken + refreshToken

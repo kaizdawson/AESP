@@ -59,12 +59,15 @@ namespace AESP.Service.Implementation
                     profile.Experience,
                     profile.Rating,
                     profile.Status,
-                    
+
+                    IsReviewerActive = profile.Status == "Pending" || profile.Status == "Active",
+
                     Certificates = profile.Certificates?.Select(c => new
                     {
                         c.CertificateId,
                         c.Name,
-                        c.Url
+                        c.Url,
+                        c.Status
                     }).ToList()
                 };
             }
