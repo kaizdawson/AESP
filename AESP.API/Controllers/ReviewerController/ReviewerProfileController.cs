@@ -22,7 +22,7 @@ namespace AESP.API.Controllers.ReviewerController
         [HttpGet("{userId}")]
         public async Task<IActionResult> GetProfile(Guid userId)
         {
-            var result = await _reviewerProfileService.GetByUserIdAsync(userId);
+            var result = await _reviewerProfileService.GetProfileResponseByUserIdAsync(userId);
             return Ok(result);
         }
 
