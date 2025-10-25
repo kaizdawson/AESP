@@ -127,6 +127,14 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
+                if (profile.IsDeleted || profile.Status == "Banned")
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_ACTION;
+                    dto.Message = "Tài khoản Reviewer đã bị khóa, không thể upload chứng chỉ.";
+                    return dto;
+                }
+
                 if (file == null || file.Length == 0)
                 {
                     dto.IsSucess = false;
