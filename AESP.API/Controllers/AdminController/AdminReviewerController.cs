@@ -1,4 +1,5 @@
-﻿using AESP.Service.Contract;
+﻿using AESP.Common.DTOs;
+using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -57,9 +58,12 @@ namespace AESP.API.Controllers.AdminController
             return Ok(result);
         }
         [HttpPut("ban/{userId}")]
-        public async Task<IActionResult> BanReviewer(Guid userId)
+        public async Task<IActionResult> BanReviewer(Guid userId, [FromBody] BanReasonDTO body)
         {
-            var result = await _adminReviewerService.BanReviewerAsync(userId);
+            if (body == null || string.IsNullOrWhiteSpace(body.Reason))
+                return BadRequest(new { Message = "Lý do chặn không được để trống." });
+
+            var result = await _adminReviewerService.BanReviewerAsync(userId, body.Reason.Trim());
             return Ok(result);
         }
     }
