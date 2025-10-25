@@ -92,30 +92,33 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> BanReviewerAsync(Guid userId)
+        public async Task<ResponseDTO> BanReviewerAsync(Guid userId, string reason)
         {
             var dto = new ResponseDTO();
+
             try
             {
-                // Lấy thông tin user
+                // 🔹 Lấy thông tin User
                 var user = await _userRepository.GetById(userId);
                 if (user == null)
                 {
                     dto.IsSucess = false;
                     dto.Message = "Không tìm thấy người dùng.";
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
                     return dto;
                 }
 
-                // Lấy reviewer profile tương ứng
+                // 🔹 Lấy Reviewer Profile
                 var reviewerProfile = await _reviewerProfileRepository
-                      .GetFirstByExpression(r => r.UserId == userId);
+                    .GetFirstByExpression(r => r.UserId == userId);
 
-                // Toggle trạng thái IsDeleted
                 bool isCurrentlyBanned = user.IsDeleted || reviewerProfile?.IsDeleted == true || reviewerProfile?.Status == "Banned";
 
+                // =======================
+                // CASE 1: BAN REVIEWER
+                // =======================
                 if (!isCurrentlyBanned)
                 {
-                    // ========== CASE 1: BAN reviewer ==========
                     user.IsDeleted = true;
 
                     if (reviewerProfile != null)
@@ -126,37 +129,51 @@ namespace AESP.Service.Implementation
                     }
 
                     await _userRepository.Update(user);
-                    await _unitOfWork.SaveChangeAsync();
+
+                    // 📩 Gửi email thông báo có lý do
                     if (!string.IsNullOrEmpty(user.Email))
                     {
-                    string subject = "AESP System - Tài khoản của bạn đã bị chặn";
-
-                    string body = $@"
+                        string subject = "AESP System - Tài khoản Reviewer bị khóa";
+                        string body = $@"
 Xin chào {user.FullName},
 
-Tài khoản reviewer của bạn trên hệ thống AESP đã bị tạm khóa do vi phạm chính sách hoạt động hoặc yêu cầu quản trị hệ thống.
+Tài khoản Reviewer của bạn trên hệ thống AESP đã bị khóa bởi quản trị viên.
 
-   Lý do chặn có thể bao gồm:
-- Hoạt động không đúng quy định của hệ thống AESP.
-- Đánh giá không chính xác hoặc không tuân thủ quy trình kiểm duyệt.
-- Vi phạm điều khoản sử dụng hoặc quy định ứng xử chuyên môn.
+🔹 Lý do: {reason}
 
-Nếu bạn tin rằng đây là nhầm lẫn, vui lòng phản hồi lại email này để yêu cầu xem xét lại.
+Nếu bạn cho rằng đây là nhầm lẫn, vui lòng phản hồi email này để được xem xét lại.
 
 Trân trọng,
-Đội ngũ Quản trị viên AESP System
-";
+Đội ngũ Quản trị AESP.";
+                        await _emailService.SendEmailAsync(user.Email, subject, body);
+                    }
 
-                    await _emailService.SendEmailAsync(user.Email, subject, body);
-                }
+                    // 🧾 Ghi Notification
+                    var noti = new Notification
+                    {
+                        NotificationId = Guid.NewGuid(),
+                        UserId = user.UserId,
+                        Message = $"Tài khoản Reviewer của bạn đã bị khóa. Lý do: {reason}",
+                        Type = "Account",
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    var db = _reviewerProfileRepository.GetDbContext();
+                    await db.Notifications.AddAsync(noti);
+
+                    await _unitOfWork.SaveChangeAsync();
 
                     dto.IsSucess = true;
-                    dto.Message = "Đã chặn reviewer và gửi thông báo qua email.";
                     dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                    dto.Message = "Đã khóa reviewer và gửi thông báo qua email.";
                 }
+
+                // =======================
+                // CASE 2: UNBAN REVIEWER
+                // =======================
                 else
                 {
-                    // ========== CASE 2: UNBAN reviewer ==========
                     user.IsDeleted = false;
 
                     if (reviewerProfile != null)
@@ -167,34 +184,46 @@ Trân trọng,
                     }
 
                     await _userRepository.Update(user);
-                    await _unitOfWork.SaveChangeAsync();
 
-                    // Gửi mail thông báo mở khóa
+                    // 📩 Gửi email mở khóa
                     if (!string.IsNullOrEmpty(user.Email))
                     {
-                        string subject = "AESP System - Tài khoản của bạn đã được mở khóa";
+                        string subject = "AESP System - Tài khoản Reviewer đã được mở khóa";
                         string body = $@"
 Xin chào {user.FullName},
 
-Tài khoản reviewer của bạn trên hệ thống AESP đã được mở khóa và có thể hoạt động trở lại bình thường.
-
-Vui lòng tuân thủ các quy định và hướng dẫn của hệ thống trong quá trình đánh giá để tránh bị khóa lần nữa.
+Tài khoản Reviewer của bạn đã được mở khóa và có thể hoạt động bình thường trở lại.
 
 Trân trọng,
-Đội ngũ Quản trị viên AESP System
-";
+Đội ngũ Quản trị AESP.";
                         await _emailService.SendEmailAsync(user.Email, subject, body);
                     }
 
+                    // 🧾 Notification mở khóa
+                    var noti = new Notification
+                    {
+                        NotificationId = Guid.NewGuid(),
+                        UserId = user.UserId,
+                        Message = "Tài khoản Reviewer của bạn đã được mở khóa bởi quản trị viên.",
+                        Type = "Account",
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    var db = _reviewerProfileRepository.GetDbContext();
+                    await db.Notifications.AddAsync(noti);
+
+                    await _unitOfWork.SaveChangeAsync();
+
                     dto.IsSucess = true;
-                    dto.Message = "Đã mở khóa reviewer và gửi thông báo qua email.";
                     dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                    dto.Message = "Đã mở khóa reviewer và gửi thông báo qua email.";
                 }
             }
             catch (Exception ex)
             {
                 dto.IsSucess = false;
-                dto.Message = "Lỗi khi cập nhật trạng thái chặn reviewer: " + ex.Message;
+                dto.Message = "Lỗi khi cập nhật trạng thái reviewer: " + ex.Message;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
             }
 
@@ -362,6 +391,7 @@ Trân trọng,
             {
                 var db = _reviewerProfileRepository.GetDbContext();
 
+                // 🔹 Lấy thông tin reviewer
                 var reviewer = await db.ReviewerProfiles
                     .Include(r => r.User)
                     .Include(r => r.Certificates)
@@ -375,6 +405,23 @@ Trân trọng,
                     return dto;
                 }
 
+                // 🔹 Lấy feedback từ bảng Feedback (Learner -> Reviewer)
+                var feedbacks = await db.Feedbacks
+                    .Include(f => f.User)
+                    .Where(f => f.TargetId == reviewerProfileId && f.Type == "ReviewerFeedback")
+                    .OrderByDescending(f => f.CreatedAt)
+                    .Select(f => new
+                    {
+                        LearnerName = f.User.FullName,
+                        LearnerEmail = f.User.Email,
+                        LearnerPhone = f.User.PhoneNumber,
+                        Rating = f.Rating,
+                        Comment = string.IsNullOrEmpty(f.Content) ? "(Không có nhận xét)" : f.Content,
+                        Date = f.CreatedAt
+                    })
+                    .ToListAsync();
+
+                // 🔹 Trả kết quả
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy thông tin chi tiết reviewer thành công.";
@@ -393,6 +440,18 @@ Trân trọng,
                         c.CertificateId,
                         c.Name,
                         c.Url
+                    }),
+                    Feedbacks = feedbacks.Select(f => new
+                    {
+                        Learner = new
+                        {
+                            f.LearnerName,
+                            f.LearnerEmail,
+                            f.LearnerPhone
+                        },
+                        Rating = f.Rating,
+                        Comment = f.Comment,
+                        Date = f.Date.ToString("yyyy-MM-dd")
                     })
                 };
             }

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class ServicePackage
+    public class ServicePackage : BaseEntity
     {
         [Key]
         public Guid ServicePackageId { get; set; }
