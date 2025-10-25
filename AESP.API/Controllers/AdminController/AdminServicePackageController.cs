@@ -90,9 +90,12 @@ namespace AESP.API.Controllers.AdminController
             return Ok(result);
         }
         [HttpGet]
-        public async Task<IActionResult> GetList()
+        public async Task<IActionResult> GetList(
+    [FromQuery] string? search,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
         {
-            var result = await _service.GetListAsync();
+            var result = await _service.GetListAsync(search, pageNumber, pageSize);
             return Ok(result);
         }
         private static int GetFieldOrder(string fieldName)
