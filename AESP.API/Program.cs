@@ -93,6 +93,8 @@ builder.Services.AddScoped<IAssessmentDetailService, AssessmentDetailService>();
 builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 builder.Services.AddScoped<IAdminFeedbackService, AdminFeedbackService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
+builder.Services.AddScoped<IAuthQueryRepository, AuthQueryRepository>();
+builder.Services.AddScoped<IAuthQueryService, AuthQueryService>();
 
 
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
