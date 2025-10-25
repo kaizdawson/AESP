@@ -1,4 +1,5 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Repository.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,5 +11,6 @@ namespace AESP.Service.Contract
     public interface IAuthQueryService
     {
         Task<ResponseDTO> GetUserInfoAsync(Guid userId);
+
     }
 }
