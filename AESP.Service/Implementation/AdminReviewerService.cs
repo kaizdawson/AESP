@@ -53,6 +53,9 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
+                certificate.Status = "Approved";
+                await _certificateRepository.Update(certificate);
+
                 //  Chỉ duyệt reviewer nếu họ đang Pending
                 if (profile.Status != "Pending")
                 {
@@ -69,17 +72,13 @@ namespace AESP.Service.Implementation
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                dto.Message = "Duyệt reviewer thành công.";
+                dto.Message = "Duyệt chứng chỉ thành công. Reviewer đã được Active.";
                 dto.Data = new
                 {
-                    profile.ReviewerProfileId,
-                    profile.Status,
-                    Certificate = new
-                    {
-                        certificate.CertificateId,
-                        certificate.Name,
-                        certificate.Url
-                    }
+                    ReviewerProfileId = profile.ReviewerProfileId,
+                    ReviewerStatus = profile.Status,
+                    CertificateId = certificate.CertificateId,
+                    CertificateStatus = certificate.Status
                 };
             }
             catch (Exception ex)
@@ -490,9 +489,14 @@ Trân trọng,
                     dto.Message = "Không tìm thấy hồ sơ reviewer.";
                     return dto;
                 }
+                certificate.Status = "Rejected";
+                await _certificateRepository.Update(certificate);
 
-                profile.Status = "Rejected";
-                await _reviewerProfileRepository.Update(profile);
+                if (profile.Status == "Pending")
+                {
+                    await _reviewerProfileRepository.Update(profile);
+                }
+
                 await _unitOfWork.SaveChangeAsync();
 
                 // ✅ Gửi email thông báo cho reviewer
@@ -517,14 +521,10 @@ Trân trọng,
                 dto.Message = "Từ chối reviewer thành công.";
                 dto.Data = new
                 {
-                    profile.ReviewerProfileId,
-                    profile.Status,
-                    Certificate = new
-                    {
-                        certificate.CertificateId,
-                        certificate.Name,
-                        certificate.Url
-                    }
+                    ReviewerProfileId = profile.ReviewerProfileId,
+                    ReviewerStatus = profile.Status,
+                    CertificateId = certificate.CertificateId,
+                    CertificateStatus = certificate.Status
                 };
             }
             catch (Exception ex)

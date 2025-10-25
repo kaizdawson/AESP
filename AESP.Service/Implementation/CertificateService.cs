@@ -167,7 +167,8 @@ namespace AESP.Service.Implementation
                     CertificateId = Guid.NewGuid(),
                     ReviewerProfileId = reviewerProfileId,
                     Name = certificateName.Trim(),
-                    Url = uploadResult.Url
+                    Url = uploadResult.Url,
+                    Status = "Pending"
                 };
                 await _certificateRepository.Insert(cert);
 

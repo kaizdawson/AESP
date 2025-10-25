@@ -19,6 +19,9 @@ namespace AESP.Repository.Models
         [ForeignKey("ReviewerProfile")]
         public Guid ReviewerProfileId { get; set; }
 
+        [Required]
+        public string Status { get; set; } = "Pending";
+
         public virtual ReviewerProfile ReviewerProfile { get; set; }
     }
 }
