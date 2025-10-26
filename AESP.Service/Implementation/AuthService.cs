@@ -282,8 +282,34 @@ namespace AESP.Service.Implementation
             storedToken.DeviceInfo = deviceInfo ?? storedToken.DeviceInfo;
             await _refreshTokenRepository.Update(storedToken);
 
+
+            bool? isPlacementTestDone = null;
+            bool? isReviewerActive = null;
+
+            
+            if (user.Role.Equals("LEARNER", StringComparison.OrdinalIgnoreCase))
+            {
+                var learnerProfile = await _learnerProfileRepository.GetByExpression(lp => lp.UserId == user.UserId);
+                if (learnerProfile != null)
+                {
+                    var assessment = await _assessmentRepository.GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+                    isPlacementTestDone = assessment != null;
+                }
+            }
+          
+            else if (user.Role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase))
+            {
+                var reviewerProfile = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
+                if (reviewerProfile != null)
+                {
+                    var st = reviewerProfile.Status?.ToUpperInvariant();
+                    isReviewerActive = st == "PENDING" || st == "ACTIVE";
+                }
+            }
+
            
-            var newAccessToken = _jwtService.GenerateAccessToken(user);
+            var newAccessToken = _jwtService.GenerateAccessToken(user, isPlacementTestDone, isReviewerActive);
+
             await _unitOfWork.SaveChangeAsync();
 
            
