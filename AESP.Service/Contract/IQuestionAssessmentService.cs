@@ -15,6 +15,8 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> UpdateQuestionAssessmentAsync(Guid id, UpdateQuestionAssessmentDTO dto);
         Task<ResponseDTO> DeleteQuestionAssessmentAsync(Guid id);
         Task<ResponseDTO> GetQuestionsByTypeAsync(string type);
+        Task<ResponseDTO> ResetStatusByTypeAsync(string type);
+        Task<ResponseDTO> GetActiveQuestionByIdAsync(Guid id);
 
 
     }
