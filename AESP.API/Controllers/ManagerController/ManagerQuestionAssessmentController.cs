@@ -1,6 +1,7 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -62,6 +63,12 @@ namespace AESP.API.Controllers.ManagerController
         {
             var result = await _service.DeleteQuestionAssessmentAsync(id);
             return StatusFromResult(result);
+        }
+        [HttpPut("reset-status/{type}")]
+        public async Task<IActionResult> ResetStatusByType(string type)
+        {
+            var response = await _service.ResetStatusByTypeAsync(type);
+            return Ok(response);
         }
 
         // ✅ Helper method để ánh xạ BusinessCode → HTTP Code

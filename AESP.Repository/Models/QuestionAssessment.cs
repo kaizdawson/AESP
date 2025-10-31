@@ -15,8 +15,8 @@ namespace AESP.Repository.Models
 
         public string Type { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
-        
 
+        public bool Status { get; set; } = false;
         public virtual ICollection<AssessmentDetail> AssessmentDetails { get; set; }
     }
 }
