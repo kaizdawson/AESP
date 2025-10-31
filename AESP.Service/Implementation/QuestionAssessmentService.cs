@@ -65,10 +65,17 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
+                var result = new ReadQuestionAssessmentDTO
+                {
+                    QuestionAssessmentId = question.QuestionAssessmentId,
+                    Type = question.Type,
+                    Content = question.Content
+                };
+
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy chi tiết câu hỏi đánh giá thành công.";
-                dto.Data = question;
+                dto.Data = result;
             }
             catch (Exception ex)
             {
@@ -219,6 +226,53 @@ namespace AESP.Service.Implementation
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
                 dto.Message = "Không thể xóa câu hỏi: " + (ex.InnerException?.Message ?? ex.Message);
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> GetQuestionsByTypeAsync(string type)
+        {
+            ResponseDTO dto = new ResponseDTO();
+            try
+            {
+                // ✅ Valid type
+                var validTypes = new[] { "Word", "Phrase", "Sentence" };
+                if (string.IsNullOrWhiteSpace(type) || !validTypes.Contains(type, StringComparer.OrdinalIgnoreCase))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Loại câu hỏi không hợp lệ. Chỉ chấp nhận: Word, Phrase, Sentence.";
+                    return dto;
+                }
+
+                // ✅ Lấy tất cả câu hỏi của type đó
+                var result = await _questionRepo.GetAllDataByExpression(
+                    filter: x => x.Type.ToLower() == type.ToLower(),
+                    pageNumber: 0,
+                    pageSize: 0
+                );
+
+                // ✅ Random chọn 3 câu hỏi
+                var selected = result.Items.OrderBy(_ => Guid.NewGuid()).Take(3).ToList();
+
+                var mapped = selected.Select(x => new ReadQuestionAssessmentDTO
+                {
+                    QuestionAssessmentId = x.QuestionAssessmentId,
+                    Type = x.Type,
+                    Content = x.Content
+                }).ToList();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = $"Lấy ngẫu nhiên 3 câu hỏi của loại '{type}' thành công.";
+                dto.Data = mapped;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy câu hỏi theo loại: " + (ex.InnerException?.Message ?? ex.Message);
             }
 
             return dto;
