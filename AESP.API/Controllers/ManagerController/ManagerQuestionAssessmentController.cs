@@ -85,5 +85,16 @@ namespace AESP.API.Controllers.ManagerController
                 _ => Ok(result)                                                 // 200
             };
         }
+
+
+
+        [HttpPut("set-status/{id}")]
+        [Authorize(Roles = "MANAGER,ADMIN")]
+        public async Task<IActionResult> SetQuestionStatus(Guid id, [FromQuery] bool status)
+        {
+            var response = await _service.SetQuestionStatusAsync(id, status);
+            return Ok(response);
+        }
+
     }
 }
