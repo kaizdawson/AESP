@@ -233,10 +233,9 @@ namespace AESP.Service.Implementation
 
         public async Task<ResponseDTO> GetQuestionsByTypeAsync(string type)
         {
-            ResponseDTO dto = new ResponseDTO();
+            ResponseDTO dto = new();
             try
             {
-                // ✅ Valid type
                 var validTypes = new[] { "Word", "Phrase", "Sentence" };
                 if (string.IsNullOrWhiteSpace(type) || !validTypes.Contains(type, StringComparer.OrdinalIgnoreCase))
                 {
@@ -246,16 +245,49 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ Lấy tất cả câu hỏi của type đó
+                // ✅ Lấy danh sách các câu của type đó (chưa được lấy)
                 var result = await _questionRepo.GetAllDataByExpression(
                     filter: x => x.Type.ToLower() == type.ToLower(),
                     pageNumber: 0,
                     pageSize: 0
                 );
 
-                // ✅ Random chọn 3 câu hỏi
-                var selected = result.Items.OrderBy(_ => Guid.NewGuid()).Take(3).ToList();
+                var allQuestions = result.Items.ToList();
 
+                // ✅ Đếm xem có bao nhiêu câu đã được lấy (status = true)
+                var usedCount = allQuestions.Count(q => q.Status == true);
+                if (usedCount >= 3)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.PERMISSION_DENIED;
+                    dto.Message = $"Bạn đã lấy tối đa 3 câu cho loại '{type}'. Không thể lấy thêm.";
+                    return dto;
+                }
+
+                // ✅ Lấy ngẫu nhiên các câu chưa được lấy (status = false)
+                var available = allQuestions.Where(q => q.Status == false).OrderBy(_ => Guid.NewGuid()).ToList();
+
+                // Nếu còn ít hơn 3 câu chưa dùng → lấy đủ số còn lại
+                var takeCount = Math.Min(3 - usedCount, available.Count);
+                if (takeCount == 0)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = $"Không còn câu hỏi mới cho loại '{type}'.";
+                    return dto;
+                }
+
+                var selected = available.Take(takeCount).ToList();
+
+                // ✅ Cập nhật status = true cho các câu được lấy
+                foreach (var q in selected)
+                {
+                    q.Status = true;
+                    await _questionRepo.Update(q);
+                }
+                await _unitOfWork.SaveChangeAsync();
+
+                // ✅ Map sang DTO gọn gàng
                 var mapped = selected.Select(x => new ReadQuestionAssessmentDTO
                 {
                     QuestionAssessmentId = x.QuestionAssessmentId,
@@ -265,7 +297,7 @@ namespace AESP.Service.Implementation
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = $"Lấy ngẫu nhiên 3 câu hỏi của loại '{type}' thành công.";
+                dto.Message = $"Lấy {takeCount} câu hỏi của loại '{type}' thành công.";
                 dto.Data = mapped;
             }
             catch (Exception ex)
@@ -273,6 +305,102 @@ namespace AESP.Service.Implementation
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
                 dto.Message = "Lỗi khi lấy câu hỏi theo loại: " + (ex.InnerException?.Message ?? ex.Message);
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> ResetStatusByTypeAsync(string type)
+        {
+            ResponseDTO dto = new();
+
+            try
+            {
+                var validTypes = new[] { "Word", "Phrase", "Sentence" };
+                if (string.IsNullOrWhiteSpace(type) || !validTypes.Contains(type, StringComparer.OrdinalIgnoreCase))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Loại câu hỏi không hợp lệ. Chỉ chấp nhận: Word, Phrase, Sentence.";
+                    return dto;
+                }
+
+                var result = await _questionRepo.GetAllDataByExpression(
+                    filter: x => x.Type.ToLower() == type.ToLower(),
+                    pageNumber: 0,
+                    pageSize: 0
+                );
+
+                if (result.Items == null || !result.Items.Any())
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = $"Không tìm thấy câu hỏi nào thuộc loại '{type}'.";
+                    return dto;
+                }
+
+                foreach (var q in result.Items)
+                    q.Status = false;
+
+                await _questionRepo.UpdateRange(result.Items);
+                await _unitOfWork.SaveChangeAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                dto.Message = $"Đã reset trạng thái cho tất cả câu hỏi loại '{type}'.";
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi reset trạng thái: " + (ex.InnerException?.Message ?? ex.Message);
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> GetActiveQuestionByIdAsync(Guid id)
+        {
+            ResponseDTO dto = new();
+
+            try
+            {
+                var question = await _questionRepo.GetById(id);
+
+                if (question == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy câu hỏi đánh giá.";
+                    return dto;
+                }
+
+                //  Chỉ cho phép lấy nếu Status = true
+                if (!question.Status)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.PERMISSION_DENIED;
+                    dto.Message = "Câu hỏi này chưa được kích hoạt hoặc chưa nằm trong bài kiểm tra hiện tại.";
+                    return dto;
+                }
+
+                var result = new ReadQuestionAssessmentDTO
+                {
+                    QuestionAssessmentId = question.QuestionAssessmentId,
+                    Type = question.Type,
+                    Content = question.Content
+                };
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy chi tiết câu hỏi thành công (đã kích hoạt).";
+                dto.Data = result;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy chi tiết câu hỏi: " + (ex.InnerException?.Message ?? ex.Message);
             }
 
             return dto;
