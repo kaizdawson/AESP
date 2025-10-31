@@ -1,4 +1,5 @@
 ﻿using AESP.Service.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -35,5 +36,14 @@ namespace AESP.API.Controllers.LearnerController
             var response = await _questionService.GetActiveQuestionByIdAsync(id);
             return Ok(response);
         }
+
+        [HttpGet("by-type-active")]
+        public async Task<IActionResult> GetActiveQuestionsByType([FromQuery] string type)
+        {
+            var response = await _questionService.GetActiveQuestionsByTypeAsync(type);
+            return Ok(response);
+        }
+
+
     }
 }

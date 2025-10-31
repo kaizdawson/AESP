@@ -17,7 +17,9 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetQuestionsByTypeAsync(string type);
         Task<ResponseDTO> ResetStatusByTypeAsync(string type);
         Task<ResponseDTO> GetActiveQuestionByIdAsync(Guid id);
+        Task<ResponseDTO> GetActiveQuestionsByTypeAsync(string type);
 
+        Task<ResponseDTO> SetQuestionStatusAsync(Guid questionId, bool status);
 
     }
 }
