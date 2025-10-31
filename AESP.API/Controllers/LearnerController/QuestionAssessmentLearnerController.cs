@@ -29,10 +29,10 @@ namespace AESP.API.Controllers.LearnerController
             var response = await _questionService.GetQuestionsByTypeAsync(type);
             return Ok(response);
         }
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(Guid id)
+        [HttpGet("active/{id}")]
+        public async Task<IActionResult> GetActiveQuestionById(Guid id)
         {
-            var response = await _questionService.GetByQuestionAssessmentIdAsync(id);
+            var response = await _questionService.GetActiveQuestionByIdAsync(id);
             return Ok(response);
         }
     }
