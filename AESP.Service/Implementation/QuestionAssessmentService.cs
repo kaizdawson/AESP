@@ -405,5 +405,110 @@ namespace AESP.Service.Implementation
 
             return dto;
         }
+
+
+
+
+        public async Task<ResponseDTO> SetQuestionStatusAsync(Guid questionId, bool status)
+        {
+            ResponseDTO dto = new();
+
+            try
+            {
+                var question = await _questionRepo.GetById(questionId);
+                if (question == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy câu hỏi để cập nhật trạng thái.";
+                    return dto;
+                }
+
+                question.Status = status;
+                await _questionRepo.Update(question);
+                await _unitOfWork.SaveChangeAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                dto.Message = status
+                    ? "Đã kích hoạt câu hỏi cho learner thành công."
+                    : "Đã hủy kích hoạt câu hỏi cho learner.";
+                dto.Data = new
+                {
+                    question.QuestionAssessmentId,
+                    question.Type,
+                    question.Content,
+                    question.Status
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi cập nhật trạng thái câu hỏi: " + (ex.InnerException?.Message ?? ex.Message);
+            }
+
+            return dto;
+        }
+
+
+
+
+
+
+        public async Task<ResponseDTO> GetActiveQuestionsByTypeAsync(string type)
+        {
+            ResponseDTO dto = new();
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(type))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Type không được để trống.");
+
+                var result = await _questionRepo.GetAllDataByExpression(
+                    filter: x => x.Type.ToLower() == type.ToLower() && x.Status == true,
+                    pageNumber: 0,
+                    pageSize: 0
+                );
+
+                if (result.Items == null || !result.Items.Any())
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = $"Hiện tại chưa có câu hỏi nào được kích hoạt cho loại '{type}'.";
+                    return dto;
+                }
+
+                var mapped = result.Items.Select(x => new ReadQuestionAssessmentDTO
+                {
+                    QuestionAssessmentId = x.QuestionAssessmentId,
+                    Type = x.Type,
+                    Content = x.Content
+                }).ToList();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = $"Lấy danh sách câu hỏi đã kích hoạt của loại '{type}' thành công.";
+                dto.Data = mapped;
+            }
+            catch (Exception ex)
+            {
+                dto = Fail(BusinessCode.EXCEPTION, "Lỗi khi lấy câu hỏi: " + (ex.InnerException?.Message ?? ex.Message));
+            }
+
+            return dto;
+        }
+
+
+        private static ResponseDTO Fail(BusinessCode code, string msg)
+        {
+            return new ResponseDTO
+            {
+                IsSucess = false,
+                BusinessCode = code,
+                Message = msg
+            };
+        }
+
     }
 }
