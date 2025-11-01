@@ -93,7 +93,7 @@ builder.Services.AddScoped<IAssessmentDetailService, AssessmentDetailService>();
 builder.Services.AddScoped<IAdminDashboardService, AdminDashboardService>();
 builder.Services.AddScoped<IAdminFeedbackService, AdminFeedbackService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
-builder.Services.AddScoped<IFeedbackService, FeedbackService>();  
+builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 builder.Services.AddScoped<IAdminLearnerService, AdminLearnerService>();
 builder.Services.AddScoped<IAdminManagerService, AdminManagerService>();
 builder.Services.AddScoped<IAdminReviewerIncomeService, AdminReviewerIncomeService>();

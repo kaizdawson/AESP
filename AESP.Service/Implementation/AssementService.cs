@@ -48,7 +48,7 @@ namespace AESP.Service.Implementation
                 var result = await _assessmentRepository.GetAllDataByExpression(
                     filter: x =>
                         (!learnerId.HasValue || x.LearnerProfileId == learnerId) &&
-                        (string.IsNullOrEmpty(keyword) || x.Type.Contains(keyword)),
+                        (string.IsNullOrEmpty(keyword)),
                     pageNumber: pageNumber,
                     pageSize: pageSize,
                     orderBy: x => x.CreatedAt,
@@ -61,7 +61,6 @@ namespace AESP.Service.Implementation
                     AssessmentId = a.AssessmentId,
                     CreatedAt = a.CreatedAt,
                     Score = a.Score,
-                    Type = a.Type,
                     Feedback = a.Feedback,
                     NumberOfQuestion = a.NumberOfQuestion,
                     LearnerProfileId = a.LearnerProfileId,
@@ -115,7 +114,6 @@ namespace AESP.Service.Implementation
                     AssessmentId = assessment.AssessmentId,
                     CreatedAt = assessment.CreatedAt,
                     Score = assessment.Score,
-                    Type = assessment.Type,
                     Feedback = assessment.Feedback,
                     NumberOfQuestion = assessment.NumberOfQuestion,
                     LearnerProfileId = assessment.LearnerProfileId,
@@ -149,8 +147,7 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu đầu vào không được để trống.");
                 if (request.LearnerProfileId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "LearnerProfileId không được để trống.");
-                if (string.IsNullOrWhiteSpace(request.Type))
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Type không được để trống.");
+               
                 if (request.NumberOfQuestion <= 0)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng câu hỏi phải lớn hơn 0.");
 
@@ -165,7 +162,6 @@ namespace AESP.Service.Implementation
                     CreatedAt = DateTime.UtcNow,
                     LearnerProfileId = request.LearnerProfileId,
                     Score = request.Score,
-                    Type = request.Type.Trim(),
                     Feedback = request.Feedback?.Trim() ?? "",
                     NumberOfQuestion = request.NumberOfQuestion
                 };
@@ -208,7 +204,6 @@ namespace AESP.Service.Implementation
                     AssessmentId = newAssessment.AssessmentId,
                     CreatedAt = newAssessment.CreatedAt,
                     Score = newAssessment.Score,
-                    Type = newAssessment.Type,
                     Feedback = newAssessment.Feedback,
                     NumberOfQuestion = newAssessment.NumberOfQuestion,
                     LearnerProfileId = newAssessment.LearnerProfileId,
@@ -268,8 +263,7 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng câu hỏi (NumberOfQuestion) phải lớn hơn 0.");
 
                 // --- 4️⃣ UPDATE MAIN ENTITY ---
-                if (!string.IsNullOrWhiteSpace(request.Type))
-                    assessment.Type = request.Type.Trim();
+               
 
                 if (!string.IsNullOrWhiteSpace(request.Feedback))
                     assessment.Feedback = request.Feedback.Trim();
@@ -340,7 +334,6 @@ namespace AESP.Service.Implementation
                         AssessmentId = updated.AssessmentId,
                         CreatedAt = updated.CreatedAt,
                         Score = updated.Score,
-                        Type = updated.Type,
                         Feedback = updated.Feedback,
                         NumberOfQuestion = updated.NumberOfQuestion,
                         LearnerProfileId = updated.LearnerProfileId,

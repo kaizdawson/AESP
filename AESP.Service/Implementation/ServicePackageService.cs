@@ -47,25 +47,32 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                if (string.IsNullOrWhiteSpace(request.Level))
+                // ⚙️ Validate cơ bản
+                if (request.Price < 0)
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Level của gói không được để trống (A1, A2, B1, B2, C1, C2).";
+                    dto.Message = "Giá phải >= 0.";
                     return dto;
                 }
 
-                // Kiểm tra Level hợp lệ
-                var validLevels = new[] { "A1", "A2", "B1", "B2", "C1", "C2" };
-                if (!validLevels.Contains(request.Level.ToUpper()))
+                if (request.NumberOfCoin <= 0)
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Level không hợp lệ. Chỉ chấp nhận A1, A2, B1, B2, C1, C2.";
+                    dto.Message = "Số lượng coin phải > 0.";
                     return dto;
                 }
 
-                // Kiểm tra trùng tên
+                if (request.BonusPercent < 0 || request.BonusPercent > 100)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Phần trăm thưởng phải nằm trong khoảng 0–100.";
+                    return dto;
+                }
+
+                // ⚙️ Kiểm tra trùng tên
                 var existed = await _servicePackageRepository.GetByExpression(
                     p => p.Name.ToLower() == request.Name.Trim().ToLower());
 
@@ -77,18 +84,18 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
+                // ✅ Tạo entity mới
                 var entity = new ServicePackage
                 {
                     ServicePackageId = Guid.NewGuid(),
                     Name = request.Name.Trim(),
-                    Description = request.Description?.Trim(),
+                    Description = request.Description?.Trim() ?? string.Empty,
                     Price = request.Price,
-                    Duration = request.Duration,
-                    Level = request.Level.ToUpper(),
-                    NumberOfReview = request.NumberOfReview,
+                    NumberOfCoin = request.NumberOfCoin,
+                    BonusPercent = request.BonusPercent,
+                    Status = string.IsNullOrWhiteSpace(request.Status) ? "Active" : request.Status.Trim(),
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    Status = "Active"
+                    UpdatedAt = DateTime.UtcNow
                 };
 
                 await _servicePackageRepository.Insert(entity);
@@ -101,9 +108,12 @@ namespace AESP.Service.Implementation
                 {
                     entity.ServicePackageId,
                     entity.Name,
-                    entity.Level,
+                    entity.Description,
                     entity.Price,
-                    entity.Duration
+                    entity.NumberOfCoin,
+                    entity.BonusPercent,
+                    entity.Status,
+                    entity.CreatedAt
                 };
             }
             catch (Exception ex)
@@ -150,123 +160,123 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> GetByIdAsync(Guid id)
-        {
-            var dto = new ResponseDTO();
+        //public async Task<ResponseDTO> GetByIdAsync(Guid id)
+        //{
+        //    var dto = new ResponseDTO();
 
-            try
-            {
-                var db = _servicePackageRepository.GetDbContext();
+        //    try
+        //    {
+        //        var db = _servicePackageRepository.GetDbContext();
 
-                var package = await db.ServicePackages
-                 .Include(p => p.Subscriptions)
-                 .ThenInclude(s => s.LearnerProfile)
-                 .ThenInclude(lp => lp.User)
-                 .FirstOrDefaultAsync(p => p.ServicePackageId == id);
+        //        var package = await db.ServicePackages
+        //         .Include(p => p.Subscriptions)
+        //         .ThenInclude(s => s.LearnerProfile)
+        //         .ThenInclude(lp => lp.User)
+        //         .FirstOrDefaultAsync(p => p.ServicePackageId == id);
 
-                if (package == null)
-                {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-                    dto.Message = "Không tìm thấy gói dịch vụ.";
-                    return dto;
-                }
+        //        if (package == null)
+        //        {
+        //            dto.IsSucess = false;
+        //            dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+        //            dto.Message = "Không tìm thấy gói dịch vụ.";
+        //            return dto;
+        //        }
 
-                var learners = package.Subscriptions.Select(s => new
-                {
-                    LearnerProfileId = s.LearnerProfileId,
-                    FullName = s.LearnerProfile.User.FullName,
-                    Email = s.LearnerProfile.User.Email,
-                    Phone = s.LearnerProfile.User.PhoneNumber,
-                    Status = s.Status
-                }).ToList();
+        //        var learners = package.Subscriptions.Select(s => new
+        //        {
+        //            LearnerProfileId = s.LearnerProfileId,
+        //            FullName = s.LearnerProfile.User.FullName,
+        //            Email = s.LearnerProfile.User.Email,
+        //            Phone = s.LearnerProfile.User.PhoneNumber,
+        //            Status = s.Status
+        //        }).ToList();
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy chi tiết gói dịch vụ thành công.";
-                dto.Data = new
-                {
-                    package.ServicePackageId,
-                    package.Name,
-                    package.Description,
-                    package.Level,
-                    package.Price,
-                    package.Duration,
-                    package.NumberOfReview,
-                    LearnerCount = learners.Count(),
-                    Learners = learners
-                };
-            }
-            catch (Exception ex)
-            {
-                dto.IsSucess = false;
-                dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi lấy chi tiết gói dịch vụ: " + ex.Message;
-            }
+        //        dto.IsSucess = true;
+        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+        //        dto.Message = "Lấy chi tiết gói dịch vụ thành công.";
+        //        dto.Data = new
+        //        {
+        //            package.ServicePackageId,
+        //            package.Name,
+        //            package.Description,
+        //            package.Level,
+        //            package.Price,
+        //            package.Duration,
+        //            package.NumberOfReview,
+        //            LearnerCount = learners.Count(),
+        //            Learners = learners
+        //        };
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        dto.IsSucess = false;
+        //        dto.BusinessCode = BusinessCode.EXCEPTION;
+        //        dto.Message = "Lỗi khi lấy chi tiết gói dịch vụ: " + ex.Message;
+        //    }
 
-            return dto;
-        }
+        //    return dto;
+        //}
 
-        public async Task<ResponseDTO> GetListAsync(string? search, int pageNumber, int pageSize)
-        {
-            var dto = new ResponseDTO();
+        //public async Task<ResponseDTO> GetListAsync(string? search, int pageNumber, int pageSize)
+        //{
+        //    var dto = new ResponseDTO();
 
-            try
-            {
-                var db = _servicePackageRepository.GetDbContext();
+        //    try
+        //    {
+        //        var db = _servicePackageRepository.GetDbContext();
 
-                var query = db.ServicePackages.AsQueryable();
+        //        var query = db.ServicePackages.AsQueryable();
 
               
 
-                // Search theo tên
-                if (!string.IsNullOrEmpty(search))
-                {
-                    string keyword = search.Trim().ToLower();
-                    query = query.Where(p => p.Name.ToLower().Contains(keyword));
-                }
+        //        // Search theo tên
+        //        if (!string.IsNullOrEmpty(search))
+        //        {
+        //            string keyword = search.Trim().ToLower();
+        //            query = query.Where(p => p.Name.ToLower().Contains(keyword));
+        //        }
 
-                var total = await query.CountAsync();
+        //        var total = await query.CountAsync();
 
-                var packages = await query
-                    .OrderBy(p => p.Level)
-                    .ThenBy(p => p.Name)
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
-                    .Select(p => new
-                    {
-                        p.ServicePackageId,
-                        p.Name,
-                        p.Description,
-                        p.Level,
-                        p.Price,
-                        p.Duration,
-                        p.NumberOfReview,
-                        p.CreatedAt,
-                        p.UpdatedAt
-                    })
-                    .ToListAsync();
+        //        var packages = await query
+        //            .OrderBy(p => p.Level)
+        //            .ThenBy(p => p.Name)
+        //            .Skip((pageNumber - 1) * pageSize)
+        //            .Take(pageSize)
+        //            .Select(p => new
+        //            {
+        //                p.ServicePackageId,
+        //                p.Name,
+        //                p.Description,
+        //                p.Level,
+        //                p.Price,
+        //                p.Duration,
+        //                p.NumberOfReview,
+        //                p.CreatedAt,
+        //                p.UpdatedAt
+        //            })
+        //            .ToListAsync();
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy danh sách gói dịch vụ thành công.";
-                dto.Data = new
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalItems = total,
-                    Items = packages
-                };
-            }
-            catch (Exception ex)
-            {
-                dto.IsSucess = false;
-                dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi lấy danh sách gói dịch vụ: " + ex.Message;
-            }
+        //        dto.IsSucess = true;
+        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+        //        dto.Message = "Lấy danh sách gói dịch vụ thành công.";
+        //        dto.Data = new
+        //        {
+        //            PageNumber = pageNumber,
+        //            PageSize = pageSize,
+        //            TotalItems = total,
+        //            Items = packages
+        //        };
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        dto.IsSucess = false;
+        //        dto.BusinessCode = BusinessCode.EXCEPTION;
+        //        dto.Message = "Lỗi khi lấy danh sách gói dịch vụ: " + ex.Message;
+        //    }
 
-            return dto;
-        }
+        //    return dto;
+        //}
 
         public async Task<ResponseDTO> UpdateAsync(Guid id, UpdateServicePackageDto request)
         {
@@ -282,24 +292,41 @@ namespace AESP.Service.Implementation
                     dto.Message = "Không tìm thấy gói dịch vụ.";
                     return dto;
                 }
-                if (string.IsNullOrWhiteSpace(request.Level))
+
+                // ⚙️ Validate cơ bản
+                if (string.IsNullOrWhiteSpace(request.Name))
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Level không được để trống.";
+                    dto.Message = "Tên gói dịch vụ không được để trống.";
                     return dto;
                 }
 
-                var validLevels = new[] { "A1", "A2", "B1", "B2", "C1", "C2" };
-                if (!validLevels.Contains(request.Level.ToUpper()))
+                if (request.Price < 0)
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Level không hợp lệ. Chỉ chấp nhận A1, A2, B1, B2, C1, C2.";
+                    dto.Message = "Giá phải >= 0.";
                     return dto;
                 }
 
-                // kiểm tra trùng tên (trừ chính nó)
+                if (request.NumberOfCoin <= 0)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Số lượng coin phải lớn hơn 0.";
+                    return dto;
+                }
+
+                if (request.BonusPercent < 0 || request.BonusPercent > 100)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Phần trăm thưởng phải nằm trong khoảng 0–100.";
+                    return dto;
+                }
+
+                // ⚙️ Kiểm tra trùng tên (trừ chính nó)
                 var name = request.Name.Trim().ToLower();
                 var duplicate = await _servicePackageRepository.GetByExpression(
                     x => x.ServicePackageId != id && x.Name.ToLower() == name);
@@ -312,14 +339,14 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
+                // ✅ Cập nhật dữ liệu
                 entity.Name = request.Name.Trim();
                 entity.Description = request.Description?.Trim() ?? string.Empty;
-                entity.Level = request.Level?.Trim() ?? string.Empty;
-                entity.Price = request.Price;
-                entity.Duration = request.Duration;
-                entity.NumberOfReview = request.NumberOfReview;
-                entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status!.Trim();
-                entity.Level = request.Level.ToUpper();
+                entity.Price = (decimal)request.Price;
+                entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status.Trim();
+                entity.NumberOfCoin = request.NumberOfCoin;
+                entity.BonusPercent = request.BonusPercent;
+                entity.UpdatedAt = DateTime.UtcNow;
 
                 await _servicePackageRepository.Update(entity);
                 await _unitOfWork.SaveChangeAsync();
@@ -332,11 +359,11 @@ namespace AESP.Service.Implementation
                     entity.ServicePackageId,
                     entity.Name,
                     entity.Description,
-                    entity.Level,
                     entity.Price,
-                    entity.Duration,
-                    entity.NumberOfReview,
-                    entity.Status
+                    entity.NumberOfCoin,
+                    entity.BonusPercent,
+                    entity.Status,
+                    entity.UpdatedAt
                 };
             }
             catch (Exception ex)

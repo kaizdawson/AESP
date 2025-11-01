@@ -162,187 +162,187 @@ Trân trọng,
             return dto;
         }
 
-        public async Task<ResponseDTO> GetActiveLearnersAsync(string? search, int pageNumber, int pageSize, string? filterStatus)
-        {
-            var dto = new ResponseDTO();
-            try
-            {
-                var db = _learnerProfileRepository.GetDbContext();
+        //public async Task<ResponseDTO> GetActiveLearnersAsync(string? search, int pageNumber, int pageSize, string? filterStatus)
+        //{
+        //    var dto = new ResponseDTO();
+        //    try
+        //    {
+        //        var db = _learnerProfileRepository.GetDbContext();
 
-                var query = db.LearnerProfiles
-                    .Include(l => l.User)
-                    .Include(l => l.Subscriptions)
-                        .ThenInclude(s => s.ServicePackage)
-                    .AsQueryable();
+        //        var query = db.LearnerProfiles
+        //            .Include(l => l.User)
+        //            .Include(l => l.Subscriptions)
+        //                .ThenInclude(s => s.ServicePackage)
+        //            .AsQueryable();
 
-                if (!string.IsNullOrEmpty(search))
-                {
-                    string keyword = search.Trim().ToLower();
-                    query = query.Where(l => l.User.FullName.ToLower().Contains(keyword)
-                                          || l.User.Email.ToLower().Contains(keyword)
-                                          || l.User.PhoneNumber.Contains(keyword));
-                }
+        //        if (!string.IsNullOrEmpty(search))
+        //        {
+        //            string keyword = search.Trim().ToLower();
+        //            query = query.Where(l => l.User.FullName.ToLower().Contains(keyword)
+        //                                  || l.User.Email.ToLower().Contains(keyword)
+        //                                  || l.User.PhoneNumber.Contains(keyword));
+        //        }
 
-                var learners = await query.ToListAsync();
-                DateTime now = DateTime.UtcNow;
+        //        var learners = await query.ToListAsync();
+        //        DateTime now = DateTime.UtcNow;
 
-                var mapped = learners.Select(l =>
-                {
-                    double daysInactive = (now - (l.User.LastActiveAt ?? l.User.CreatedAt)).TotalDays;
-                    string status;
+        //        var mapped = learners.Select(l =>
+        //        {
+        //            double daysInactive = (now - (l.User.LastActiveAt ?? l.User.CreatedAt)).TotalDays;
+        //            string status;
 
-                    if (l.User.IsDeleted)
-                        status = "Banned";
-                    else if (daysInactive > 30)
-                        status = "Inactived";
-                    else
-                        status = "Actived";
+        //            if (l.User.IsDeleted)
+        //                status = "Banned";
+        //            else if (daysInactive > 30)
+        //                status = "Inactived";
+        //            else
+        //                status = "Actived";
 
-                    return new
-                    {
-                        l.LearnerProfileId,
-                        FullName = l.User.FullName,
-                        Email = l.User.Email,
-                        Phone = l.User.PhoneNumber,
-                        Level = l.Level,
-                        l.PronunciationScore,
-                        Status = status,
-                        CreatedAt = l.User.CreatedAt,
-                        LastActiveAt = l.User.LastActiveAt,
-                        CurrentPackage = l.Subscriptions
-                            .OrderByDescending(s => s.StartDate)
-                            .FirstOrDefault()?.ServicePackage?.Name ?? "(Chưa đăng ký)"
-                    };
-                });
+        //            return new
+        //            {
+        //                l.LearnerProfileId,
+        //                FullName = l.User.FullName,
+        //                Email = l.User.Email,
+        //                Phone = l.User.PhoneNumber,
+        //                Level = l.Level,
+        //                l.PronunciationScore,
+        //                Status = status,
+        //                CreatedAt = l.User.CreatedAt,
+        //                LastActiveAt = l.User.LastActiveAt,
+        //                CurrentPackage = l.Subscriptions
+        //                    .OrderByDescending(s => s.StartDate)
+        //                    .FirstOrDefault()?.ServicePackage?.Name ?? "(Chưa đăng ký)"
+        //            };
+        //        });
 
-                if (!string.IsNullOrEmpty(filterStatus))
-                {
-                    mapped = mapped.Where(m => m.Status.Equals(filterStatus, StringComparison.OrdinalIgnoreCase));
-                }
+        //        if (!string.IsNullOrEmpty(filterStatus))
+        //        {
+        //            mapped = mapped.Where(m => m.Status.Equals(filterStatus, StringComparison.OrdinalIgnoreCase));
+        //        }
 
-                mapped = mapped.OrderBy(m => m.Status == "Banned" ? 3 : m.Status == "Inactived" ? 2 : 1)
-                               .ThenBy(m => m.FullName);
+        //        mapped = mapped.OrderBy(m => m.Status == "Banned" ? 3 : m.Status == "Inactived" ? 2 : 1)
+        //                       .ThenBy(m => m.FullName);
 
-                var totalItems = mapped.Count();
-                var pagedItems = mapped.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+        //        var totalItems = mapped.Count();
+        //        var pagedItems = mapped.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy danh sách người học thành công.";
-                dto.Data = new
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalItems = totalItems,
-                    Items = pagedItems
-                };
-            }
-            catch (Exception ex)
-            {
-                dto.IsSucess = false;
-                dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi lấy danh sách người học: " + ex.Message;
-            }
+        //        dto.IsSucess = true;
+        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+        //        dto.Message = "Lấy danh sách người học thành công.";
+        //        dto.Data = new
+        //        {
+        //            PageNumber = pageNumber,
+        //            PageSize = pageSize,
+        //            TotalItems = totalItems,
+        //            Items = pagedItems
+        //        };
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        dto.IsSucess = false;
+        //        dto.BusinessCode = BusinessCode.EXCEPTION;
+        //        dto.Message = "Lỗi khi lấy danh sách người học: " + ex.Message;
+        //    }
 
-            return dto;
-        }
+        //    return dto;
+        //}
 
-        public async Task<ResponseDTO> GetLearnerDetailAsync(Guid learnerProfileId)
-        {
-            var dto = new ResponseDTO();
-            try
-            {
-                var db = _learnerProfileRepository.GetDbContext();
+        //public async Task<ResponseDTO> GetLearnerDetailAsync(Guid learnerProfileId)
+        //{
+        //    var dto = new ResponseDTO();
+        //    try
+        //    {
+        //        var db = _learnerProfileRepository.GetDbContext();
 
-                var learner = await db.LearnerProfiles
-                    .Include(l => l.User)
-                    .Include(l => l.Subscriptions)
-                        .ThenInclude(s => s.ServicePackage)
-                    .FirstOrDefaultAsync(l => l.LearnerProfileId == learnerProfileId);
+        //        var learner = await db.LearnerProfiles
+        //            .Include(l => l.User)
+        //            .Include(l => l.Subscriptions)
+        //                .ThenInclude(s => s.ServicePackage)
+        //            .FirstOrDefaultAsync(l => l.LearnerProfileId == learnerProfileId);
 
-                if (learner == null)
-                {
-                    dto.IsSucess = false;
-                    dto.Message = "Không tìm thấy người học.";
-                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-                    return dto;
-                }
+        //        if (learner == null)
+        //        {
+        //            dto.IsSucess = false;
+        //            dto.Message = "Không tìm thấy người học.";
+        //            dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+        //            return dto;
+        //        }
 
-                // ====== Logic xử lý ======
-                var now = DateTime.UtcNow;
+        //        // ====== Logic xử lý ======
+        //        var now = DateTime.UtcNow;
 
-                // Gói học hiện tại (gói đang hoạt động, có EndDate > hôm nay)
-                var activeSub = learner.Subscriptions
-                    .Where(s => s.Status == "Active" && s.EndDate.HasValue && s.EndDate.Value > now)
-                    .OrderByDescending(s => s.StartDate)
-                    .FirstOrDefault();
+        //        // Gói học hiện tại (gói đang hoạt động, có EndDate > hôm nay)
+        //        var activeSub = learner.Subscriptions
+        //            .Where(s => s.Status == "Active" && s.EndDate.HasValue && s.EndDate.Value > now)
+        //            .OrderByDescending(s => s.StartDate)
+        //            .FirstOrDefault();
 
-                // Tính toán số ngày còn lại
-                var packages = learner.Subscriptions
-                    .OrderByDescending(s => s.StartDate)
-                    .Select(s =>
-                    {
-                        string status;
-                        if (s.Status == "Active" && s.EndDate.HasValue && s.EndDate.Value > now)
-                            status = "Đang học";
-                        else if (s.EndDate.HasValue && s.EndDate.Value < now)
-                            status = "Hoàn thành";
-                        else
-                            status = "Chưa kích hoạt";
+        //        // Tính toán số ngày còn lại
+        //        var packages = learner.Subscriptions
+        //            .OrderByDescending(s => s.StartDate)
+        //            .Select(s =>
+        //            {
+        //                string status;
+        //                if (s.Status == "Active" && s.EndDate.HasValue && s.EndDate.Value > now)
+        //                    status = "Đang học";
+        //                else if (s.EndDate.HasValue && s.EndDate.Value < now)
+        //                    status = "Hoàn thành";
+        //                else
+        //                    status = "Chưa kích hoạt";
 
-                        int daysLeft = s.EndDate.HasValue
-                            ? Math.Max(0, (int)(s.EndDate.Value - now).TotalDays)
-                            : 0;
+        //                int daysLeft = s.EndDate.HasValue
+        //                    ? Math.Max(0, (int)(s.EndDate.Value - now).TotalDays)
+        //                    : 0;
 
-                        return new
-                        {
-                            s.SubscriptionId,
-                            PackageName = s.ServicePackage?.Name ?? "(Không xác định)",
-                            Duration = s.ServicePackage?.Duration ?? 0,
-                            Price = s.ServicePackage?.Price ?? 0,
-                            Status = status,
-                            StartDate = s.StartDate?.ToString("yyyy-MM-dd"),
-                            EndDate = s.EndDate?.ToString("yyyy-MM-dd"),
-                            DaysLeft = daysLeft
-                        };
-                    }).ToList();
+        //                return new
+        //                {
+        //                    s.SubscriptionId,
+        //                    PackageName = s.ServicePackage?.Name ?? "(Không xác định)",
+        //                    Duration = s.ServicePackage?.Duration ?? 0,
+        //                    Price = s.ServicePackage?.Price ?? 0,
+        //                    Status = status,
+        //                    StartDate = s.StartDate?.ToString("yyyy-MM-dd"),
+        //                    EndDate = s.EndDate?.ToString("yyyy-MM-dd"),
+        //                    DaysLeft = daysLeft
+        //                };
+        //            }).ToList();
 
-                // Mapping dữ liệu trả về FE
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy chi tiết người học thành công.";
-                dto.Data = new
-                {
-                    learner.LearnerProfileId,
-                    learner.User.FullName,
-                    learner.User.Email,
-                    learner.User.PhoneNumber,
-                    learner.Level,
-                    learner.PronunciationScore,
-                    learner.DailyMinutes,
-                    Status = learner.User.IsDeleted ? "Bị chặn" : learner.User.Status,
-                    JoinDate = learner.User.CreatedAt.ToString("yyyy-MM-dd"),
-                    PronunciationLevel = learner.PronunciationScore switch
-                    {
-                        >= 9 => "Nâng cao (Advanced)",
-                        >= 7 => "Khá tốt (Upper Intermediate)",
-                        >= 4 => "Trung bình (Intermediate)",
-                        > 0 => "Cơ bản (Beginner)",
-                        _ => "Chưa có dữ liệu đánh giá"
-                    },
+        //        // Mapping dữ liệu trả về FE
+        //        dto.IsSucess = true;
+        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+        //        dto.Message = "Lấy chi tiết người học thành công.";
+        //        dto.Data = new
+        //        {
+        //            learner.LearnerProfileId,
+        //            learner.User.FullName,
+        //            learner.User.Email,
+        //            learner.User.PhoneNumber,
+        //            learner.Level,
+        //            learner.PronunciationScore,
+        //            learner.DailyMinutes,
+        //            Status = learner.User.IsDeleted ? "Bị chặn" : learner.User.Status,
+        //            JoinDate = learner.User.CreatedAt.ToString("yyyy-MM-dd"),
+        //            PronunciationLevel = learner.PronunciationScore switch
+        //            {
+        //                >= 9 => "Nâng cao (Advanced)",
+        //                >= 7 => "Khá tốt (Upper Intermediate)",
+        //                >= 4 => "Trung bình (Intermediate)",
+        //                > 0 => "Cơ bản (Beginner)",
+        //                _ => "Chưa có dữ liệu đánh giá"
+        //            },
 
-                    CurrentPackage = activeSub != null ? activeSub.ServicePackage?.Name : "(Chưa có gói hoạt động)",
-                    Packages = packages
-                };
-            }
-            catch (Exception ex)
-            {
-                dto.IsSucess = false;
-                dto.Message = "Lỗi khi lấy chi tiết người học: " + ex.Message;
-                dto.BusinessCode = BusinessCode.EXCEPTION;
-            }
+        //            CurrentPackage = activeSub != null ? activeSub.ServicePackage?.Name : "(Chưa có gói hoạt động)",
+        //            Packages = packages
+        //        };
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        dto.IsSucess = false;
+        //        dto.Message = "Lỗi khi lấy chi tiết người học: " + ex.Message;
+        //        dto.BusinessCode = BusinessCode.EXCEPTION;
+        //    }
 
-            return dto;
-        }
+        //    return dto;
+        //}
     }
 }

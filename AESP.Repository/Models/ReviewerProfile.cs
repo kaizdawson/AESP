@@ -22,15 +22,12 @@ namespace AESP.Repository.Models
         public string Status { get; set; } = "Draft";
         public string Levels { get; set; } = string.Empty;
 
-        [ForeignKey("Wallet")]
-        public Guid WalletId { get; set; }
-        public Wallet Wallet { get; set; }
 
 
         public virtual ICollection<Certificate> Certificates { get; set; }
 
         public virtual ICollection<Review> Reviews { get; set; }
 
-        public  User User { get; set; }
+        public User User { get; set; }
     }
 }
