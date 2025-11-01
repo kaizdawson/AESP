@@ -16,26 +16,26 @@ namespace AESP.API.Controllers.AdminController
         {
             _dashboardService = dashboardService;
         }
-        [HttpGet("summary")]
-        public async Task<IActionResult> GetSummary()
-        {
-            var result = await _dashboardService.GetSummaryAsync();
-            return Ok(result);
-        }
+        //[HttpGet("summary")]
+        //public async Task<IActionResult> GetSummary()
+        //{
+        //    var result = await _dashboardService.GetSummaryAsync();
+        //    return Ok(result);
+        //}
 
-        [HttpGet("packages")]
-        public async Task<IActionResult> GetPackagesByMonth([FromQuery] int year)
-        {
-            var result = await _dashboardService.GetPackagesByMonthAsync(year);
-            return Ok(result);
-        }
+        //[HttpGet("packages")]
+        //public async Task<IActionResult> GetPackagesByMonth([FromQuery] int year)
+        //{
+        //    var result = await _dashboardService.GetPackagesByMonthAsync(year);
+        //    return Ok(result);
+        //}
 
-        [HttpGet("revenue")]
-        public async Task<IActionResult> GetRevenueByMonth([FromQuery] int year)
-        {
-            var result = await _dashboardService.GetRevenueByMonthAsync(year);
-            return Ok(result);
-        }
+        //[HttpGet("revenue")]
+        //public async Task<IActionResult> GetRevenueByMonth([FromQuery] int year)
+        //{
+        //    var result = await _dashboardService.GetRevenueByMonthAsync(year);
+        //    return Ok(result);
+        //}
 
         //  Reviewer đang chờ duyệt
         [HttpGet("reviewers/pending")]

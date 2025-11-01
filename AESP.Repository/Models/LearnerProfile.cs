@@ -29,7 +29,6 @@ namespace AESP.Repository.Models
         public virtual ICollection<LearnerAnswer> LearnerAnswers { get; set; }
         public virtual ICollection<LearnerRecordCategory> LearnerRecordCategories { get; set; }
         public virtual ICollection<Purchase> Purchases { get; set; }
-        public virtual ICollection<Subscription> Subscriptions { get; set; }
 
 
     }
