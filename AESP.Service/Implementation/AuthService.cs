@@ -80,7 +80,8 @@ namespace AESP.Service.Implementation
                 Email = dto.Email,
                 PasswordHash = HashPassword(dto.Password),
                 Role = dto.Role.ToString(),
-                Status = "InActive"
+                Status = "InActive",
+                CoinBalance = 0
             };
 
             await _userRepository.Insert(user);
@@ -539,7 +540,8 @@ namespace AESP.Service.Implementation
                         AvatarUrl = avatar,
                         PasswordHash = "",
                         Role = "LEARNER",
-                        Status = "Active"
+                        Status = "Active",
+                        CoinBalance = 0
                     };
 
                     await _userRepository.Insert(user);
@@ -708,7 +710,8 @@ namespace AESP.Service.Implementation
                         Email = email,
                         AvatarUrl = avatar,
                         Role = "REVIEWER",
-                        Status = "Active"
+                        Status = "Active",
+                        CoinBalance = 0
                     };
 
                     await _userRepository.Insert(user);
