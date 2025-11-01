@@ -6,6 +6,7 @@ using AESP.Service.Contract;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -137,19 +138,17 @@ namespace AESP.Service.Implementation
             if (!VerifyPassword(request.Password, user.PasswordHash))
                 return new LoginResult { Success = false, Message = "Mật khẩu không đúng." };
 
-
-
+            // ---- REVOKE OLD TOKENS ----
             var result = await _refreshTokenRepository.GetAllDataByExpression(
                 r => r.UserId == user.UserId && !r.Revoked,
-                    0, 0, null, true
-                );
+                0, 0, null, true
+            );
 
             foreach (var old in result.Items)
             {
                 old.Revoked = true;
                 await _refreshTokenRepository.Update(old);
             }
-
 
             var refreshToken = GenerateRefreshToken();
 
@@ -163,16 +162,24 @@ namespace AESP.Service.Implementation
                 Revoked = false,
                 IpAddress = ipAddress ?? "unknown",
                 DeviceInfo = deviceInfo ?? "unknown"
-
             };
 
             await _refreshTokenRepository.Insert(refreshTokenEntity);
             await _unitOfWork.SaveChangeAsync();
 
-
             bool isPlacementTestDone = false;
             bool isReviewerActive = false;
 
+            // ✅ CHUẨN BỊ DANH SÁCH CLAIMS CHUNG CHO TẤT CẢ TOKEN
+            var claims = new List<Claim>
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
+        new Claim(ClaimTypes.Role, user.Role),
+        new Claim(JwtRegisteredClaimNames.Email, user.Email),
+        new Claim("UserId", user.UserId.ToString())
+    };
+
+            // ---- LEARNER ----
             if (user.Role.ToUpper() == "LEARNER")
             {
                 var learnerProfile = await _learnerProfileRepository
@@ -180,6 +187,8 @@ namespace AESP.Service.Implementation
 
                 if (learnerProfile != null)
                 {
+                    // ⚡️ Thêm LearnerProfileId vào token
+                    claims.Add(new Claim("LearnerProfileId", learnerProfile.LearnerProfileId.ToString()));
 
                     var assessment = await _assessmentRepository
                         .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
@@ -188,8 +197,7 @@ namespace AESP.Service.Implementation
                 }
             }
 
-
-
+            // ---- REVIEWER ----
             if (user.Role.ToUpper() == "REVIEWER")
             {
                 var reviewerProfile = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
@@ -197,14 +205,10 @@ namespace AESP.Service.Implementation
                 if (reviewerProfile != null)
                 {
                     var st = reviewerProfile.Status?.ToUpperInvariant();
-                    // FE cần true khi Pending hoặc Active; Draft => false
                     isReviewerActive = st == "PENDING" || st == "ACTIVE";
                 }
                 else
                 {
-
-
-
                     var newProfile = new ReviewerProfile
                     {
                         ReviewerProfileId = Guid.NewGuid(),
@@ -213,15 +217,17 @@ namespace AESP.Service.Implementation
                     };
                     await _reviewerProfileRepository.Insert(newProfile);
                     await _unitOfWork.SaveChangeAsync();
-                    isReviewerActive = false; // Draft => false
+                    isReviewerActive = false;
                 }
             }
 
+            // ✅ SINH TOKEN CÓ CLAIM LEARNERPROFILEID (NẾU ROLE = LEARNER)
             var accessToken = _jwtService.GenerateAccessToken(
-        user,
-        isPlacementTestDone,
-        isReviewerActive
-    );
+                user,
+                isPlacementTestDone,
+                isReviewerActive,
+                claims // ✅ Truyền claims đã custom vào
+            );
 
             return new LoginResult
             {
