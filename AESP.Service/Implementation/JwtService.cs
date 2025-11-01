@@ -19,29 +19,43 @@ namespace AESP.Service.Implementation
             _context = context;
         }
 
-        public string GenerateAccessToken(User user, bool? isPlacementTestDone = null, bool? isReviewerActive = null)
+        public string GenerateAccessToken(
+            User user,
+            bool? isPlacementTestDone = null,
+            bool? isReviewerActive = null,
+            List<Claim>? extraClaims = null // ✅ thêm param optional
+        )
         {
             var role = string.IsNullOrEmpty(user.Role) ? "User" : user.Role;
 
-            var claims = new List<Claim>
-    {
-        new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
-        new Claim("FullName", user.FullName ?? string.Empty),
-        new Claim("PhoneNumber", user.PhoneNumber ?? string.Empty),
-        new Claim(ClaimTypes.Role, role),
-        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-    };
+            // ✅ Combine claims từ AuthService + mặc định
+            var claims = extraClaims ?? new List<Claim>();
 
-            // 🎯 Chỉ thêm flag theo role tương ứng và giữ kiểu bool thật
+            // Nếu extraClaims chưa có Role, thêm đầy đủ
+            if (!claims.Any(c => c.Type == ClaimTypes.Role))
+            {
+                claims.Add(new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()));
+                claims.Add(new Claim("FullName", user.FullName ?? string.Empty));
+                claims.Add(new Claim("PhoneNumber", user.PhoneNumber ?? string.Empty));
+                claims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
+            }
+
+            // 🎯 Giữ logic gốc thêm flag theo role
             if (role.Equals("LEARNER", StringComparison.OrdinalIgnoreCase) && isPlacementTestDone.HasValue)
             {
-                claims.Add(new Claim("IsPlacementTestDone", isPlacementTestDone.Value.ToString().ToLower(), System.Security.Claims.ClaimValueTypes.Boolean));
+                claims.Add(new Claim("IsPlacementTestDone",
+                    isPlacementTestDone.Value.ToString().ToLower(),
+                    ClaimValueTypes.Boolean));
             }
             else if (role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase) && isReviewerActive.HasValue)
             {
-                claims.Add(new Claim("IsReviewerActive", isReviewerActive.Value.ToString().ToLower(), System.Security.Claims.ClaimValueTypes.Boolean));
+                claims.Add(new Claim("IsReviewerActive",
+                    isReviewerActive.Value.ToString().ToLower(),
+                    ClaimValueTypes.Boolean));
             }
 
+            // 🔐 Sinh token
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
 
