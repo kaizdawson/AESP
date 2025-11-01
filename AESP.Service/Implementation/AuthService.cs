@@ -24,7 +24,6 @@ namespace AESP.Service.Implementation
         private readonly IMemoryCache _cache;
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
-        private readonly IGenericRepository<Wallet> _walletRepository;
 
         public AuthService(
             IGenericRepository<User> userRepository,
@@ -37,7 +36,6 @@ namespace AESP.Service.Implementation
             IEmailService emailService,
             IMemoryCache cache,
             IConfiguration configuration,
-            IGenericRepository<Wallet> walletRepository,
             IRefreshTokenRepository refreshTokenRepository)
         {
             _userRepository = userRepository;
@@ -51,7 +49,6 @@ namespace AESP.Service.Implementation
             _cache = cache;
             _configuration = configuration;
             _refreshTokenRepository = refreshTokenRepository;
-            _walletRepository = walletRepository;
         }
 
 
@@ -206,19 +203,12 @@ namespace AESP.Service.Implementation
                 else
                 {
                    
-                    var wallet = new Wallet
-                    {
-                        WalletId = Guid.NewGuid(),
-                        Amount = 0
-                    };
-                    await _walletRepository.Insert(wallet);
-                    await _unitOfWork.SaveChangeAsync();
+                  
 
                     var newProfile = new ReviewerProfile
                     {
                         ReviewerProfileId = Guid.NewGuid(),
                         UserId = user.UserId,
-                        WalletId = wallet.WalletId,
                         Status = "Draft"
                     };
                     await _reviewerProfileRepository.Insert(newProfile);
@@ -344,32 +334,25 @@ namespace AESP.Service.Implementation
                     user.Status = "Active";
                     await _userRepository.Update(user);
                     await _unitOfWork.SaveChangeAsync();
-                    //  Nếu là reviewer → tạo wallet + profile lúc này
+
+                    // Nếu là reviewer → tạo profile reviewer
                     if (user.Role.ToUpper() == "REVIEWER")
                     {
-                        // tạo ví
-                        var wallet = new Wallet
-                        {
-                            WalletId = Guid.NewGuid(),
-                            Amount = 0
-                        };
-                        await _walletRepository.Insert(wallet);
-                        await _unitOfWork.SaveChangeAsync();
-
-                        // tạo hồ sơ reviewer
                         var reviewerProfile = new ReviewerProfile
                         {
                             ReviewerProfileId = Guid.NewGuid(),
                             UserId = user.UserId,
-                            WalletId = wallet.WalletId,
                             Status = "Draft" // chờ admin duyệt
                         };
+
                         await _reviewerProfileRepository.Insert(reviewerProfile);
                         await _unitOfWork.SaveChangeAsync();
                     }
                 }
+
                 return (true, "Xác thực thành công! Tài khoản đã được Active.");
             }
+
             return (false, "OTP không hợp lệ hoặc đã hết hạn.");
         }
 
@@ -667,11 +650,12 @@ namespace AESP.Service.Implementation
                 if (string.IsNullOrEmpty(firebaseUid))
                     return new LoginResult { Success = false, Message = "Không lấy được Firebase UID." };
 
-                //  Tìm user theo UID hoặc Email
+                // 1️⃣ Tìm user theo UID hoặc Email
                 User? user = null;
                 var usersByUid = await _userRepository.GetAllDataByExpression(u => u.FirebaseUid == firebaseUid, 0, 0, null, true);
                 user = usersByUid.Items.FirstOrDefault();
-                // ✅ Extra prevent login if Firebase UID belongs to Learner
+
+                // Chặn đăng nhập nhầm role
                 if (user != null && string.Equals(user.Role, "LEARNER", StringComparison.OrdinalIgnoreCase))
                 {
                     return new LoginResult
@@ -694,23 +678,20 @@ namespace AESP.Service.Implementation
                             Message = "Email này đã được đăng ký cho tài khoản Learner. Vui lòng dùng tài khoản khác cho Reviewer."
                         };
                     }
+
                     if (user != null)
                     {
                         user.FirebaseUid = firebaseUid;
                         if (user.Status == "InActive") user.Status = "Active";
-
-                        //  Cập nhật role về REVIEWER nếu đang đăng nhập qua endpoint Reviewer
                         if (!string.Equals(user.Role, "REVIEWER", StringComparison.OrdinalIgnoreCase))
-                        {
                             user.Role = "REVIEWER";
-                        }
 
                         await _userRepository.Update(user);
                         await _unitOfWork.SaveChangeAsync();
                     }
                 }
 
-                //  Nếu chưa có thì tạo mới
+                // 2️⃣ Nếu chưa có thì tạo mới
                 if (user == null)
                 {
                     user = new User
@@ -719,9 +700,7 @@ namespace AESP.Service.Implementation
                         FirebaseUid = firebaseUid,
                         FullName = string.IsNullOrEmpty(name) ? "New Reviewer" : name,
                         Email = email,
-                        PhoneNumber = "",
                         AvatarUrl = avatar,
-                        PasswordHash = "",
                         Role = "REVIEWER",
                         Status = "Active"
                     };
@@ -729,34 +708,23 @@ namespace AESP.Service.Implementation
                     await _userRepository.Insert(user);
                     await _unitOfWork.SaveChangeAsync();
 
-                    //  Tạo ví + profile reviewer
-                    var wallet = new Wallet
-                    {
-                        WalletId = Guid.NewGuid(),
-                        Amount = 0
-                    };
-                    await _walletRepository.Insert(wallet);
-                    await _unitOfWork.SaveChangeAsync();
-
+                    // ➤ Tạo reviewerProfile (không có Wallet)
                     var reviewerProfile = new ReviewerProfile
                     {
                         ReviewerProfileId = Guid.NewGuid(),
                         UserId = user.UserId,
-                        WalletId = wallet.WalletId,
-                        Status = "Draft" // chờ duyệt
+                        Status = "Draft"
                     };
                     await _reviewerProfileRepository.Insert(reviewerProfile);
                     await _unitOfWork.SaveChangeAsync();
                 }
                 else
                 {
-                    //  Nếu user tồn tại → cập nhật thiếu thông tin
+                    // 3️⃣ Cập nhật thông tin thiếu
                     bool changed = false;
                     if (string.IsNullOrEmpty(user.FullName) && !string.IsNullOrEmpty(name)) { user.FullName = name; changed = true; }
                     if (string.IsNullOrEmpty(user.AvatarUrl) && !string.IsNullOrEmpty(avatar)) { user.AvatarUrl = avatar; changed = true; }
                     if (user.Status == "InActive") { user.Status = "Active"; changed = true; }
-                    
-
                     if (!string.Equals(user.Role, "REVIEWER", StringComparison.OrdinalIgnoreCase))
                     {
                         user.Role = "REVIEWER";
@@ -769,23 +737,14 @@ namespace AESP.Service.Implementation
                         await _unitOfWork.SaveChangeAsync();
                     }
 
-                    //  Đảm bảo reviewerProfile tồn tại
+                    // 4️⃣ Đảm bảo reviewerProfile tồn tại
                     var existingProfile = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
                     if (existingProfile == null)
                     {
-                        var wallet = new Wallet
-                        {
-                            WalletId = Guid.NewGuid(),
-                            Amount = 0
-                        };
-                        await _walletRepository.Insert(wallet);
-                        await _unitOfWork.SaveChangeAsync();
-
                         var reviewerProfile = new ReviewerProfile
                         {
                             ReviewerProfileId = Guid.NewGuid(),
                             UserId = user.UserId,
-                            WalletId = wallet.WalletId,
                             Status = "Draft"
                         };
                         await _reviewerProfileRepository.Insert(reviewerProfile);
@@ -793,9 +752,7 @@ namespace AESP.Service.Implementation
                     }
                 }
 
-                
-
-                //  Check trạng thái reviewer
+                // 5️⃣ Check trạng thái reviewer
                 bool isReviewerActive = false;
                 var reviewer = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
                 if (reviewer != null)
@@ -804,8 +761,8 @@ namespace AESP.Service.Implementation
                     isReviewerActive = st == "PENDING" || st == "ACTIVE";
                 }
 
-                //  Tạo accessToken + refreshToken
-                var accessToken = _jwtService.GenerateAccessToken(user,null,isReviewerActive);
+                // 6️⃣ Tạo Access + Refresh token
+                var accessToken = _jwtService.GenerateAccessToken(user, null, isReviewerActive);
                 var refreshToken = GenerateRefreshToken();
 
                 var refreshTokenEntity = new RefreshToken
@@ -823,7 +780,6 @@ namespace AESP.Service.Implementation
                 await _refreshTokenRepository.Insert(refreshTokenEntity);
                 await _unitOfWork.SaveChangeAsync();
 
-
                 return new LoginResult
                 {
                     Success = true,
@@ -836,7 +792,11 @@ namespace AESP.Service.Implementation
             }
             catch (Exception ex)
             {
-                return new LoginResult { Success = false, Message = $"Google sign-in (Reviewer) failed: {ex.InnerException?.Message ?? ex.Message}" };
+                return new LoginResult
+                {
+                    Success = false,
+                    Message = $"Google sign-in (Reviewer) failed: {ex.InnerException?.Message ?? ex.Message}"
+                };
             }
         }
     }
