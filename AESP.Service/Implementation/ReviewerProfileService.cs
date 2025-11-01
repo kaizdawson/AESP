@@ -37,7 +37,6 @@ namespace AESP.Service.Implementation
                 var profile = await _reviewerProfileRepository.GetFirstByExpression(
                     x => x.UserId == userId,
                     x => x.Certificates,
-                    x => x.Wallet,
                     x => x.Reviews
                 );
 
