@@ -14,7 +14,6 @@ namespace AESP.Repository.Models
         public Guid AssessmentId { get; set; }
         public DateTime CreatedAt { get; set; }
         public double Score { get; set; }
-        public string Type { get; set; } = string.Empty;
         public string Feedback { get; set; } = string.Empty;
         public double NumberOfQuestion { get; set; }
 

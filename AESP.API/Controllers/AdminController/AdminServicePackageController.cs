@@ -17,12 +17,12 @@ namespace AESP.API.Controllers.AdminController
         {
             _service = service;
         }
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetById(Guid id)
-        {
-            var result = await _service.GetByIdAsync(id);
-            return Ok(result);
-        }
+        //[HttpGet("{id}")]
+        //public async Task<IActionResult> GetById(Guid id)
+        //{
+        //    var result = await _service.GetByIdAsync(id);
+        //    return Ok(result);
+        //}
 
         // POST: /api/AdminServicePackage
         [HttpPost]
@@ -89,15 +89,15 @@ namespace AESP.API.Controllers.AdminController
             var result = await _service.DeleteAsync(id);
             return Ok(result);
         }
-        [HttpGet]
-        public async Task<IActionResult> GetList(
-    [FromQuery] string? search,
-    [FromQuery] int pageNumber = 1,
-    [FromQuery] int pageSize = 10)
-        {
-            var result = await _service.GetListAsync(search, pageNumber, pageSize);
-            return Ok(result);
-        }
+        //    [HttpGet]
+        //    public async Task<IActionResult> GetList(
+        //[FromQuery] string? search,
+        //[FromQuery] int pageNumber = 1,
+        //[FromQuery] int pageSize = 10)
+        //    {
+        //        var result = await _service.GetListAsync(search, pageNumber, pageSize);
+        //        return Ok(result);
+        //    }
         private static int GetFieldOrder(string fieldName)
         {
             var order = new List<string>
