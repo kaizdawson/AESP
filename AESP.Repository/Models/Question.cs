@@ -28,7 +28,6 @@ namespace AESP.Repository.Models
         public virtual ICollection<AssessmentDetail> AssessmentDetails { get; set; }
         public virtual ICollection<LearnerAnswer> LearnerAnswers { get; set; }
         public virtual ICollection<PhonemeResult> PhonemeResults { get; set; }
-        public virtual ICollection<PhonemeTemplate> PhonemeTemplates { get; set; }
 
     }
 }

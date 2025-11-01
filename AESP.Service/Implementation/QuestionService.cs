@@ -390,8 +390,7 @@ namespace AESP.Service.Implementation
                     x => x.QuestionMedias,
                     x => x.AssessmentDetails,
                     x => x.LearnerAnswers,
-                    x => x.PhonemeResults,
-                    x => x.PhonemeTemplates
+                    x => x.PhonemeResults
                 );
 
                 if (question == null)
@@ -412,8 +411,7 @@ namespace AESP.Service.Implementation
                 if (question.PhonemeResults?.Any() == true)
                     db.PhonemeResults.RemoveRange(question.PhonemeResults);
 
-                if (question.PhonemeTemplates?.Any() == true)
-                    db.PhonemeTemplates.RemoveRange(question.PhonemeTemplates);
+              
 
                 // --- Xoá question chính ---
                 db.Questions.Remove(question);

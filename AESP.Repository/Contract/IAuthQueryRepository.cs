@@ -13,6 +13,5 @@ namespace AESP.Repository.Contract
         Task<LearnerProfile?> GetLearnerProfileAsync(Guid userId);
         Task<ReviewerProfile?> GetReviewerProfileAsync(Guid userId);
 
-        Task<Wallet?> GetWalletByIdAsync(Guid walletId);
     }
 }

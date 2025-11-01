@@ -11,20 +11,27 @@ namespace AESP.Repository.Models
     public class Transaction
     {
         [Key]
-        public Guid TransactionId { get; set; }
+        public Guid TransactionId { get; set; } = Guid.NewGuid();
 
-        [Required]
-        public double Amount { get; set; }
-        public DateTime CreatedTransaction { get; set; }
+        public decimal AmountMoney { get; set; }    // amount-money trong UML
 
-        [ForeignKey("Wallet")]
-        public Guid WalletId { get; set; }
+        public decimal AmountCoin { get; set; }     // amount_coin trong UML
+
+        public DateTime CreatedTransaction { get; set; } = DateTime.UtcNow;
 
         public string BankName { get; set; } = string.Empty;
         public string AccountNumber { get; set; } = string.Empty;
         public string ReasonWithdrawReject { get; set; } = string.Empty;
+
         public string TransactionEnum { get; set; } = string.Empty;
 
-        public virtual Wallet Wallet { get; set; }
+        [ForeignKey(nameof(ServicePackage))]
+        public Guid? ServicePackageId { get; set; }
+
+        // --- Navigation ---
+        public virtual ServicePackage? ServicePackage { get; set; }
+
+        public virtual ICollection<CoinTransaction> CoinTransactions { get; set; } = new List<CoinTransaction>();
+
     }
 }

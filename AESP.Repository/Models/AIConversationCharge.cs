@@ -8,32 +8,32 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class Purchase
+    public class AIConversationCharge
     {
         [Key]
-        public Guid PurchaseId { get; set; } = Guid.NewGuid();
+        public Guid AIConversationChargeId { get; set; } = Guid.NewGuid();
 
-        // --- FK ---
         [ForeignKey(nameof(User))]
         public Guid UserId { get; set; }
 
+        public decimal AmountCoin { get; set; }
 
-        public Guid? ItemId { get; set; }
-        public string ItemType { get; set; } = string.Empty;
+        public int AllowedMinutes { get; set; }
 
-        // --- Fields chính ---
-        public string Status { get; set; } = "Pending"; // Pending / Completed / Failed
+        public DateTime? StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
 
-        public decimal AmountCoin { get; set; }        // số coin đã thanh toán
-
+        public string Status { get; set; } = "Active"; // Active / Expired / Cancelled
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public int NumberOfReview { get; set; } = 0;
+        public string RoomId { get; set; } = string.Empty;
+
+        // Lưu JSON nội dung hội thoại (AI message history, transcript,…)
+        public string ContentJson { get; set; } = string.Empty;
 
         // --- Navigation ---
         public virtual User User { get; set; }
 
         public virtual ICollection<CoinTransaction> CoinTransactions { get; set; } = new List<CoinTransaction>();
-
     }
 }
