@@ -16,49 +16,44 @@ namespace AESP.Common.DTOs
         [Required(ErrorMessage = "Mô tả không được để trống.")]
         [MinLength(5, ErrorMessage = "Mô tả phải có ít nhất 5 ký tự.")]
         public string Description { get; set; }
-        [Required(ErrorMessage = "Cấp độ không được để trống.")]
-        public string? Level { get; set; }
+
         [Required(ErrorMessage = "Giá không được để trống.")]
         [Range(0, double.MaxValue, ErrorMessage = "Giá phải >= 0.")]
-        public double Price { get; set; }
+        public decimal Price { get; set; }
 
-        [Required(ErrorMessage = "Thời lượng không được để trống.")]
-        [Range(1, int.MaxValue, ErrorMessage = "Thời lượng (ngày) phải >= 1.")]
-        public int Duration { get; set; }
+        [Required(ErrorMessage = "Số lượng coin không được để trống.")]
+        [Range(1, int.MaxValue, ErrorMessage = "Số lượng coin phải >= 1.")]
+        public int NumberOfCoin { get; set; }
 
-        [Required(ErrorMessage = "Số lượt review không được để trống.")]
-        [Range(0, int.MaxValue, ErrorMessage = "Số lần review phải >= 0.")]
-        public int NumberOfReview { get; set; }
-        [Required(ErrorMessage = "Trạng thái không được để trống.")]
+        [Range(0, 100, ErrorMessage = "Phần trăm thưởng phải trong khoảng 0–100.")]
+        public double BonusPercent { get; set; }
+
         [RegularExpression(@"^(Active|Inactive)$", ErrorMessage = "Trạng thái chỉ được là 'Active' hoặc 'Inactive'.")]
-        public string? Status { get; set; }
+        public string? Status { get; set; } = "Active";
     }
-
 
     public class UpdateServicePackageDto
     {
-        [Required(ErrorMessage = "Tên gói dịch vụ không được để trống.")]
-        [StringLength(100, MinimumLength = 2, ErrorMessage = "Tên gói dịch vụ phải có từ 2 đến 100 ký tự.")]
+        [Required(ErrorMessage = "Tên gói không được để trống.")]
+        [StringLength(100, MinimumLength = 2, ErrorMessage = "Tên gói dịch vụ phải có từ 2–100 ký tự.")]
         public string Name { get; set; }
 
         [Required(ErrorMessage = "Mô tả không được để trống.")]
-        [MinLength(5, ErrorMessage = "Mô tả phải có ít nhất 5 ký tự.")]
         public string Description { get; set; }
-        [Required(ErrorMessage = "Cấp độ không được để trống.")]
-        public string? Level { get; set; }
+
         [Required(ErrorMessage = "Giá không được để trống.")]
         [Range(0, double.MaxValue, ErrorMessage = "Giá phải >= 0.")]
         public double Price { get; set; }
 
-        [Required(ErrorMessage = "Thời lượng không được để trống.")]
-        [Range(1, int.MaxValue, ErrorMessage = "Thời lượng (ngày) phải >= 1.")]
-        public int Duration { get; set; }
+        [Required(ErrorMessage = "Số coin không được để trống.")]
+        [Range(1, int.MaxValue, ErrorMessage = "Số coin phải >= 1.")]
+        public int NumberOfCoin { get; set; }
 
-        [Required(ErrorMessage = "Số lượt review không được để trống.")]
-        [Range(0, int.MaxValue, ErrorMessage = "Số lần review phải >= 0.")]
-        public int NumberOfReview { get; set; }
-        [Required(ErrorMessage = "Trạng thái không được để trống.")]
+        [Range(0, 100, ErrorMessage = "Phần trăm thưởng phải nằm trong khoảng 0–100.")]
+        public double BonusPercent { get; set; }
+
         [RegularExpression(@"^(Active|Inactive)$", ErrorMessage = "Trạng thái chỉ được là 'Active' hoặc 'Inactive'.")]
         public string? Status { get; set; }
     }
+
 }

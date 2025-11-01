@@ -42,9 +42,7 @@ namespace AESP.Service.Implementation
 
                 if (reviewerProfile != null)
                 {
-                    // 👇 lấy thêm thông tin ví
-                    var wallet = await _authQueryRepository.GetWalletByIdAsync(reviewerProfile.WalletId);
-
+                    // 🔥 Bỏ phần Wallet, thay bằng coin_balance của user
                     profile = new
                     {
                         reviewerProfile.ReviewerProfileId,
@@ -53,8 +51,7 @@ namespace AESP.Service.Implementation
                         reviewerProfile.Rating,
                         reviewerProfile.Status,
                         reviewerProfile.Levels,
-                        reviewerProfile.WalletId,
-                        Balance = wallet?.Amount ?? 0, // 🧩 thêm balance
+                        Balance = user.CoinBalance, // lấy coin từ User
                         reviewerProfile.CreatedAt,
                         reviewerProfile.UpdatedAt,
                         reviewerProfile.IsDeleted
@@ -73,6 +70,7 @@ namespace AESP.Service.Implementation
                 user.Role,
                 user.AvatarUrl,
                 user.Status,
+                CoinBalance = user.CoinBalance,
                 LearnerProfile = user.Role == "LEARNER" ? profile : null,
                 ReviewerProfile = user.Role == "REVIEWER" ? profile : null
             };
