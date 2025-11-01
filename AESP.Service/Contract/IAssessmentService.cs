@@ -14,5 +14,7 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> CreateAssessmentAsync(CreateAssessmentDTO dto);
         Task<ResponseDTO> UpdateAssessmentAsync(Guid id, UpdateAssessmentDTO dto);
         Task<ResponseDTO> DeleteAssessmentAsync(Guid id);
+        Task<ResponseDTO> GetPlacementTestForLearnerAsync(Guid learnerProfileId);
+
     }
 }
