@@ -18,7 +18,6 @@ namespace AESP.Repository.DB
         public DbSet<User> Users { get; set; }
         public DbSet<LearnerProfile> LearnerProfiles { get; set; }
         public DbSet<ReviewerProfile> ReviewerProfiles { get; set; }
-        public DbSet<Wallet> Wallets { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
 
         public DbSet<Assessment> Assessments { get; set; }
@@ -38,10 +37,7 @@ namespace AESP.Repository.DB
         public DbSet<LearningPathExercise> LearningPathExercises { get; set; }
 
         public DbSet<LearnerAnswer> LearnerAnswers { get; set; }
-        public DbSet<PhonemeTemplate> PhonemeTemplates { get; set; }
         public DbSet<PhonemeResult> PhonemeResults { get; set; }
-        public DbSet<Stress> Stresses { get; set; }
-        public DbSet<StressResult> StressResults { get; set; }
 
         public DbSet<PronunciationResult> PronunciationResults { get; set; }
         public DbSet<ProgressAnalytics> ProgressAnalytics { get; set; }
@@ -55,8 +51,7 @@ namespace AESP.Repository.DB
         public DbSet<Certificate> Certificates { get; set; }
 
         public DbSet<ServicePackage> ServicePackages { get; set; }
-        public DbSet<SubServicePackage> SubServicePackages { get; set; }
-        public DbSet<Subscription> Subscriptions { get; set; }
+      
         public DbSet<Purchase> Purchases { get; set; }
         public DbSet<ReviewFee> ReviewFees { get; set; }
 
@@ -126,12 +121,7 @@ namespace AESP.Repository.DB
                 .WithOne(p => p.LearnerProfile)
                 .HasForeignKey(p => p.LearnerProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
-            //Wallet
-            modelBuilder.Entity<Wallet>()
-                .HasMany(w => w.Transactions)
-                .WithOne(t => t.Wallet)
-                .HasForeignKey(t => t.WalletId)
-                .OnDelete(DeleteBehavior.Cascade);
+          
             // Khi xóa Course → xóa Chapter → xóa Exercise
             modelBuilder.Entity<Course>()
                 .HasMany(c => c.Chapters)
