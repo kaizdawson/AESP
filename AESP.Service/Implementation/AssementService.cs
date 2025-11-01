@@ -6,6 +6,7 @@ using AESP.Service.Contract;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 namespace AESP.Service.Implementation
@@ -391,5 +392,83 @@ namespace AESP.Service.Implementation
 
             return dto;
         }
+
+
+        public async Task<ResponseDTO> GetPlacementTestForLearnerAsync(Guid learnerProfileId)
+        {
+            ResponseDTO dto = new();
+
+            try
+            {
+                // ✅ Lọc theo đúng learner
+                var result = await _assessmentRepository.GetAllDataByExpression(
+     filter: x => x.LearnerProfileId == learnerProfileId, // ✅ Lọc theo learner
+     pageNumber: 0,
+     pageSize: 0,
+     includes: new Expression<Func<Assessment, object>>[]
+     {
+        x => x.AssessmentDetails
+     }
+ );
+
+
+                var db = _assessmentRepository.GetDbContext();
+
+                foreach (var assessment in result.Items)
+                {
+                    foreach (var detail in assessment.AssessmentDetails)
+                    {
+                        await db.Entry(detail).Reference(d => d.QuestionAssessment).LoadAsync();
+                    }
+                }
+
+                // ✅ Lọc bài test có QuestionAssessment.Status = true
+                var activeAssessments = result.Items
+                    .Where(a => a.AssessmentDetails.Any(d => d.QuestionAssessment.Status))
+                    .ToList();
+
+                if (!activeAssessments.Any())
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Learner này chưa có bài test nào có câu hỏi active.");
+
+                // ✅ Gom nhóm câu hỏi theo type
+                var mapped = activeAssessments.Select(assessment => new
+                {
+                    assessment.AssessmentId,
+                    assessment.CreatedAt,
+                    assessment.LearnerProfileId,
+                    assessment.Score,
+                    assessment.Feedback,
+                    assessment.NumberOfQuestion,
+                    Sections = assessment.AssessmentDetails
+                        .Where(d => d.QuestionAssessment.Status)
+                        .GroupBy(d => d.QuestionAssessment.Type)
+                        .Select(g => new
+                        {
+                            Type = g.Key,
+                            Questions = g.Select(q => new
+                            {
+                                q.QuestionAssessment.QuestionAssessmentId,
+                                q.QuestionAssessment.Content
+                            }).ToList()
+                        }).ToList()
+                }).ToList();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy bài test đầu vào thành công.";
+                dto.Data = mapped;
+            }
+            catch (Exception ex)
+            {
+                dto = Fail(BusinessCode.EXCEPTION, "Lỗi khi lấy bài test đầu vào: " + (ex.InnerException?.Message ?? ex.Message));
+            }
+
+            return dto;
+        }
+
+
+
+
+
     }
 }
