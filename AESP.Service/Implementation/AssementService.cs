@@ -394,35 +394,40 @@ namespace AESP.Service.Implementation
         }
 
 
-        public async Task<ResponseDTO> GetPlacementTestForLearnerAsync(Guid learnerProfileId)
+        public async Task<ResponseDTO> GetPlacementTestForLearnerAsync(Guid userId)
         {
             ResponseDTO dto = new();
 
             try
             {
-                // ✅ Lọc theo đúng learner
-                var result = await _assessmentRepository.GetAllDataByExpression(
-     filter: x => x.LearnerProfileId == learnerProfileId, // ✅ Lọc theo learner
-     pageNumber: 0,
-     pageSize: 0,
-     includes: new Expression<Func<Assessment, object>>[]
-     {
-        x => x.AssessmentDetails
-     }
- );
+                // ✅ Tìm LearnerProfile theo UserId
+                var learnerProfile = await _learnerProfileRepository.GetByExpression(lp => lp.UserId == userId);
+                if (learnerProfile == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên tương ứng.");
 
+                Guid learnerProfileId = learnerProfile.LearnerProfileId;
+
+                // ✅ Lấy danh sách Assessment
+                var result = await _assessmentRepository.GetAllDataByExpression(
+                    filter: x => x.LearnerProfileId == learnerProfileId,
+                    pageNumber: 0,
+                    pageSize: 0,
+                    includes: new Expression<Func<Assessment, object>>[]
+                    {
+                x => x.AssessmentDetails
+                    }
+                );
 
                 var db = _assessmentRepository.GetDbContext();
 
+                // ✅ Load QuestionAssessment cho từng detail
                 foreach (var assessment in result.Items)
                 {
                     foreach (var detail in assessment.AssessmentDetails)
-                    {
                         await db.Entry(detail).Reference(d => d.QuestionAssessment).LoadAsync();
-                    }
                 }
 
-                // ✅ Lọc bài test có QuestionAssessment.Status = true
+                // ✅ Chỉ lấy bài test có câu hỏi active
                 var activeAssessments = result.Items
                     .Where(a => a.AssessmentDetails.Any(d => d.QuestionAssessment.Status))
                     .ToList();
@@ -430,12 +435,11 @@ namespace AESP.Service.Implementation
                 if (!activeAssessments.Any())
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Learner này chưa có bài test nào có câu hỏi active.");
 
-                // ✅ Gom nhóm câu hỏi theo type
+                // ✅ Map dữ liệu trả về
                 var mapped = activeAssessments.Select(assessment => new
                 {
                     assessment.AssessmentId,
                     assessment.CreatedAt,
-                    assessment.LearnerProfileId,
                     assessment.Score,
                     assessment.Feedback,
                     assessment.NumberOfQuestion,
