@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace AESP.API.Controllers.LearnerController
 {
@@ -27,8 +28,11 @@ namespace AESP.API.Controllers.LearnerController
         {
             try
             {
-               
-                var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.Sub);
+
+                var userIdClaim = User.Claims.FirstOrDefault(c =>
+    c.Type == JwtRegisteredClaimNames.Sub ||
+    c.Type == ClaimTypes.NameIdentifier ||
+    c.Type.EndsWith("/nameidentifier"));
                 if (userIdClaim == null)
                     return Unauthorized(new { message = "Token không chứa UserId." });
 
