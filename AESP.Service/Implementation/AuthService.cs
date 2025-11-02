@@ -221,13 +221,22 @@ namespace AESP.Service.Implementation
                 }
             }
 
-            // ✅ SINH TOKEN CÓ CLAIM LEARNERPROFILEID (NẾU ROLE = LEARNER)
+            // 🔍 Lấy LearnerProfileId từ claims list (nếu có)
+            Guid? learnerProfileId = null;
+            var learnerClaim = claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
+            if (learnerClaim != null && Guid.TryParse(learnerClaim.Value, out var parsedId))
+            {
+                learnerProfileId = parsedId;
+            }
+
+            // ✅ Sinh token có đúng LearnerProfileId
             var accessToken = _jwtService.GenerateAccessToken(
                 user,
                 isPlacementTestDone,
                 isReviewerActive,
-                claims // ✅ Truyền claims đã custom vào
+                learnerProfileId
             );
+
 
             return new LoginResult
             {
@@ -589,6 +598,8 @@ namespace AESP.Service.Implementation
                 bool isPlacementTestDone = false;
                 bool isReviewerActive = false;
 
+                Guid? learnerProfileId = null;
+
                 if (user.Role.ToUpper() == "LEARNER")
                 {
                     var learnerProfile = await _learnerProfileRepository
@@ -596,17 +607,24 @@ namespace AESP.Service.Implementation
 
                     if (learnerProfile != null)
                     {
-                        // Đã có bài Placement Test chưa
+                        learnerProfileId = learnerProfile.LearnerProfileId;
+
                         var assessment = await _assessmentRepository
                             .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
-                        isPlacementTestDone = assessment != null;
-
-                        // Cờ này hiện chưa dùng logic cụ thể → để null (giống SignInAsync)
                         isPlacementTestDone = assessment != null;
                     }
                 }
 
-                var accessToken = _jwtService.GenerateAccessToken(user, isPlacementTestDone, isReviewerActive);
+
+
+                var accessToken = _jwtService.GenerateAccessToken(
+    user,
+    isPlacementTestDone,
+    isReviewerActive,
+    learnerProfileId // ✅ Truyền đúng ID vào đây
+);
+
+
 
                 var refreshToken = GenerateRefreshToken();
 
