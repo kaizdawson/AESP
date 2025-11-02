@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace AESP.API.Controllers.LearnerController
 {
@@ -24,16 +25,30 @@ namespace AESP.API.Controllers.LearnerController
         [HttpGet("placement-test")]
         public async Task<IActionResult> GetPlacementTestForLearner()
         {
-            // ✅ Lấy LearnerProfileId từ token thay vì query
-            var learnerClaim = User.FindFirst("LearnerProfileId");
-            if (learnerClaim == null)
-                return Unauthorized(new { message = "Token không chứa LearnerProfileId" });
+            try
+            {
+               
+                var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.Sub);
+                if (userIdClaim == null)
+                    return Unauthorized(new { message = "Token không chứa UserId." });
 
-            Guid learnerProfileId = Guid.Parse(learnerClaim.Value);
+                Guid userId = Guid.Parse(userIdClaim.Value);
 
-            var response = await _assessmentService.GetPlacementTestForLearnerAsync(learnerProfileId);
-            return Ok(response);
+       
+                var response = await _assessmentService.GetPlacementTestForLearnerAsync(userId);
+
+         
+                if (!response.IsSucess)
+                    return BadRequest(response);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
+            }
         }
+
 
 
     }
