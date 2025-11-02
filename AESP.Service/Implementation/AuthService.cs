@@ -483,6 +483,8 @@ namespace AESP.Service.Implementation
 
         public async Task<LoginResult> GoogleSignInAsync(string idToken, string? ipAddress, string? deviceInfo)
         {
+            Guid? learnerProfileId = null;
+
             try
             {
                 var decodedToken = await FirebaseAdmin.Auth.FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(idToken);
@@ -563,6 +565,8 @@ namespace AESP.Service.Implementation
                     };
                     await _learnerProfileRepository.Insert(learnerProfile);
                     await _unitOfWork.SaveChangeAsync();
+
+                    learnerProfileId = learnerProfile.LearnerProfileId;
                 }
                 else
                 {
@@ -600,7 +604,7 @@ namespace AESP.Service.Implementation
                 bool isPlacementTestDone = false;
                 bool isReviewerActive = false;
 
-                Guid? learnerProfileId = null;
+                
 
                 if (user.Role.ToUpper() == "LEARNER")
                 {
