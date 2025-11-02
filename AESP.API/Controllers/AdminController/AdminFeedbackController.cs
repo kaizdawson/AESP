@@ -19,9 +19,9 @@ namespace AESP.API.Controllers.AdminController
 
         //  Lấy danh sách Feedback
         [HttpGet]
-        public async Task<IActionResult> GetAllFeedback()
+        public async Task<IActionResult> GetAll([FromQuery] string? keyword, [FromQuery] string? status = "all", [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _service.GetAllFeedbackAsync();
+            var result = await _service.GetAllFeedbackAsync(keyword, status, pageNumber, pageSize);
             return Ok(result);
         }
 
@@ -31,6 +31,12 @@ namespace AESP.API.Controllers.AdminController
         {
             var result = await _service.GetFeedbackDetailAsync(feedbackId);
             return Ok(result);
+        }
+        [HttpPut("{id}/reject")]
+        public async Task<IActionResult> Reject(Guid id, [FromBody] string reason)
+        {
+            var res = await _service.RejectFeedbackAsync(id, reason);
+            return Ok(res);
         }
     }
 }
