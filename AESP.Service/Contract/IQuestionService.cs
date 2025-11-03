@@ -11,7 +11,7 @@ namespace AESP.Service.Contract
     {
         Task<ResponseDTO> GetAllQuestionsAsync(int pageNumber, int pageSize, Guid? exerciseId = null);
         Task<ResponseDTO> GetQuestionByIdAsync(Guid id);
-        Task<ResponseDTO> CreateQuestionAsync(CreateQuestionDTO request);
+        Task<ResponseDTO> CreateQuestionsByExerciseIdAsync(Guid exerciseId, List<CreateQuestionDTO> requests);
         Task<ResponseDTO> UpdateQuestionAsync(Guid id, UpdateQuestionDTO request);
         Task<ResponseDTO> DeleteQuestionAsync(Guid id);
     }

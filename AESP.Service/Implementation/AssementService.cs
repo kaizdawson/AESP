@@ -3,6 +3,7 @@ using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,17 +17,22 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<Assessment> _assessmentRepository;
         private readonly IGenericRepository<AssessmentDetail> _assessmentDetailRepository;
         private readonly IGenericRepository<LearnerProfile> _learnerProfileRepository;
+        private readonly IGenericRepository<QuestionAssessment> _questionAssessmentRepository;
+
         private readonly IUnitOfWork _unitOfWork;
 
         public AssessmentService(
             IGenericRepository<Assessment> assessmentRepository,
             IGenericRepository<AssessmentDetail> assessmentDetailRepository,
             IGenericRepository<LearnerProfile> learnerProfileRepository,
-            IUnitOfWork unitOfWork)
+            IGenericRepository<QuestionAssessment> questionAssessmentRepository,
+        IUnitOfWork unitOfWork)
         {
             _assessmentRepository = assessmentRepository;
             _assessmentDetailRepository = assessmentDetailRepository;
             _learnerProfileRepository = learnerProfileRepository;
+            _questionAssessmentRepository = questionAssessmentRepository;
+
             _unitOfWork = unitOfWork;
         }
 
@@ -397,54 +403,93 @@ namespace AESP.Service.Implementation
         public async Task<ResponseDTO> GetPlacementTestForLearnerAsync(Guid userId)
         {
             ResponseDTO dto = new();
-
             try
             {
-                // ✅ Tìm LearnerProfile theo UserId
+                // --- 1️⃣ Lấy hồ sơ learner ---
                 var learnerProfile = await _learnerProfileRepository.GetByExpression(lp => lp.UserId == userId);
                 if (learnerProfile == null)
-                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên tương ứng.");
+                {
+                    // ✅ Tự tạo hồ sơ học viên nếu chưa có
+                    learnerProfile = new LearnerProfile
+                    {
+                        LearnerProfileId = Guid.NewGuid(),
+                        UserId = userId,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    await _learnerProfileRepository.Insert(learnerProfile);
+                    await _unitOfWork.SaveChangeAsync();
+                }
 
                 Guid learnerProfileId = learnerProfile.LearnerProfileId;
 
-                // ✅ Lấy danh sách Assessment
-                var result = await _assessmentRepository.GetAllDataByExpression(
-                    filter: x => x.LearnerProfileId == learnerProfileId,
-                    pageNumber: 0,
-                    pageSize: 0,
-                    includes: new Expression<Func<Assessment, object>>[]
-                    {
-                x => x.AssessmentDetails
-                    }
-                );
+                // --- 2️⃣ Kiểm tra đã có bài test nào chưa ---
+                var existingAssessment = await _assessmentRepository
+                    .GetByExpression(a => a.LearnerProfileId == learnerProfileId);
 
-                var db = _assessmentRepository.GetDbContext();
-
-                // ✅ Load QuestionAssessment cho từng detail
-                foreach (var assessment in result.Items)
+                // --- 3️⃣ Nếu chưa có → tự tạo bài test mới ---
+                if (existingAssessment == null)
                 {
-                    foreach (var detail in assessment.AssessmentDetails)
-                        await db.Entry(detail).Reference(d => d.QuestionAssessment).LoadAsync();
+                    var dbQuestion = _questionAssessmentRepository.GetDbContext();
+                    var activeQuestions = await dbQuestion.Set<QuestionAssessment>()
+                        .Where(q => q.Status == true)
+                        .OrderBy(q => q.Type)
+                        .ToListAsync();
+
+                    if (!activeQuestions.Any())
+                        return Fail(BusinessCode.DATA_NOT_FOUND, "Không có câu hỏi nào active trong hệ thống.");
+
+                    // --- Tạo bài test ---
+                    var newAssessment = new Assessment
+                    {
+                        AssessmentId = Guid.NewGuid(),
+                        LearnerProfileId = learnerProfileId,
+                        CreatedAt = DateTime.UtcNow,
+                        Score = 0,
+                        Feedback = string.Empty,
+                        NumberOfQuestion = activeQuestions.Count
+                    };
+
+                    await _assessmentRepository.Insert(newAssessment);
+
+                    // --- Tạo chi tiết ---
+                    var assessmentDetails = activeQuestions.Select(q => new AssessmentDetail
+                    {
+                        AssessmentDetailId = Guid.NewGuid(),
+                        AssessmentId = newAssessment.AssessmentId,
+                        QuestionAssessmentId = q.QuestionAssessmentId,
+                        Type = q.Type,
+                        Score = 0,
+                        AI_Feedback = string.Empty,
+                        AnswerAudio = string.Empty
+                    }).ToList();
+
+                    await _assessmentDetailRepository.InsertRange(assessmentDetails);
+                    await _unitOfWork.SaveChangeAsync();
+
+                    existingAssessment = newAssessment;
                 }
 
-                // ✅ Chỉ lấy bài test có câu hỏi active
-                var activeAssessments = result.Items
-                    .Where(a => a.AssessmentDetails.Any(d => d.QuestionAssessment.Status))
-                    .ToList();
+                // --- 4️⃣ Load lại dữ liệu đầy đủ ---
+                var dbContext = _assessmentRepository.GetDbContext();
+                var assessmentWithDetails = await dbContext.Assessments
+                    .Include(a => a.AssessmentDetails)
+                    .ThenInclude(d => d.QuestionAssessment)
+                    .Where(a => a.LearnerProfileId == learnerProfileId)
+                    .FirstOrDefaultAsync();
 
-                if (!activeAssessments.Any())
-                    return Fail(BusinessCode.DATA_NOT_FOUND, "Learner này chưa có bài test nào có câu hỏi active.");
+                if (assessmentWithDetails == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài test của học viên này.");
 
-                // ✅ Map dữ liệu trả về
-                var mapped = activeAssessments.Select(assessment => new
+                // --- 5️⃣ Map dữ liệu ra DTO ---
+                var mapped = new
                 {
-                    assessment.AssessmentId,
-                    assessment.CreatedAt,
-                    assessment.Score,
-                    assessment.Feedback,
-                    assessment.NumberOfQuestion,
-                    Sections = assessment.AssessmentDetails
-                        .Where(d => d.QuestionAssessment.Status)
+                    assessmentWithDetails.AssessmentId,
+                    assessmentWithDetails.CreatedAt,
+                    assessmentWithDetails.Score,
+                    assessmentWithDetails.Feedback,
+                    assessmentWithDetails.NumberOfQuestion,
+                    Sections = assessmentWithDetails.AssessmentDetails
+                        .Where(d => d.QuestionAssessment != null && d.QuestionAssessment.Status)
                         .GroupBy(d => d.QuestionAssessment.Type)
                         .Select(g => new
                         {
@@ -455,12 +500,13 @@ namespace AESP.Service.Implementation
                                 q.QuestionAssessment.Content
                             }).ToList()
                         }).ToList()
-                }).ToList();
+                };
 
+                // --- 6️⃣ Trả kết quả ---
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy bài test đầu vào thành công.";
-                dto.Data = mapped;
+                dto.Data = new List<object> { mapped };
             }
             catch (Exception ex)
             {
