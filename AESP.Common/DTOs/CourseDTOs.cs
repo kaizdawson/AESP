@@ -59,6 +59,10 @@ namespace AESP.Common.DTOs
         public string Description { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
         public int NumberOfQuestion { get; set; }
+
+
+        public bool IsFree { get; set; }
+
         public List<ReadCourseQuestionForCourseDTO>? Questions { get; set; }
     }
 
@@ -119,6 +123,13 @@ namespace AESP.Common.DTOs
         public int NumberOfChapter { get; set; }
         public int OrderIndex { get; set; }
         public string Level { get; set; } = string.Empty;
+
+        // ✅ Giá mỗi khóa học (set trong DB)
+        public decimal Price { get; set; }
+
+        // ✅ Tính toán runtime: khóa này free hay không
+        public bool IsFree { get; set; }
+
         public List<ReadCourseChapterForCourseDTO>? Chapters { get; set; }
     }
 

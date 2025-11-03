@@ -43,9 +43,6 @@ namespace AESP.Service.Implementation
         {
             try
             {
-                // ⚠️ Chúng ta không dùng GetAllDataByExpression nữa
-                // vì nó không hỗ trợ ThenInclude chain.
-                // Thay vào đó, dùng _courseRepository.GetQueryable() nếu có, hoặc context trực tiếp nếu bạn inject.
                 var query = _courseRepository.AsQueryable();
 
                 if (!string.IsNullOrEmpty(level))
@@ -53,7 +50,6 @@ namespace AESP.Service.Implementation
                 if (!string.IsNullOrEmpty(keyword))
                     query = query.Where(x => x.Title.Contains(keyword));
 
-                // ✅ Include sâu 3 cấp
                 query = query
                     .Include(x => x.Chapters)
                         .ThenInclude(ch => ch.Exercises)
@@ -68,40 +64,49 @@ namespace AESP.Service.Implementation
                     .Take(pageSize)
                     .ToListAsync();
 
-                // ✅ Map kết quả
-                var mapped = courses.Select(c => new ReadCourseFullDTO
+                var allCourses = await _courseRepository.AsQueryable().ToListAsync();
+
+                var mapped = courses.Select(c =>
                 {
-                    CourseId = c.CourseId,
-                    Title = c.Title,
-                    Type = c.Type,
-                    NumberOfChapter = c.NumberOfChapter,
-                    OrderIndex = c.OrderIndex,
-                    Level = c.Level,
-                    Chapters = c.Chapters?.Select(ch => new ReadCourseChapterForCourseDTO
+                    bool isFree = IsCourseFree(c, allCourses);
+
+                    return new ReadCourseFullDTO
                     {
-                        ChapterId = ch.ChapterId,
-                        Title = ch.Title,
-                        Description = ch.Description,
-                        CreatedAt = ch.CreatedAt,
-                        NumberOfExercise = ch.NumberOfExercise,
-                        Exercises = ch.Exercises?.Select(ex => new ReadCourseExerciseForCourseDTO
+                        CourseId = c.CourseId,
+                        Title = c.Title,
+                        Type = c.Type,
+                        NumberOfChapter = c.NumberOfChapter,
+                        OrderIndex = c.OrderIndex,
+                        Level = c.Level,
+                        Price = c.Price,
+                        IsFree = isFree,
+                        Chapters = c.Chapters?.Select(ch => new ReadCourseChapterForCourseDTO
                         {
-                            ExerciseId = ex.ExerciseId,
-                            Title = ex.Title,
-                            Description = ex.Description,
-                            OrderIndex = ex.OrderIndex,
-                            NumberOfQuestion = ex.NumberOfQuestion,
-                            Questions = ex.Questions?.Select(q => new ReadCourseQuestionForCourseDTO
+                            ChapterId = ch.ChapterId,
+                            Title = ch.Title,
+                            Description = ch.Description,
+                            CreatedAt = ch.CreatedAt,
+                            NumberOfExercise = ch.NumberOfExercise,
+                            Exercises = ch.Exercises?.Select(ex => new ReadCourseExerciseForCourseDTO
                             {
-                                QuestionId = q.QuestionId,
-                                Text = q.Text,
-                                Type = q.Type,
-                                OrderIndex = q.OrderIndex,
-                                IPA = q.IPA,
-                                PhonemeJson = q.PhonemeJson
+                                ExerciseId = ex.ExerciseId,
+                                Title = ex.Title,
+                                Description = ex.Description,
+                                OrderIndex = ex.OrderIndex,
+                                NumberOfQuestion = ex.NumberOfQuestion,
+                                IsFree = isFree, // dùng cùng logic với course
+                                Questions = ex.Questions?.Select(q => new ReadCourseQuestionForCourseDTO
+                                {
+                                    QuestionId = q.QuestionId,
+                                    Text = q.Text,
+                                    Type = q.Type,
+                                    OrderIndex = q.OrderIndex,
+                                    IPA = q.IPA,
+                                    PhonemeJson = q.PhonemeJson
+                                }).ToList()
                             }).ToList()
                         }).ToList()
-                    }).ToList()
+                    };
                 }).ToList();
 
                 return new ResponseDTO
@@ -129,8 +134,10 @@ namespace AESP.Service.Implementation
         {
             try
             {
+                var allCourses = await _courseRepository.AsQueryable().ToListAsync();
+
                 var course = await _courseRepository.AsQueryable()
-                     .AsNoTracking() // 🔥 dòng fix duy nhất
+                     .AsNoTracking()
                     .Include(c => c.Chapters)
                         .ThenInclude(ch => ch.Exercises)
                             .ThenInclude(ex => ex.Questions)
@@ -139,7 +146,8 @@ namespace AESP.Service.Implementation
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
 
-                // ✅ Mapping sang DTO đầy đủ
+                bool isFree = IsCourseFree(course, allCourses);
+
                 var result = new ReadCourseFullDTO
                 {
                     CourseId = course.CourseId,
@@ -148,6 +156,8 @@ namespace AESP.Service.Implementation
                     NumberOfChapter = course.NumberOfChapter,
                     OrderIndex = course.OrderIndex,
                     Level = course.Level,
+                    Price = course.Price,
+                    IsFree = isFree,
                     Chapters = course.Chapters.Select(ch => new ReadCourseChapterForCourseDTO
                     {
                         ChapterId = ch.ChapterId,
@@ -162,6 +172,7 @@ namespace AESP.Service.Implementation
                             Description = ex.Description,
                             OrderIndex = ex.OrderIndex,
                             NumberOfQuestion = ex.NumberOfQuestion,
+                            IsFree = isFree,
                             Questions = ex.Questions?.Select(q => new ReadCourseQuestionForCourseDTO
                             {
                                 QuestionId = q.QuestionId,
@@ -483,5 +494,20 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.EXCEPTION, "Không thể xoá khóa học đầy đủ: " + ex.Message);
             }
         }
+
+
+
+        private bool IsCourseFree(Course course, IEnumerable<Course> allCourses)
+        {
+            // Lấy danh sách tất cả course cùng level
+            var levelCourses = allCourses
+                .Where(c => c.Level == course.Level)
+                .OrderBy(c => c.OrderIndex)
+                .ToList();
+
+            // ✅ Khóa đầu tiên (OrderIndex = 1) → free
+            return course.OrderIndex == 1;
+        }
+
     }
 }
