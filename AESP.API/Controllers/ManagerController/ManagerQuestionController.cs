@@ -39,31 +39,14 @@ namespace AESP.API.Controllers.ManagerController
             return StatusFromResult(result);
         }
 
-        // ✅ CREATE (❌ không có id trong route)
-        [HttpPost("questions")]
-        public async Task<IActionResult> CreateQuestion([FromBody] CreateQuestionDTO dto)
+        [HttpPost("questions/{exerciseId}")]
+        public async Task<IActionResult> CreateQuestionsByExerciseId(Guid exerciseId, [FromBody] List<CreateQuestionDTO> dtos)
         {
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage)
-                    .ToList();
-
-                return BadRequest(new
-                {
-                    isSucess = false,
-                    businessCode = BusinessCode.VALIDATION_FAILED,
-                    message = "Dữ liệu không hợp lệ.",
-                    errors
-                });
-            }
-
-            var result = await _questionService.CreateQuestionAsync(dto);
+            var result = await _questionService.CreateQuestionsByExerciseIdAsync(exerciseId, dtos);
             return StatusFromResult(result);
         }
 
-        // ✅ UPDATE
+
         [HttpPut("questions/{id}")]
         public async Task<IActionResult> UpdateQuestion(Guid id, [FromBody] UpdateQuestionDTO dto)
         {

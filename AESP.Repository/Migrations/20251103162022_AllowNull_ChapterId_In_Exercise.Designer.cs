@@ -4,6 +4,7 @@ using AESP.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AESP.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251103162022_AllowNull_ChapterId_In_Exercise")]
+    partial class AllowNull_ChapterId_In_Exercise
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -284,7 +287,7 @@ namespace AESP.Repository.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("ChapterId")
+                    b.Property<Guid?>("ChapterId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Description")
@@ -1218,7 +1221,7 @@ namespace AESP.Repository.Migrations
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AvatarUrl = "",
                             CoinBalance = 0m,
-                            CreatedAt = new DateTime(2025, 11, 3, 17, 16, 17, 687, DateTimeKind.Utc).AddTicks(3091),
+                            CreatedAt = new DateTime(2025, 11, 3, 16, 20, 20, 611, DateTimeKind.Utc).AddTicks(1557),
                             Email = "admin@aesp.com",
                             FirebaseUid = "",
                             FullName = "Super Admin",
@@ -1342,8 +1345,7 @@ namespace AESP.Repository.Migrations
                     b.HasOne("AESP.Repository.Models.Chapter", "Chapter")
                         .WithMany("Exercises")
                         .HasForeignKey("ChapterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Chapter");
                 });
