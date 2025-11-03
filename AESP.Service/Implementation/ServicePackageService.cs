@@ -47,20 +47,11 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ⚙️ Validate cơ bản
-                if (request.Price < 0)
+                if (request.Price <= 0 || request.NumberOfCoin <= 0)
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Giá phải >= 0.";
-                    return dto;
-                }
-
-                if (request.NumberOfCoin <= 0)
-                {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Số lượng coin phải > 0.";
+                    dto.Message = "Giá và số lượng coin phải > 0.";
                     return dto;
                 }
 
@@ -72,7 +63,6 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ⚙️ Kiểm tra trùng tên
                 var existed = await _servicePackageRepository.GetByExpression(
                     p => p.Name.ToLower() == request.Name.Trim().ToLower());
 
@@ -84,7 +74,6 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ Tạo entity mới
                 var entity = new ServicePackage
                 {
                     ServicePackageId = Guid.NewGuid(),
@@ -140,9 +129,13 @@ namespace AESP.Service.Implementation
                     dto.Message = "Không tìm thấy gói dịch vụ.";
                     return dto;
                 }
+
+                // Soft delete: set IsDeleted + Inactive
                 entity.IsDeleted = true;
+                entity.Status = "Inactive";
                 entity.UpdatedAt = DateTime.UtcNow;
-                await _servicePackageRepository.Delete(entity);
+
+                await _servicePackageRepository.Update(entity);
                 await _unitOfWork.SaveChangeAsync();
 
                 dto.IsSucess = true;
@@ -160,123 +153,131 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        //public async Task<ResponseDTO> GetByIdAsync(Guid id)
-        //{
-        //    var dto = new ResponseDTO();
+        public async  Task<ResponseDTO> GetAllActiveAsync()
+        {
+            var dto = new ResponseDTO();
 
-        //    try
-        //    {
-        //        var db = _servicePackageRepository.GetDbContext();
+            try
+            {
+                var db = _servicePackageRepository.GetDbContext();
 
-        //        var package = await db.ServicePackages
-        //         .Include(p => p.Subscriptions)
-        //         .ThenInclude(s => s.LearnerProfile)
-        //         .ThenInclude(lp => lp.User)
-        //         .FirstOrDefaultAsync(p => p.ServicePackageId == id);
+                var items = await db.ServicePackages
+                    .Where(x => !x.IsDeleted && x.Status == "Active")
+                    .OrderBy(x => x.Price)
+                    .Select(x => new
+                    {
+                        x.ServicePackageId,
+                        x.Name,
+                        x.Description,
+                        x.Price,
+                        x.NumberOfCoin,
+                        x.BonusPercent
+                    })
+                    .ToListAsync();
 
-        //        if (package == null)
-        //        {
-        //            dto.IsSucess = false;
-        //            dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-        //            dto.Message = "Không tìm thấy gói dịch vụ.";
-        //            return dto;
-        //        }
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách gói đang hoạt động thành công.";
+                dto.Data = items;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy danh sách active: " + ex.Message;
+            }
 
-        //        var learners = package.Subscriptions.Select(s => new
-        //        {
-        //            LearnerProfileId = s.LearnerProfileId,
-        //            FullName = s.LearnerProfile.User.FullName,
-        //            Email = s.LearnerProfile.User.Email,
-        //            Phone = s.LearnerProfile.User.PhoneNumber,
-        //            Status = s.Status
-        //        }).ToList();
+            return dto;
+        
+        }
 
-        //        dto.IsSucess = true;
-        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-        //        dto.Message = "Lấy chi tiết gói dịch vụ thành công.";
-        //        dto.Data = new
-        //        {
-        //            package.ServicePackageId,
-        //            package.Name,
-        //            package.Description,
-        //            package.Level,
-        //            package.Price,
-        //            package.Duration,
-        //            package.NumberOfReview,
-        //            LearnerCount = learners.Count(),
-        //            Learners = learners
-        //        };
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        dto.IsSucess = false;
-        //        dto.BusinessCode = BusinessCode.EXCEPTION;
-        //        dto.Message = "Lỗi khi lấy chi tiết gói dịch vụ: " + ex.Message;
-        //    }
+        public async Task<ResponseDTO> GetAllAsync(string? search)
+        {
+            var dto = new ResponseDTO();
 
-        //    return dto;
-        //}
+            try
+            {
+                var db = _servicePackageRepository.GetDbContext();
 
-        //public async Task<ResponseDTO> GetListAsync(string? search, int pageNumber, int pageSize)
-        //{
-        //    var dto = new ResponseDTO();
+                var query = db.ServicePackages.AsQueryable()
+                    .Where(x => !x.IsDeleted);
 
-        //    try
-        //    {
-        //        var db = _servicePackageRepository.GetDbContext();
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    string keyword = search.Trim().ToLower();
+                    query = query.Where(p => p.Name.ToLower().Contains(keyword));
+                }
 
-        //        var query = db.ServicePackages.AsQueryable();
+                var items = await query
+                    .OrderBy(p => p.Price)
+                    .Select(p => new
+                    {
+                        p.ServicePackageId,
+                        p.Name,
+                        p.Description,
+                        p.Price,
+                        p.NumberOfCoin,
+                        p.BonusPercent,
+                        p.Status,
+                        p.CreatedAt,
+                        p.UpdatedAt
+                    })
+                    .ToListAsync();
 
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách gói dịch vụ thành công.";
+                dto.Data = items;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy danh sách gói dịch vụ: " + ex.Message;
+            }
 
+            return dto;
+        }
 
-        //        // Search theo tên
-        //        if (!string.IsNullOrEmpty(search))
-        //        {
-        //            string keyword = search.Trim().ToLower();
-        //            query = query.Where(p => p.Name.ToLower().Contains(keyword));
-        //        }
+        public async Task<ResponseDTO> ToggleStatusAsync(Guid id)
+        {
+            var dto = new ResponseDTO();
 
-        //        var total = await query.CountAsync();
+            try
+            {
+                var entity = await _servicePackageRepository.GetById(id);
+                if (entity == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy gói dịch vụ.";
+                    return dto;
+                }
 
-        //        var packages = await query
-        //            .OrderBy(p => p.Level)
-        //            .ThenBy(p => p.Name)
-        //            .Skip((pageNumber - 1) * pageSize)
-        //            .Take(pageSize)
-        //            .Select(p => new
-        //            {
-        //                p.ServicePackageId,
-        //                p.Name,
-        //                p.Description,
-        //                p.Level,
-        //                p.Price,
-        //                p.Duration,
-        //                p.NumberOfReview,
-        //                p.CreatedAt,
-        //                p.UpdatedAt
-        //            })
-        //            .ToListAsync();
+                entity.Status = entity.Status == "Active" ? "Inactive" : "Active";
+                entity.UpdatedAt = DateTime.UtcNow;
 
-        //        dto.IsSucess = true;
-        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-        //        dto.Message = "Lấy danh sách gói dịch vụ thành công.";
-        //        dto.Data = new
-        //        {
-        //            PageNumber = pageNumber,
-        //            PageSize = pageSize,
-        //            TotalItems = total,
-        //            Items = packages
-        //        };
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        dto.IsSucess = false;
-        //        dto.BusinessCode = BusinessCode.EXCEPTION;
-        //        dto.Message = "Lỗi khi lấy danh sách gói dịch vụ: " + ex.Message;
-        //    }
+                await _servicePackageRepository.Update(entity);
+                await _unitOfWork.SaveChangeAsync();
 
-        //    return dto;
-        //}
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                dto.Message = "Thay đổi trạng thái thành công.";
+                dto.Data = new
+                {
+                    entity.ServicePackageId,
+                    entity.Status
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi đổi trạng thái: " + ex.Message;
+            }
+
+            return dto;
+        }
 
         public async Task<ResponseDTO> UpdateAsync(Guid id, UpdateServicePackageDto request)
         {
@@ -293,7 +294,6 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ⚙️ Validate cơ bản
                 if (string.IsNullOrWhiteSpace(request.Name))
                 {
                     dto.IsSucess = false;
@@ -302,19 +302,11 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                if (request.Price < 0)
+                if (request.Price <= 0 || request.NumberOfCoin <= 0)
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Giá phải >= 0.";
-                    return dto;
-                }
-
-                if (request.NumberOfCoin <= 0)
-                {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Số lượng coin phải lớn hơn 0.";
+                    dto.Message = "Giá và số lượng coin phải > 0.";
                     return dto;
                 }
 
@@ -326,7 +318,6 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ⚙️ Kiểm tra trùng tên (trừ chính nó)
                 var name = request.Name.Trim().ToLower();
                 var duplicate = await _servicePackageRepository.GetByExpression(
                     x => x.ServicePackageId != id && x.Name.ToLower() == name);
@@ -339,13 +330,12 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ Cập nhật dữ liệu
                 entity.Name = request.Name.Trim();
                 entity.Description = request.Description?.Trim() ?? string.Empty;
                 entity.Price = (decimal)request.Price;
-                entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status.Trim();
                 entity.NumberOfCoin = request.NumberOfCoin;
                 entity.BonusPercent = request.BonusPercent;
+                entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status.Trim();
                 entity.UpdatedAt = DateTime.UtcNow;
 
                 await _servicePackageRepository.Update(entity);
@@ -376,5 +366,6 @@ namespace AESP.Service.Implementation
             return dto;
         }
     }
-
 }
+
+       
