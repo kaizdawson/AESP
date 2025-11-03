@@ -17,23 +17,30 @@ namespace AESP.API.Controllers.AdminController
         {
             _service = service;
         }
-        //[HttpGet("{id}")]
-        //public async Task<IActionResult> GetById(Guid id)
-        //{
-        //    var result = await _service.GetByIdAsync(id);
-        //    return Ok(result);
-        //}
 
-        // POST: /api/AdminServicePackage
+        [AllowAnonymous]
+        [HttpGet("active")]
+        public async Task<IActionResult> GetAllActive()
+        {
+            var result = await _service.GetAllActiveAsync();
+            return Ok(result);
+        }
+        
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] string? search)
+        {
+            var result = await _service.GetAllAsync(search);
+            return Ok(result);
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateServicePackageDto dto)
         {
             if (!ModelState.IsValid)
             {
-                // Lấy lỗi đầu tiên theo thứ tự field khai báo trong DTO
                 var firstError = ModelState
                     .Where(x => x.Value.Errors.Count > 0)
-                    .OrderBy(x => GetFieldOrder(x.Key)) // 🧠 Giữ thứ tự đúng như DTO
+                    .OrderBy(x => GetFieldOrder(x.Key))
                     .Select(x => new
                     {
                         Field = x.Key,
@@ -53,7 +60,6 @@ namespace AESP.API.Controllers.AdminController
             return Ok(result);
         }
 
-        // PUT: /api/AdminServicePackage/{id}
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateServicePackageDto dto)
         {
@@ -82,34 +88,35 @@ namespace AESP.API.Controllers.AdminController
             return Ok(result);
         }
 
-        // DELETE: /api/AdminServicePackage/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _service.DeleteAsync(id);
             return Ok(result);
         }
-        //    [HttpGet]
-        //    public async Task<IActionResult> GetList(
-        //[FromQuery] string? search,
-        //[FromQuery] int pageNumber = 1,
-        //[FromQuery] int pageSize = 10)
-        //    {
-        //        var result = await _service.GetListAsync(search, pageNumber, pageSize);
-        //        return Ok(result);
-        //    }
+
+        [HttpPatch("{id}/toggle-status")]
+        public async Task<IActionResult> ToggleStatus(Guid id)
+        {
+            var result = await _service.ToggleStatusAsync(id);
+            return Ok(result);
+        }
+
+
+
+
+
         private static int GetFieldOrder(string fieldName)
         {
-            var order = new List<string>
-    {
-        "Name",
-        "Description",
-        "Level",
-        "Price",
-        "Duration",
-        "NumberOfReview",
-        "Status"
-    };
+            var order = new System.Collections.Generic.List<string>
+            {
+                "Name",
+                "Description",
+                "Price",
+                "NumberOfCoin",
+                "BonusPercent",
+                "Status"
+            };
 
             var key = order.FindIndex(x => fieldName.Contains(x, StringComparison.OrdinalIgnoreCase));
             return key == -1 ? int.MaxValue : key;
