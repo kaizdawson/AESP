@@ -63,7 +63,6 @@ namespace AESP.Service.Implementation
                         Text = q.Text,
                         Type = q.Type,
                         OrderIndex = q.OrderIndex,
-                        IPA = q.IPA,
                         PhonemeJson = q.PhonemeJson
                     }).ToList()
                 }).ToList();
@@ -115,7 +114,6 @@ namespace AESP.Service.Implementation
                         Text = q.Text,
                         Type = q.Type,
                         OrderIndex = q.OrderIndex,
-                        IPA = q.IPA,
                         PhonemeJson = q.PhonemeJson
                     }).ToList()
                 };
@@ -177,7 +175,6 @@ namespace AESP.Service.Implementation
                             Text = q.Text.Trim(),
                             Type = q.Type.Trim(),
                             OrderIndex = q.OrderIndex,
-                            IPA = q.IPA.Trim(),
                             PhonemeJson = q.PhonemeJson.Trim(),
                             ExerciseId = exercise.ExerciseId
                         };
@@ -206,7 +203,6 @@ namespace AESP.Service.Implementation
                         Text = q.Text,
                         Type = q.Type,
                         OrderIndex = q.OrderIndex,
-                        IPA = q.IPA,
                         PhonemeJson = q.PhonemeJson
                     }).ToList()
                 };
@@ -262,7 +258,6 @@ namespace AESP.Service.Implementation
                         existing.Text = q.Text ?? existing.Text;
                         existing.Type = q.Type ?? existing.Type;
                         existing.OrderIndex = q.OrderIndex ?? existing.OrderIndex;
-                        existing.IPA = q.IPA ?? existing.IPA;
                         existing.PhonemeJson = q.PhonemeJson ?? existing.PhonemeJson;
 
                         await _questionRepository.Update(existing);
