@@ -20,6 +20,10 @@ namespace AESP.Repository.Models
         public int OrderIndex { get; set; }
         public string Level { get; set; } = string.Empty;
 
+
+        public decimal Price { get; set; } = 0;
+
+
         public virtual ICollection<Chapter> Chapters { get; set; }
         public virtual ICollection<LearningPathCourse> LearningPathCourses { get; set; }
     }
