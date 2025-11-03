@@ -169,7 +169,6 @@ namespace AESP.Service.Implementation
             Text = "Sample question 1",
             Type = "text",
             OrderIndex = 1,
-            IPA = "",
             PhonemeJson = ""
         },
         new Question
@@ -179,7 +178,6 @@ namespace AESP.Service.Implementation
             Text = "Sample question 2",
             Type = "text",
             OrderIndex = 2,
-            IPA = "",
             PhonemeJson = ""
         }
     });
@@ -258,7 +256,6 @@ namespace AESP.Service.Implementation
                             Text = "Sample question 1",
                             Type = "text",
                             OrderIndex = 1,
-                            IPA = "",
                             PhonemeJson = ""
                         },
                         new Question
@@ -268,7 +265,6 @@ namespace AESP.Service.Implementation
                             Text = "Sample question 2",
                             Type = "text",
                             OrderIndex = 2,
-                            IPA = "",
                             PhonemeJson = ""
                         }
                     });
@@ -388,7 +384,6 @@ namespace AESP.Service.Implementation
                         Text = q.Text,
                         Type = q.Type,
                         OrderIndex = q.OrderIndex,
-                        IPA = q.IPA,
                         PhonemeJson = q.PhonemeJson
                     }).ToList()
                 }).ToList()
