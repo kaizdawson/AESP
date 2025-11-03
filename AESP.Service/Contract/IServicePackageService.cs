@@ -12,7 +12,8 @@ namespace AESP.Repository.Contract
         Task<ResponseDTO> CreateAsync(CreateServicePackageDto request);
         Task<ResponseDTO> UpdateAsync(Guid id, UpdateServicePackageDto request);
         Task<ResponseDTO> DeleteAsync(Guid id);
-        //Task<ResponseDTO> GetByIdAsync(Guid id);
-        //Task<ResponseDTO> GetListAsync(string? search, int pageNumber, int pageSize);
+        Task<ResponseDTO> ToggleStatusAsync(Guid id);
+        Task<ResponseDTO> GetAllAsync(string? search);
+        Task<ResponseDTO> GetAllActiveAsync();
     }
 }
