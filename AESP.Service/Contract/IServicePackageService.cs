@@ -15,5 +15,6 @@ namespace AESP.Repository.Contract
         Task<ResponseDTO> ToggleStatusAsync(Guid id);
         Task<ResponseDTO> GetAllAsync(string? search);
         Task<ResponseDTO> GetAllActiveAsync();
+        Task<ResponseDTO> UpdateBonusPercentAsync(Guid id, UpdateBonusPercentDto request);
     }
 }
