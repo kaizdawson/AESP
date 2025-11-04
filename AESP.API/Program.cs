@@ -100,6 +100,7 @@ builder.Services.AddScoped<IAdminReviewerIncomeService, AdminReviewerIncomeServi
 builder.Services.AddScoped<IAuthQueryRepository, AuthQueryRepository>();
 builder.Services.AddScoped<IAuthQueryService, AuthQueryService>();
 builder.Services.AddScoped<ICoinService, CoinService>();
+builder.Services.AddScoped<ILearnerCourseService, LearnerCourseService>();
 
 
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
