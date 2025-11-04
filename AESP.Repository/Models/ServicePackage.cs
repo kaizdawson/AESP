@@ -21,7 +21,7 @@ namespace AESP.Repository.Models
         public string Status { get; set; } = "Active";
 
         public int NumberOfCoin { get; set; } = 0;
-        public double BonusPercent { get; set; } = 0;
+        public decimal BonusPercent { get; set; } = 0;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // --- Navigation ---
