@@ -102,6 +102,28 @@ namespace AESP.API.Controllers.AdminController
             return Ok(result);
         }
 
+        [HttpPatch("{id}/bonus")]
+        public async Task<IActionResult> UpdateBonus(Guid id, [FromBody] UpdateBonusPercentDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var firstError = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .Select(x => x.Value.Errors.First().ErrorMessage)
+                    .FirstOrDefault();
+
+                return BadRequest(new
+                {
+                    isSucess = false,
+                    businessCode = 4001,
+                    message = firstError ?? "Dữ liệu không hợp lệ."
+                });
+            }
+
+            var result = await _service.UpdateBonusPercentAsync(id, dto);
+            return Ok(result);
+        }
+
 
 
 
