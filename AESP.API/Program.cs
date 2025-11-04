@@ -99,12 +99,17 @@ builder.Services.AddScoped<IAdminManagerService, AdminManagerService>();
 builder.Services.AddScoped<IAdminReviewerIncomeService, AdminReviewerIncomeService>();
 builder.Services.AddScoped<IAuthQueryRepository, AuthQueryRepository>();
 builder.Services.AddScoped<IAuthQueryService, AuthQueryService>();
+builder.Services.AddScoped<ICoinService, CoinService>();
 
 
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IServicePackageService, ServicePackageService>();
+
+
+builder.Services.AddHttpClient<PayOSService>();
+builder.Services.Configure<PayOSConfig>(builder.Configuration.GetSection("PayOS"));
 
 
 var cloudinaryConfig = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
@@ -223,9 +228,9 @@ app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
-app.UseMiddleware<UpdateLastActiveMiddleware>();
 app.UseAuthorization();
 
+app.UseMiddleware<UpdateLastActiveMiddleware>();
 app.MapControllers();
 
 app.Run();

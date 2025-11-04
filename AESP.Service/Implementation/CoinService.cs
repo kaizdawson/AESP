@@ -1,0 +1,148 @@
+﻿using AESP.Repository.Contract;
+using AESP.Repository.Implementation;
+using AESP.Repository.Models;
+using AESP.Service.Contract;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Threading.Tasks;
+
+namespace AESP.Service.Implementation
+{
+    public class CoinService : ICoinService
+    {
+        private readonly IGenericRepository<User> _userRepository;
+        private readonly IGenericRepository<ServicePackage> _packageRepository;
+        private readonly PayOSService _payOSService;
+        private readonly ILogger<CoinService> _logger;
+        private readonly IGenericRepository<Transaction> _transactionRepository;
+        private readonly IUnitOfWork _unitOfWork;
+
+        public CoinService(
+            IGenericRepository<User> userRepository,
+            IGenericRepository<ServicePackage> packageRepository,
+            IGenericRepository<Transaction> transactionRepository,
+            PayOSService payOSService,
+            ILogger<CoinService> logger,
+            IUnitOfWork unitOfWork)
+        {
+            _userRepository = userRepository;
+            _packageRepository = packageRepository;
+            _transactionRepository = transactionRepository;
+            _payOSService = payOSService;
+            _logger = logger;
+            _unitOfWork = unitOfWork;
+        }
+
+        public async Task<decimal> GetUserCoinBalanceAsync(Guid userId)
+        {
+            var user = await _userRepository.GetById(userId);
+            if (user == null)
+                throw new Exception("User not found.");
+            return user.CoinBalance;
+        }
+
+        public async Task<string> AddCoinAsync(Guid servicePackageId, Guid userId)
+        {
+            var package = await _packageRepository.GetById(servicePackageId);
+            if (package == null)
+                throw new Exception("Service package not found.");
+
+            if (package.Status != "Active")
+                throw new Exception("Gói dịch vụ hiện không khả dụng.");
+
+            var orderCode = new Random().Next(100000, 999999);
+
+            var transaction = new Transaction
+            {
+                TransactionId = Guid.NewGuid(),
+                UserId = userId,
+                ServicePackageId = package.ServicePackageId,
+                OrderCode = orderCode.ToString(),
+                AmountMoney = package.Price,
+                AmountCoin = package.NumberOfCoin,
+                Status = "Pending",
+                Type = "Deposit",
+                Description = $"Nạp {package.NumberOfCoin} coin ({package.Name})"
+            };
+
+
+            await _transactionRepository.Insert(transaction);
+            await _unitOfWork.SaveChangeAsync();
+
+
+            var description = $"AESP|{orderCode}";
+            var checkoutUrl = await _payOSService.CreatePaymentAsync(
+                package.Price,
+                userId.ToString(),
+                package.NumberOfCoin,
+                description,
+                orderCode
+            );
+
+            _logger.LogInformation("💳 Đã tạo giao dịch Pending cho User {UserId}, OrderCode {OrderCode}", userId, orderCode);
+            return checkoutUrl;
+        }
+
+
+
+        public async Task AddBalanceFromPayOSAsync(string orderCode, decimal amount, string payosOrderCode)
+        {
+            var transaction = _transactionRepository
+                .AsQueryable()
+                .FirstOrDefault(t => t.OrderCode == orderCode);
+
+            if (transaction == null)
+                throw new Exception($"Không tìm thấy giao dịch với OrderCode {orderCode}");
+
+            if (transaction.Status == "Paid")
+            {
+                _logger.LogInformation("⚠️ Giao dịch {OrderCode} đã xử lý trước đó", orderCode);
+                return;
+            }
+
+            var user = await _userRepository.GetById(transaction.UserId);
+            if (user == null)
+                throw new Exception($"Không tìm thấy user {transaction.UserId}");
+
+            user.CoinBalance += transaction.AmountCoin;
+
+        
+            transaction.Status = "Paid";
+            transaction.Description += $" | Thanh toán thành công lúc {DateTime.Now:dd/MM/yyyy HH:mm}";
+            transaction.OrderCode = orderCode;
+
+            await _userRepository.Update(user);
+            await _transactionRepository.Update(transaction);
+            await _unitOfWork.SaveChangeAsync();
+
+            _logger.LogInformation("✅ User {UserId} đã nạp thành công {Coin} coin (Order {OrderCode})", user.UserId, transaction.AmountCoin, orderCode);
+        }
+
+
+        public async Task CancelTransactionAsync(Guid userId, string orderCode)
+        {
+            var transaction = _transactionRepository.AsQueryable()
+                .FirstOrDefault(t => t.OrderCode == orderCode && t.UserId == userId);
+
+            if (transaction == null)
+                throw new Exception("Không tìm thấy giao dịch.");
+
+            if (transaction.Status == "Paid")
+                throw new Exception("Giao dịch đã thanh toán, không thể hủy.");
+
+            if (transaction.Status == "Cancelled")
+                throw new Exception("Giao dịch đã bị hủy trước đó.");
+
+            transaction.Status = "Cancelled";
+            transaction.Description += $" | Người dùng hủy thanh toán lúc {DateTime.Now:dd/MM/yyyy HH:mm}";
+            await _transactionRepository.Update(transaction);
+            await _unitOfWork.SaveChangeAsync();
+
+            _logger.LogInformation("❌ User {UserId} đã hủy giao dịch OrderCode={OrderCode}", userId, orderCode);
+        }
+
+
+
+
+    }
+}
