@@ -20,7 +20,7 @@ namespace AESP.Repository.Models
         public string AvatarUrl { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
 
-        public decimal CoinBalance { get; set; } = 0;
+        public int CoinBalance { get; set; } = 0;
 
         public DateTime? LastActiveAt { get; set; }
         public virtual LearnerProfile LearnerProfile { get; set; }

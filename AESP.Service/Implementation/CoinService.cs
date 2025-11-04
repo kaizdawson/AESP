@@ -104,7 +104,7 @@ namespace AESP.Service.Implementation
             if (user == null)
                 throw new Exception($"Không tìm thấy user {transaction.UserId}");
 
-            user.CoinBalance += transaction.AmountCoin;
+            user.CoinBalance += (int)transaction.AmountCoin;
 
         
             transaction.Status = "Paid";
