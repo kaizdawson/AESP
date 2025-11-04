@@ -16,7 +16,6 @@ namespace AESP.Repository.Models
         public string Type { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
 
-        public string IPA { get; set; } = string.Empty;
         public string PhonemeJson { get; set; } = string.Empty;
 
         [ForeignKey("Exercise")]
