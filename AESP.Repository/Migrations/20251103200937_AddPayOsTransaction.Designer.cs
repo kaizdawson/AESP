@@ -4,6 +4,7 @@ using AESP.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AESP.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251103200937_AddPayOsTransaction")]
+    partial class AddPayOsTransaction
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -628,6 +631,45 @@ namespace AESP.Repository.Migrations
                     b.ToTable("Notifications");
                 });
 
+            modelBuilder.Entity("AESP.Repository.Models.PayOsTransaction", b =>
+                {
+                    b.Property<Guid>("TransactionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int?>("NumberOfCoin")
+                        .HasColumnType("int");
+
+                    b.Property<string>("OrderCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid?>("PackageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("TransactionId");
+
+                    b.HasIndex("PackageId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PayOsTransactions");
+                });
+
             modelBuilder.Entity("AESP.Repository.Models.PhonemeResult", b =>
                 {
                     b.Property<Guid>("PhonemeResultId")
@@ -1084,8 +1126,8 @@ namespace AESP.Repository.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("AccountNumber")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("AmountCoin")
                         .HasColumnType("decimal(18,2)");
@@ -1094,43 +1136,26 @@ namespace AESP.Repository.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("BankName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedTransaction")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("OrderCode")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("ReasonReject")
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
+                    b.Property<string>("ReasonWithdrawReject")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid?>("ServicePackageId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Status")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Type")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<string>("TransactionEnum")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("TransactionId");
 
                     b.HasIndex("ServicePackageId");
-
-                    b.HasIndex("UserId");
 
                     b.ToTable("Transactions");
                 });
@@ -1239,7 +1264,7 @@ namespace AESP.Repository.Migrations
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AvatarUrl = "",
                             CoinBalance = 0m,
-                            CreatedAt = new DateTime(2025, 11, 4, 7, 40, 29, 948, DateTimeKind.Utc).AddTicks(3252),
+                            CreatedAt = new DateTime(2025, 11, 3, 20, 9, 35, 882, DateTimeKind.Utc).AddTicks(6007),
                             Email = "admin@aesp.com",
                             FirebaseUid = "",
                             FullName = "Super Admin",
@@ -1513,6 +1538,23 @@ namespace AESP.Repository.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("AESP.Repository.Models.PayOsTransaction", b =>
+                {
+                    b.HasOne("AESP.Repository.Models.ServicePackage", "ServicePackage")
+                        .WithMany()
+                        .HasForeignKey("PackageId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("AESP.Repository.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ServicePackage");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("AESP.Repository.Models.PhonemeResult", b =>
                 {
                     b.HasOne("AESP.Repository.Models.LearnerAnswer", "LearnerAnswer")
@@ -1661,15 +1703,7 @@ namespace AESP.Repository.Migrations
                         .HasForeignKey("ServicePackageId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("AESP.Repository.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("ServicePackage");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.TransferTransaction", b =>

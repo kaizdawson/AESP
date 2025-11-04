@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AESP.Repository.Models
 {
@@ -13,25 +10,52 @@ namespace AESP.Repository.Models
         [Key]
         public Guid TransactionId { get; set; } = Guid.NewGuid();
 
-        public decimal AmountMoney { get; set; }    // amount-money trong UML
-
-        public decimal AmountCoin { get; set; }     // amount_coin trong UML
-
-        public DateTime CreatedTransaction { get; set; } = DateTime.UtcNow;
-
-        public string BankName { get; set; } = string.Empty;
-        public string AccountNumber { get; set; } = string.Empty;
-        public string ReasonWithdrawReject { get; set; } = string.Empty;
-
-        public string TransactionEnum { get; set; } = string.Empty;
+        [ForeignKey(nameof(User))]
+        public Guid UserId { get; set; }
+        public virtual User? User { get; set; }
 
         [ForeignKey(nameof(ServicePackage))]
         public Guid? ServicePackageId { get; set; }
-
-        // --- Navigation ---
         public virtual ServicePackage? ServicePackage { get; set; }
 
-        public virtual ICollection<CoinTransaction> CoinTransactions { get; set; } = new List<CoinTransaction>();
+   
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal AmountMoney { get; set; }
 
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal AmountCoin { get; set; }
+
+   
+        [MaxLength(50)]
+        public string? OrderCode { get; set; }
+
+        [MaxLength(100)]
+        public string? BankName { get; set; }
+
+ 
+        [MaxLength(100)]
+        public string? AccountNumber { get; set; }
+
+   
+        [MaxLength(500)]
+        public string? Description { get; set; }
+
+        
+        [MaxLength(50)]
+        public string? Type { get; set; }
+
+       
+        [MaxLength(50)]
+        public string? Status { get; set; }
+
+       
+        [MaxLength(300)]
+        public string? ReasonReject { get; set; }
+
+       
+        public DateTime CreatedTransaction { get; set; } = DateTime.UtcNow;
+
+     
+        public virtual ICollection<CoinTransaction> CoinTransactions { get; set; } = new List<CoinTransaction>();
     }
 }

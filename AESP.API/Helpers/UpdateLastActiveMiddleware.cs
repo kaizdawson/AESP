@@ -17,7 +17,14 @@ namespace AESP.API.Helpers
         {
             try
             {
-                //  Chỉ xử lý nếu user có token hợp lệ (đã đăng nhập)
+                // ✅ BỎ QUA webhook PayOS (không yêu cầu token)
+                if (context.Request.Path.StartsWithSegments("/api/coin/payos-webhook", StringComparison.OrdinalIgnoreCase))
+                {
+                    await _next(context);
+                    return;
+                }
+
+                // ✅ Chỉ xử lý nếu user có token hợp lệ (đã đăng nhập)
                 if (context.User.Identity != null && context.User.Identity.IsAuthenticated)
                 {
                     var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -28,7 +35,6 @@ namespace AESP.API.Helpers
 
                         if (user != null)
                         {
-                            //  Cập nhật thời gian hoạt động
                             user.LastActiveAt = DateTime.UtcNow;
 
                             await userRepository.Update(user);
