@@ -1,19 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AESP.Common.DTOs
 {
+    // ---------------- ENUM ----------------
+    public enum QuestionType
+    {
+        Word,
+        Phrase,
+        Sentence
+    }
+
     // ---------------- CREATE ----------------
     public class CreateQuestionDTO
     {
-        public Guid ExerciseId { get; set; }
         public string Text { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
+        public QuestionType Type { get; set; }
         public int OrderIndex { get; set; }
-        public string IPA { get; set; } = string.Empty;
         public string PhonemeJson { get; set; } = string.Empty;
 
         public List<CreateQuestionMediaDTO>? Media { get; set; }
@@ -23,9 +26,8 @@ namespace AESP.Common.DTOs
     public class UpdateQuestionDTO
     {
         public string? Text { get; set; }
-        public string? Type { get; set; }
+        public QuestionType? Type { get; set; }
         public int? OrderIndex { get; set; }
-        public string? IPA { get; set; }
         public string? PhonemeJson { get; set; }
 
         public List<UpdateQuestionMediaDTO>? Media { get; set; }
@@ -39,7 +41,6 @@ namespace AESP.Common.DTOs
         public string Text { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
-        public string IPA { get; set; } = string.Empty;
         public string PhonemeJson { get; set; } = string.Empty;
 
         public List<ReadQuestionMediaDTO>? Media { get; set; }
@@ -69,5 +70,4 @@ namespace AESP.Common.DTOs
         public string? ImageURL { get; set; }
         public string? Source { get; set; }
     }
-
 }
