@@ -74,6 +74,7 @@ namespace AESP.Service.Implementation
                     Name = request.Name.Trim(),
                     Description = request.Description?.Trim() ?? string.Empty,
                     Price = request.Price,
+                    BaseNumberOfCoin = request.NumberOfCoin,
                     NumberOfCoin = request.NumberOfCoin,
                     BonusPercent = 0,
                     Status = "Active",
@@ -318,7 +319,9 @@ namespace AESP.Service.Implementation
                 entity.Name = request.Name.Trim();
                 entity.Description = request.Description?.Trim() ?? string.Empty;
                 entity.Price = request.Price;
-                entity.NumberOfCoin = request.NumberOfCoin; // gốc, không tính bonus
+                entity.BaseNumberOfCoin = request.NumberOfCoin;
+                entity.NumberOfCoin = entity.BaseNumberOfCoin +
+    (int)Math.Round(entity.BaseNumberOfCoin * (entity.BonusPercent / 100)); // gốc, không tính bonus
                 entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status.Trim();
                 entity.UpdatedAt = DateTime.UtcNow;
 
@@ -372,15 +375,11 @@ namespace AESP.Service.Implementation
                     dto.Message = "Phần trăm thưởng phải nằm trong khoảng 0–100.";
                     return dto;
                 }
-                // ✅ Tính lại coin mới dựa trên coin gốc (loại bỏ ảnh hưởng bonus cũ)
-                var originalCoin = (int)Math.Round(entity.Price / (entity.Price / entity.NumberOfCoin));
-                // hoặc nếu anh lưu được coin gốc thì nên có field `BaseNumberOfCoin` để lưu coin gốc cố định, ví dụ:
-                // var baseCoin = entity.BaseNumberOfCoin;
+              
 
-                // var baseCoin = entity.NumberOfCoin;
-                var bonusCoin = (int)Math.Round(entity.NumberOfCoin * (request.BonusPercent / 100));
+                var bonusCoin = (int)Math.Round(entity.BaseNumberOfCoin * (request.BonusPercent / 100));
                 entity.BonusPercent = request.BonusPercent;
-                entity.NumberOfCoin = entity.NumberOfCoin + bonusCoin;
+                entity.NumberOfCoin = entity.BaseNumberOfCoin + bonusCoin;
                 entity.UpdatedAt = DateTime.UtcNow;
 
                 await _servicePackageRepository.Update(entity);
