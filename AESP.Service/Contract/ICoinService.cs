@@ -9,7 +9,8 @@ namespace AESP.Service.Contract
     public interface ICoinService
     {
         Task<decimal> GetUserCoinBalanceAsync(Guid userId);
-        Task<string> AddCoinAsync(Guid servicePackageId, Guid userId);
+        Task<object> AddCoinAsync(Guid servicePackageId, Guid userId);
+
 
         Task AddBalanceFromPayOSAsync(string orderCode, decimal amount, string payosOrderCode);
 
