@@ -19,6 +19,7 @@ namespace AESP.Repository.Models
 
         public decimal Price { get; set; }
         public string Status { get; set; } = "Active";
+        public int BaseNumberOfCoin { get; set; } = 0;
 
         public int NumberOfCoin { get; set; } = 0;
         public decimal BonusPercent { get; set; } = 0;
