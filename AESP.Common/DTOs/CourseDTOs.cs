@@ -112,6 +112,7 @@ namespace AESP.Common.DTOs
         public int NumberOfChapter { get; set; }
         public int OrderIndex { get; set; }
         public CourseLevel Level { get; set; }
+        public decimal Price { get; set; }
         public List<CreateCourseChapterForCourseDTO>? Chapters { get; set; }
     }
 
@@ -152,9 +153,10 @@ namespace AESP.Common.DTOs
         public int NumberOfChapter { get; set; }
         public int OrderIndex { get; set; }
         public CourseLevel Level { get; set; }
+        public decimal Price { get; set; }
 
         // chỉ chứa mảng Chapter — không có Exercise/Question
-        public List<CreateSimpleCourseChapterDTO>? Chapters { get; set; }
+        //public List<CreateSimpleCourseChapterDTO>? Chapters { get; set; }
     }
 
     public class CreateSimpleCourseChapterDTO
