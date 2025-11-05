@@ -491,6 +491,51 @@ namespace AESP.Service.Implementation
 
 
 
+        // ============================================================
+        // 🔹 GET COURSE BY LEVEL (CHỈ TRẢ COURSE, KHÔNG TRẢ 3 TẦNG)
+        // ============================================================
+        public async Task<ResponseDTO> GetCoursesByLevelAsync(string level)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(level))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Level không được để trống.");
+
+                var query = _courseRepository.AsQueryable()
+                    .Where(c => c.Level == level)
+                    .OrderBy(c => c.OrderIndex);
+
+                var courses = await query.ToListAsync();
+
+                if (!courses.Any())
+                    return Fail(BusinessCode.DATA_NOT_FOUND, $"Không tìm thấy khóa học thuộc level {level}.");
+
+                var mapped = courses.Select(c => new
+                {
+                    c.CourseId,
+                    c.Title,
+                    c.Type,
+                    c.NumberOfChapter,
+                    c.OrderIndex,
+                    c.Level,
+                    c.Price
+                }).ToList();
+
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                    Message = $"Lấy danh sách khóa học level {level} thành công.",
+                    Data = mapped
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, "Lỗi khi lấy khóa học theo level: " + ex.Message);
+            }
+        }
+
+
         private bool IsCourseFree(Course course, IEnumerable<Course> allCourses)
         {
             // Lấy danh sách tất cả course cùng level
@@ -502,6 +547,8 @@ namespace AESP.Service.Implementation
             // ✅ Khóa đầu tiên (OrderIndex = 1) → free
             return course.OrderIndex == 1;
         }
+
+
 
     }
 }
