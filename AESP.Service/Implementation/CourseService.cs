@@ -201,6 +201,114 @@ namespace AESP.Service.Implementation
         // ============================================================
         // 🔹 CREATE (COURSE + CHAPTER + EXERCISE + QUESTION)
         // ============================================================
+        //public async Task<ResponseDTO> CreateFullCourseAsync(CreateCourseFullDTO request)
+        //{
+        //    try
+        //    {
+        //        if (request == null)
+        //            return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
+        //        if (string.IsNullOrWhiteSpace(request.Title))
+        //            return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được trống.");
+        //        if (string.IsNullOrWhiteSpace(request.Type))
+        //            return Fail(BusinessCode.VALIDATION_FAILED, "Loại khóa học không được trống.");
+        //        if (request.Chapters == null || !request.Chapters.Any())
+        //            return Fail(BusinessCode.VALIDATION_FAILED, "Phải có ít nhất 1 chương.");
+
+        //        // 🔹 1. Tạo Course
+        //        var course = new Course
+        //        {
+        //            CourseId = Guid.NewGuid(),
+        //            Title = request.Title.Trim(),
+        //            Type = request.Type.Trim(),
+        //            NumberOfChapter = request.NumberOfChapter,
+        //            OrderIndex = request.OrderIndex,
+        //            Level = request.Level.ToString()
+        //        };
+        //        await _courseRepository.Insert(course);
+
+        //        // 🔹 2. Tạo Chapter
+        //        var chapters = request.Chapters.Select(ch => new Chapter
+        //        {
+        //            ChapterId = Guid.NewGuid(),
+        //            CourseId = course.CourseId,
+        //            Title = ch.Title.Trim(),
+        //            Description = ch.Description.Trim(),
+        //            NumberOfExercise = ch.NumberOfExercise,
+        //            CreatedAt = DateTime.UtcNow
+        //        }).ToList();
+
+        //        await _chapterRepository.InsertRange(chapters);
+        //        await _unitOfWork.SaveChangeAsync();
+
+        //        // 🔹 3. Tự tạo Exercise & Question trống theo mỗi Chapter
+        //        var exercisesToInsert = new List<Exercise>();
+        //        var questionsToInsert = new List<Question>();
+
+        //        foreach (var chapter in chapters)
+        //        {
+        //            // tạo exercise rỗng dựa theo NumberOfExercise
+        //            var exercises = Enumerable.Range(1, chapter.NumberOfExercise).Select(i => new Exercise
+        //            {
+        //                ExerciseId = Guid.NewGuid(),
+        //                ChapterId = chapter.ChapterId,
+        //                Title = $"Exercise {i}",
+        //                Description = "Auto generated exercise",
+        //                OrderIndex = i,
+        //                NumberOfQuestion = 2 // ví dụ mỗi exercise có sẵn 2 câu hỏi trống
+        //            }).ToList();
+
+        //            exercisesToInsert.AddRange(exercises);
+
+        //            // tạo question trống cho mỗi exercise
+        //            foreach (var ex in exercises)
+        //            {
+        //                var questions = new List<Question>
+        //        {
+        //            new Question
+        //            {
+        //                QuestionId = Guid.NewGuid(),
+        //                ExerciseId = ex.ExerciseId,
+        //                Text = "Sample question 1",
+        //                Type = "text",
+        //                OrderIndex = 1,
+        //                PhonemeJson = ""
+        //            },
+        //            new Question
+        //            {
+        //                QuestionId = Guid.NewGuid(),
+        //                ExerciseId = ex.ExerciseId,
+        //                Text = "Sample question 2",
+        //                Type = "text",
+        //                OrderIndex = 2,
+        //                PhonemeJson = ""
+        //            }
+        //        };
+        //                questionsToInsert.AddRange(questions);
+        //            }
+        //        }
+
+        //        if (exercisesToInsert.Any())
+        //            await _exerciseRepository.InsertRange(exercisesToInsert);
+        //        if (questionsToInsert.Any())
+        //            await _questionRepository.InsertRange(questionsToInsert);
+
+        //        await _unitOfWork.SaveChangeAsync();
+
+        //        // 🔹 4. Load lại full data 3 tầng
+        //        var result = await GetFullCourseByIdAsync(course.CourseId);
+        //        result.BusinessCode = BusinessCode.INSERT_SUCESSFULLY;
+        //        result.Message = "Tạo khóa học đầy đủ thành công.";
+        //        return result;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return Fail(BusinessCode.EXCEPTION, "Không thể tạo khóa học: " + ex.Message);
+        //    }
+        //}
+
+
+
+
         public async Task<ResponseDTO> CreateFullCourseAsync(CreateCourseFullDTO request)
         {
             try
@@ -211,10 +319,8 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được trống.");
                 if (string.IsNullOrWhiteSpace(request.Type))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Loại khóa học không được trống.");
-                if (request.Chapters == null || !request.Chapters.Any())
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Phải có ít nhất 1 chương.");
 
-                // 🔹 1. Tạo Course
+                // 🔹 1. Tạo Course (chưa có Chapter nào)
                 var course = new Course
                 {
                     CourseId = Guid.NewGuid(),
@@ -222,89 +328,40 @@ namespace AESP.Service.Implementation
                     Type = request.Type.Trim(),
                     NumberOfChapter = request.NumberOfChapter,
                     OrderIndex = request.OrderIndex,
-                    Level = request.Level.ToString()
+                    Level = request.Level.ToString(),
+                    Price = request.Price
                 };
+
                 await _courseRepository.Insert(course);
-
-                // 🔹 2. Tạo Chapter
-                var chapters = request.Chapters.Select(ch => new Chapter
-                {
-                    ChapterId = Guid.NewGuid(),
-                    CourseId = course.CourseId,
-                    Title = ch.Title.Trim(),
-                    Description = ch.Description.Trim(),
-                    NumberOfExercise = ch.NumberOfExercise,
-                    CreatedAt = DateTime.UtcNow
-                }).ToList();
-
-                await _chapterRepository.InsertRange(chapters);
                 await _unitOfWork.SaveChangeAsync();
 
-                // 🔹 3. Tự tạo Exercise & Question trống theo mỗi Chapter
-                var exercisesToInsert = new List<Exercise>();
-                var questionsToInsert = new List<Question>();
+                // ✅ Không auto tạo chapter / exercise / question
 
-                foreach (var chapter in chapters)
+                return new ResponseDTO
                 {
-                    // tạo exercise rỗng dựa theo NumberOfExercise
-                    var exercises = Enumerable.Range(1, chapter.NumberOfExercise).Select(i => new Exercise
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
+                    Message = "Tạo khóa học thành công (chưa có chương).",
+                    Data = new
                     {
-                        ExerciseId = Guid.NewGuid(),
-                        ChapterId = chapter.ChapterId,
-                        Title = $"Exercise {i}",
-                        Description = "Auto generated exercise",
-                        OrderIndex = i,
-                        NumberOfQuestion = 2 // ví dụ mỗi exercise có sẵn 2 câu hỏi trống
-                    }).ToList();
-
-                    exercisesToInsert.AddRange(exercises);
-
-                    // tạo question trống cho mỗi exercise
-                    foreach (var ex in exercises)
-                    {
-                        var questions = new List<Question>
-                {
-                    new Question
-                    {
-                        QuestionId = Guid.NewGuid(),
-                        ExerciseId = ex.ExerciseId,
-                        Text = "Sample question 1",
-                        Type = "text",
-                        OrderIndex = 1,
-                        PhonemeJson = ""
-                    },
-                    new Question
-                    {
-                        QuestionId = Guid.NewGuid(),
-                        ExerciseId = ex.ExerciseId,
-                        Text = "Sample question 2",
-                        Type = "text",
-                        OrderIndex = 2,
-                        PhonemeJson = ""
+                        course.CourseId,
+                        course.Title,
+                        course.Type,
+                        course.NumberOfChapter,
+                        course.OrderIndex,
+                        course.Level,
+                        course.Price,
+                        Chapters = new List<object>() // ✅ luôn trả về mảng trống []
                     }
                 };
-                        questionsToInsert.AddRange(questions);
-                    }
-                }
 
-                if (exercisesToInsert.Any())
-                    await _exerciseRepository.InsertRange(exercisesToInsert);
-                if (questionsToInsert.Any())
-                    await _questionRepository.InsertRange(questionsToInsert);
-
-                await _unitOfWork.SaveChangeAsync();
-
-                // 🔹 4. Load lại full data 3 tầng
-                var result = await GetFullCourseByIdAsync(course.CourseId);
-                result.BusinessCode = BusinessCode.INSERT_SUCESSFULLY;
-                result.Message = "Tạo khóa học đầy đủ thành công.";
-                return result;
             }
             catch (Exception ex)
             {
                 return Fail(BusinessCode.EXCEPTION, "Không thể tạo khóa học: " + ex.Message);
             }
         }
+
 
 
         // ============================================================
