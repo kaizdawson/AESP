@@ -1,9 +1,13 @@
 ﻿using AESP.Common.DTOs;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MimeKit.Encodings;
+using SkiaSharp;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using QRCoder;
+using SkiaSharp;
 
 namespace AESP.Service.Implementation
 {
@@ -23,7 +27,7 @@ namespace AESP.Service.Implementation
         /// <summary>
         /// Tạo link thanh toán PayOS và trả về checkout URL.
         /// </summary>
-        public async Task<string> CreatePaymentAsync(
+        public async Task<(string checkoutUrl, string orderCode, string qrCode, string qrDataURL)> CreatePaymentAsync(
     decimal amount, string userId, int numberOfCoin, string? description = null, int? orderCode = null)
         {
             var returnUrl = "https://aespwithai.com/coin";
@@ -31,7 +35,6 @@ namespace AESP.Service.Implementation
 
             var finalOrderCode = orderCode ?? new Random().Next(100000, 999999);
             var amountMinor = (int)amount;
-
             var desc = string.IsNullOrEmpty(description) ? "AESP Payment" : description;
 
             var rawData = $"amount={amountMinor}&cancelUrl={cancelUrl}&description={desc}&orderCode={finalOrderCode}&returnUrl={returnUrl}";
@@ -47,35 +50,73 @@ namespace AESP.Service.Implementation
                 signature
             };
 
-            var json = JsonSerializer.Serialize(payload);
-            var request = new HttpRequestMessage(HttpMethod.Post, "https://api-merchant.payos.vn/v2/payment-requests");
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+            {
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
 
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api-merchant.payos.vn/v2/payment-requests");
             request.Headers.Add("x-client-id", _config.ClientId);
             request.Headers.Add("x-api-key", _config.ApiKey);
             request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            _logger.LogInformation("📤 Gửi yêu cầu tạo thanh toán PayOS: {Json}", json);
-
             var response = await _httpClient.SendAsync(request);
             var responseContent = await response.Content.ReadAsStringAsync();
 
-            _logger.LogInformation("📥 Phản hồi từ PayOS: {Response}", responseContent);
-
             if (!response.IsSuccessStatusCode)
-            {
-                throw new Exception($"❌ PayOS Error: {response.StatusCode} – {responseContent}");
-            }
+                throw new Exception($"PayOS Error: {response.StatusCode} – {responseContent}");
 
             var jsonDoc = JsonDocument.Parse(responseContent);
-            if (jsonDoc.RootElement.TryGetProperty("data", out var dataElement) &&
-                dataElement.ValueKind == JsonValueKind.Object &&
-                dataElement.TryGetProperty("checkoutUrl", out var checkoutUrlElement))
+            var data = jsonDoc.RootElement.GetProperty("data");
+
+            var checkoutUrl = data.GetProperty("checkoutUrl").GetString() ?? "";
+            var orderCodeStr = data.GetProperty("orderCode").GetRawText();
+
+            // ⚠️ lấy cả qrCode và qrDataURL nếu có
+            var qrCode = data.TryGetProperty("qrCode", out var qrCodeProp)
+                ? qrCodeProp.GetString() ?? ""
+                : "";
+
+            string qrDataURL = "";
+            if (data.TryGetProperty("qrDataURL", out var qrDataUrlProp))
+                qrDataURL = qrDataUrlProp.GetString() ?? "";
+            else if (!string.IsNullOrEmpty(qrCode))
+                qrDataURL = GenerateQrBase64(qrCode);
+
+            return (checkoutUrl, orderCodeStr, qrCode, qrBase64: qrDataURL);
+        }
+
+
+        private string GenerateQrBase64(string qrContent)
+        {
+            var qrGenerator = new QRCodeGenerator();
+            var qrCodeData = qrGenerator.CreateQrCode(qrContent, QRCodeGenerator.ECCLevel.Q);
+            var matrix = qrCodeData.ModuleMatrix;
+
+            int pixelsPerModule = 20;
+            int size = matrix.Count * pixelsPerModule;
+
+            using var surface = SKSurface.Create(new SKImageInfo(size, size));
+            var canvas = surface.Canvas;
+            canvas.Clear(SKColors.White);
+
+            using var paint = new SKPaint { Color = SKColors.Black };
+            for (int y = 0; y < matrix.Count; y++)
             {
-                return checkoutUrlElement.GetString() ?? throw new Exception("checkoutUrl không hợp lệ trong phản hồi.");
+                for (int x = 0; x < matrix.Count; x++)
+                {
+                    if (matrix[y][x])
+                        canvas.DrawRect(x * pixelsPerModule, y * pixelsPerModule, pixelsPerModule, pixelsPerModule, paint);
+                }
             }
 
-            throw new Exception($"Không tìm thấy checkoutUrl trong phản hồi PayOS: {responseContent}");
+            using var image = surface.Snapshot();
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            return "data:image/png;base64," + Convert.ToBase64String(data.ToArray(), Base64FormattingOptions.None);
+
         }
+
+
 
 
 
