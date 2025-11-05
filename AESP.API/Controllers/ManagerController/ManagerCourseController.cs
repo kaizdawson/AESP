@@ -40,7 +40,31 @@ namespace AESP.API.Controllers.ManagerController
             return StatusFromResult(result);
         }
 
-        // ✅ CREATE
+        //// ✅ CREATE
+        //[HttpPost("courses")]
+        //public async Task<IActionResult> CreateCourse([FromBody] CreateSimpleCourseDTO dto)
+        //{
+        //    var fullDto = new CreateCourseFullDTO
+        //    {
+        //        Title = dto.Title,
+        //        Type = dto.Type,
+        //        NumberOfChapter = dto.NumberOfChapter,
+        //        OrderIndex = dto.OrderIndex,
+        //        Level = dto.Level,
+        //        Chapters = dto.Chapters?.Select(ch => new CreateCourseChapterForCourseDTO
+        //        {
+        //            Title = ch.Title,
+        //            Description = ch.Description,
+        //            NumberOfExercise = ch.NumberOfExercise
+        //        }).ToList()
+        //    };
+
+        //    var result = await _courseService.CreateFullCourseAsync(fullDto);
+        //    return StatusFromResult(result);
+        //}
+
+
+
         [HttpPost("courses")]
         public async Task<IActionResult> CreateCourse([FromBody] CreateSimpleCourseDTO dto)
         {
@@ -51,17 +75,16 @@ namespace AESP.API.Controllers.ManagerController
                 NumberOfChapter = dto.NumberOfChapter,
                 OrderIndex = dto.OrderIndex,
                 Level = dto.Level,
-                Chapters = dto.Chapters?.Select(ch => new CreateCourseChapterForCourseDTO
-                {
-                    Title = ch.Title,
-                    Description = ch.Description,
-                    NumberOfExercise = ch.NumberOfExercise
-                }).ToList()
+
+                Price = dto.Price,
+                Chapters = new List<CreateCourseChapterForCourseDTO>() // tạo course rỗng
             };
 
             var result = await _courseService.CreateFullCourseAsync(fullDto);
             return StatusFromResult(result);
         }
+
+
 
         [HttpPut("courses/{id}")]
         public async Task<IActionResult> UpdateCourse(Guid id, [FromBody] UpdateSimpleCourseDTO dto)
