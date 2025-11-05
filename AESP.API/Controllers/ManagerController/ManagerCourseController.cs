@@ -95,6 +95,16 @@ namespace AESP.API.Controllers.ManagerController
             return StatusFromResult(result);
         }
 
+        // ✅ GET COURSES BY LEVEL
+        [HttpGet("courses/level/{level}")]
+        public async Task<IActionResult> GetCoursesByLevel(string level)
+        {
+            var result = await _courseService.GetCoursesByLevelAsync(level);
+            return StatusFromResult(result);
+        }
+
+
+
         // ✅ Helper để tự động map status code đúng
         private IActionResult StatusFromResult(ResponseDTO result)
         {
@@ -106,6 +116,8 @@ namespace AESP.API.Controllers.ManagerController
             {
                 BusinessCode.VALIDATION_FAILED => BadRequest(result),
                 BusinessCode.AUTH_NOT_FOUND => NotFound(result),
+                BusinessCode.DATA_NOT_FOUND => BadRequest(result),
+
                 BusinessCode.EXCEPTION => StatusCode(500, result),
                 _ => Ok(result)
             };
