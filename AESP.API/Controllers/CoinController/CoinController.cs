@@ -54,8 +54,9 @@ namespace AESP.API.Controllers.CoinController
 
             try
             {
-                var checkoutUrl = await _coinService.AddCoinAsync(request.ServicePackageId, userId);
-                return Ok(new { checkoutUrl });
+                var result = await _coinService.AddCoinAsync(request.ServicePackageId, userId);
+                return Ok(result);
+
             }
             catch (Exception ex)
             {
