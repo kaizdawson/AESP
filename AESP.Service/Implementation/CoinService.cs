@@ -4,6 +4,7 @@ using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace AESP.Service.Implementation
@@ -41,11 +42,10 @@ namespace AESP.Service.Implementation
             return user.CoinBalance;
         }
 
-        public async Task<string> AddCoinAsync(Guid servicePackageId, Guid userId)
+        public async Task<object> AddCoinAsync(Guid servicePackageId, Guid userId)
         {
-            var package = await _packageRepository.GetById(servicePackageId);
-            if (package == null)
-                throw new Exception("Service package not found.");
+            var package = await _packageRepository.GetById(servicePackageId)
+                ?? throw new Exception("Service package not found.");
 
             if (package.Status != "Active")
                 throw new Exception("Gói dịch vụ hiện không khả dụng.");
@@ -65,23 +65,25 @@ namespace AESP.Service.Implementation
                 Description = $"Nạp {package.NumberOfCoin} coin ({package.Name})"
             };
 
-
             await _transactionRepository.Insert(transaction);
             await _unitOfWork.SaveChangeAsync();
 
-
-            var description = $"AESP|{orderCode}";
-            var checkoutUrl = await _payOSService.CreatePaymentAsync(
-                package.Price,
-                userId.ToString(),
-                package.NumberOfCoin,
-                description,
-                orderCode
+            var description = orderCode.ToString();
+            var (checkoutUrl, orderCodeStr, qrCode, qrBase64) = await _payOSService.CreatePaymentAsync(
+                package.Price, userId.ToString(), package.NumberOfCoin, description, orderCode
             );
 
             _logger.LogInformation("💳 Đã tạo giao dịch Pending cho User {UserId}, OrderCode {OrderCode}", userId, orderCode);
-            return checkoutUrl;
+
+            return new
+            {
+                checkoutUrl,
+                orderCode = orderCodeStr,
+                qrCode,
+                qrBase64
+            };
         }
+
 
 
 
