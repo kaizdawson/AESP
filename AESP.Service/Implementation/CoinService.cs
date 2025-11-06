@@ -121,10 +121,10 @@ namespace AESP.Service.Implementation
         }
 
 
-        public async Task CancelTransactionAsync(Guid userId, string orderCode)
+        public async Task CancelTransactionByOrderCodeAsync(string orderCode)
         {
             var transaction = _transactionRepository.AsQueryable()
-                .FirstOrDefault(t => t.OrderCode == orderCode && t.UserId == userId);
+                .FirstOrDefault(t => t.OrderCode == orderCode);
 
             if (transaction == null)
                 throw new Exception("Không tìm thấy giao dịch.");
@@ -136,12 +136,25 @@ namespace AESP.Service.Implementation
                 throw new Exception("Giao dịch đã bị hủy trước đó.");
 
             transaction.Status = "Cancelled";
-            transaction.Description += $" | Người dùng hủy thanh toán lúc {DateTime.Now:dd/MM/yyyy HH:mm}";
+            transaction.Description += $" | Hủy giao dịch lúc {DateTime.Now:dd/MM/yyyy HH:mm}";
             await _transactionRepository.Update(transaction);
             await _unitOfWork.SaveChangeAsync();
 
-            _logger.LogInformation("❌ User {UserId} đã hủy giao dịch OrderCode={OrderCode}", userId, orderCode);
+            _logger.LogInformation("❌ Giao dịch OrderCode={OrderCode} đã bị hủy.", orderCode);
         }
+
+
+        public async Task<string> GetTransactionStatusAsync(string orderCode)
+        {
+            var transaction = _transactionRepository.AsQueryable()
+                .FirstOrDefault(t => t.OrderCode == orderCode);
+
+            if (transaction == null)
+                throw new Exception("Không tìm thấy giao dịch.");
+
+            return transaction.Status;
+        }
+
 
 
 

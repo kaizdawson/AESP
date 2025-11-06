@@ -14,7 +14,9 @@ namespace AESP.Service.Contract
 
         Task AddBalanceFromPayOSAsync(string orderCode, decimal amount, string payosOrderCode);
 
-        Task CancelTransactionAsync(Guid userId, string orderCode);
+        Task CancelTransactionByOrderCodeAsync(string orderCode);
+        Task<string> GetTransactionStatusAsync(string orderCode);
+
 
     }
 }
