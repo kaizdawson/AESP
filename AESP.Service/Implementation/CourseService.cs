@@ -74,7 +74,6 @@ namespace AESP.Service.Implementation
                     {
                         CourseId = c.CourseId,
                         Title = c.Title,
-                        Type = c.Type,
                         NumberOfChapter = c.NumberOfChapter,
                         OrderIndex = c.OrderIndex,
                         Level = c.Level,
@@ -151,7 +150,6 @@ namespace AESP.Service.Implementation
                 {
                     CourseId = course.CourseId,
                     Title = course.Title,
-                    Type = course.Type,
                     NumberOfChapter = course.NumberOfChapter,
                     OrderIndex = course.OrderIndex,
                     Level = course.Level,
@@ -317,15 +315,13 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
                 if (string.IsNullOrWhiteSpace(request.Title))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được trống.");
-                if (string.IsNullOrWhiteSpace(request.Type))
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Loại khóa học không được trống.");
+               
 
                 // 🔹 1. Tạo Course (chưa có Chapter nào)
                 var course = new Course
                 {
                     CourseId = Guid.NewGuid(),
                     Title = request.Title.Trim(),
-                    Type = request.Type.Trim(),
                     NumberOfChapter = request.NumberOfChapter,
                     OrderIndex = request.OrderIndex,
                     Level = request.Level.ToString(),
@@ -346,7 +342,6 @@ namespace AESP.Service.Implementation
                     {
                         course.CourseId,
                         course.Title,
-                        course.Type,
                         course.NumberOfChapter,
                         course.OrderIndex,
                         course.Level,
@@ -382,7 +377,6 @@ namespace AESP.Service.Implementation
 
                 // --- CẬP NHẬT COURSE CƠ BẢN ---
                 if (!string.IsNullOrWhiteSpace(request.Title)) course.Title = request.Title.Trim();
-                if (!string.IsNullOrWhiteSpace(request.Type)) course.Type = request.Type.Trim();
                 if (request.NumberOfChapter.HasValue) course.NumberOfChapter = request.NumberOfChapter.Value;
                 if (request.OrderIndex.HasValue) course.OrderIndex = request.OrderIndex.Value;
                 if (request.Level.HasValue) course.Level = request.Level.ToString();
@@ -571,7 +565,6 @@ namespace AESP.Service.Implementation
                 {
                     c.CourseId,
                     c.Title,
-                    c.Type,
                     c.NumberOfChapter,
                     c.OrderIndex,
                     c.Level,

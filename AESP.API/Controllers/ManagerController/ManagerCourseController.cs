@@ -71,7 +71,6 @@ namespace AESP.API.Controllers.ManagerController
             var fullDto = new CreateCourseFullDTO
             {
                 Title = dto.Title,
-                Type = dto.Type,
                 NumberOfChapter = dto.NumberOfChapter,
                 OrderIndex = dto.OrderIndex,
                 Level = dto.Level,
@@ -92,7 +91,6 @@ namespace AESP.API.Controllers.ManagerController
             var fullDto = new UpdateCourseFullDTO
             {
                 Title = dto.Title,
-                Type = dto.Type,
                 NumberOfChapter = dto.NumberOfChapter,
                 OrderIndex = dto.OrderIndex,
                 Level = dto.Level,
