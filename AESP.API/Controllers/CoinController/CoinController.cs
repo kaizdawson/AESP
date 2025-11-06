@@ -65,18 +65,14 @@ namespace AESP.API.Controllers.CoinController
         }
 
         [HttpPost("cancel")]
-        public async Task<IActionResult> CancelTransaction([FromBody] string orderCode)
+        public async Task<IActionResult> CancelTransaction([FromBody] CancelTransactionRequest request)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim))
-                return Unauthorized("Access token không hợp lệ hoặc thiếu UserId.");
-
-            if (!Guid.TryParse(userIdClaim, out var userId))
-                return BadRequest("UserId trong token không hợp lệ.");
+            if (string.IsNullOrWhiteSpace(request.OrderCode))
+                return BadRequest(new { message = "Thiếu orderCode." });
 
             try
             {
-                await _coinService.CancelTransactionAsync(userId, orderCode);
+                await _coinService.CancelTransactionByOrderCodeAsync(request.OrderCode);
                 return Ok(new { message = "Giao dịch đã hủy thành công." });
             }
             catch (Exception ex)
@@ -84,6 +80,22 @@ namespace AESP.API.Controllers.CoinController
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+
+        [HttpGet("status/{orderCode}")]
+        public async Task<IActionResult> GetTransactionStatus(string orderCode)
+        {
+            try
+            {
+                var status = await _coinService.GetTransactionStatusAsync(orderCode);
+                return Ok(new { orderCode, status });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
 
 
 
