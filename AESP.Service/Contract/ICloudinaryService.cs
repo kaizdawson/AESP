@@ -12,5 +12,8 @@ namespace AESP.Service.Contract
         Task<string> UploadImageAsync(IFormFile file, string folder);
         Task<string> UploadVideoAsync(IFormFile file, string folder);
         Task<(bool IsSuccess, string Url, string Message)> UploadFileAsync(IFormFile file, string folder);
+
+        Task<string> UploadImageAsync(byte[] imageBytes, string fileName);
+
     }
 }
