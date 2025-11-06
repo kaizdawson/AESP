@@ -192,9 +192,10 @@ namespace AESP.Service.Implementation
                     claims.Add(new Claim("LearnerProfileId", learnerProfile.LearnerProfileId.ToString()));
 
                     var assessment = await _assessmentRepository
-                        .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+                     .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId && a.Score > 0);
 
                     isPlacementTestDone = assessment != null;
+
                 }
             }
 
@@ -246,9 +247,10 @@ namespace AESP.Service.Implementation
                 Token = accessToken,
                 RefreshToken = refreshToken,
                 Role = user.Role,
-                IsPlacementTestDone = isPlacementTestDone,
-                IsReviewerActive = isReviewerActive
+                IsPlacementTestDone = user.Role.Equals("LEARNER", StringComparison.OrdinalIgnoreCase) ? isPlacementTestDone : (bool?)null,
+                IsReviewerActive = user.Role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase) ? isReviewerActive : (bool?)null
             };
+
         }
 
 
@@ -298,8 +300,11 @@ namespace AESP.Service.Implementation
                 var learnerProfile = await _learnerProfileRepository.GetByExpression(lp => lp.UserId == user.UserId);
                 if (learnerProfile != null)
                 {
-                    var assessment = await _assessmentRepository.GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+                    var assessment = await _assessmentRepository
+                     .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId && a.Score > 0);
+
                     isPlacementTestDone = assessment != null;
+
                 }
             }
 
@@ -325,8 +330,11 @@ namespace AESP.Service.Implementation
                 Message = "Renew thành công",
                 Token = newAccessToken,
                 RefreshToken = refreshToken,
-                Role = user.Role
+                Role = user.Role,
+                IsPlacementTestDone = user.Role.Equals("LEARNER", StringComparison.OrdinalIgnoreCase) ? isPlacementTestDone : (bool?)null,
+                IsReviewerActive = user.Role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase) ? isReviewerActive : (bool?)null
             };
+
         }
 
 
@@ -616,8 +624,10 @@ namespace AESP.Service.Implementation
                         learnerProfileId = learnerProfile.LearnerProfileId;
 
                         var assessment = await _assessmentRepository
-                            .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
+                        .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId && a.Score > 0);
+
                         isPlacementTestDone = assessment != null;
+
                     }
                 }
 

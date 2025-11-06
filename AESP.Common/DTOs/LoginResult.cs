@@ -1,4 +1,6 @@
-﻿namespace AESP.Common.DTOs
+﻿using System.Text.Json.Serialization;
+
+namespace AESP.Common.DTOs
 {
     public class LoginResult
     {
@@ -8,10 +10,11 @@
         public string? RefreshToken { get; set; }
 
         public string? Role { get; set; }
-
-        public bool IsPlacementTestDone { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? IsPlacementTestDone { get; set; }
 
         public string? Email { get; set; }
-        public bool IsReviewerActive { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? IsReviewerActive { get; set; }
     }
 }
