@@ -359,6 +359,85 @@ namespace AESP.Service.Implementation
             }
         }
 
+
+
+
+
+        // ============================================================
+        // 🔹 GET CHAPTERS BY COURSE ID (chuẩn 3-layer)
+        // ============================================================
+        public async Task<ResponseDTO> GetChaptersByCourseIdAsync(Guid courseId)
+        {
+            try
+            {
+                // 1️⃣ Validate đầu vào
+                if (courseId == Guid.Empty)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "CourseId không hợp lệ.");
+
+                // 2️⃣ Kiểm tra tồn tại khóa học
+                var course = await _courseRepository.GetById(courseId);
+                if (course == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trong hệ thống.");
+
+                // 3️⃣ Lấy dữ liệu 4 tầng (Chapter → Exercise → Question → Media)
+                var db = _chapterRepository.GetDbContext();
+                var chapters = await db.Chapters
+                    .Where(ch => ch.CourseId == courseId)
+                    .Include(ch => ch.Exercises)
+                        .ThenInclude(ex => ex.Questions)
+                            .ThenInclude(q => q.QuestionMedias)
+                    .ToListAsync();
+
+                // 4️⃣ Map DTO
+                var mapped = chapters.Select(ch => new ReadChapterDTO
+                {
+                    ChapterId = ch.ChapterId,
+                    Title = ch.Title,
+                    Description = ch.Description,
+                    NumberOfExercise = ch.NumberOfExercise,
+                    CreatedAt = ch.CreatedAt,
+                    Exercises = ch.Exercises?.Select(ex => new ReadChapterExerciseDTO
+                    {
+                        ExerciseId = ex.ExerciseId,
+                        Title = ex.Title,
+                        Description = ex.Description,
+                        OrderIndex = ex.OrderIndex,
+                        NumberOfQuestion = ex.NumberOfQuestion,
+                        Questions = ex.Questions?.Select(q => new ReadChapterQuestionDTO
+                        {
+                            QuestionId = q.QuestionId,
+                            Text = q.Text,
+                            Type = q.Type,
+                            OrderIndex = q.OrderIndex,
+                            IPA = "", // Nếu bạn muốn parse từ JSON thì thay bằng q.PhonemeJson
+                            PhonemeJson = q.PhonemeJson
+                        }).ToList() ?? new List<ReadChapterQuestionDTO>()
+                    }).ToList() ?? new List<ReadChapterExerciseDTO>()
+                }).ToList();
+
+              
+
+                // 5️⃣ Kết quả trả về
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                    Message = mapped.Any()
+                        ? "Lấy danh sách chương theo khóa học thành công."
+                        : "Khóa học này chưa có chương nào.",
+                    Data = mapped
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, $"Không thể lấy danh sách chương: {ex.Message}");
+            }
+        }
+
+
+
+
+
         // ============================================================
         // 🔹 MAPPING HELPER
         // ============================================================

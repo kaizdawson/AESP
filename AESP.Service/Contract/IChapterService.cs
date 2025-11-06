@@ -14,5 +14,7 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> CreateChapterAsync(CreateChapterDTO dto);
         Task<ResponseDTO> UpdateChapterAsync(Guid id, UpdateChapterDTO dto);
         Task<ResponseDTO> DeleteChapterAsync(Guid id);
+        Task<ResponseDTO> GetChaptersByCourseIdAsync(Guid courseId);
+
     }
 }
