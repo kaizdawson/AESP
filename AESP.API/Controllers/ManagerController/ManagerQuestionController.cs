@@ -62,6 +62,17 @@ namespace AESP.API.Controllers.ManagerController
             return StatusFromResult(result);
         }
 
+
+
+        // ✅ GET LIST BY EXERCISE ID (chuẩn 3 lớp, dùng StatusFromResult)
+        [HttpGet("questions/exercise/{exerciseId}")]
+        public async Task<IActionResult> GetQuestionsByExerciseId(Guid exerciseId)
+        {
+            var result = await _questionService.GetQuestionsByExerciseIdAsync(exerciseId);
+            return StatusFromResult(result);
+        }
+
+
         // ✅ Helper: tự động chọn status code theo BusinessCode
         private IActionResult StatusFromResult(ResponseDTO result)
         {
