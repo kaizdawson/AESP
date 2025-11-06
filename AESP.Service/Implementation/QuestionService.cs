@@ -419,5 +419,67 @@ namespace AESP.Service.Implementation
             }
         }
 
+
+
+
+        // ============================================================
+        // 🔹 GET QUESTIONS BY EXERCISE ID (chuẩn 3-layer)
+        // ============================================================
+        public async Task<ResponseDTO> GetQuestionsByExerciseIdAsync(Guid exerciseId)
+        {
+            try
+            {
+                if (exerciseId == Guid.Empty)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "ExerciseId không hợp lệ.");
+
+                var exercise = await _exerciseRepository.GetById(exerciseId);
+                if (exercise == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài tập.");
+
+                var result = await _questionRepository.GetAllDataByExpression(
+                    x => x.ExerciseId == exerciseId,
+                    1,
+                    int.MaxValue,
+                    x => x.OrderIndex,
+                    true,
+                    x => x.QuestionMedias
+                );
+
+                var questions = result.Items.Select(q => new ReadQuestionDTO
+                {
+                    QuestionId = q.QuestionId,
+                    ExerciseId = q.ExerciseId,
+                    Text = q.Text,
+                    Type = q.Type,
+                    OrderIndex = q.OrderIndex,
+                    PhonemeJson = q.PhonemeJson,
+                    Media = q.QuestionMedias?.Select(m => new ReadQuestionMediaDTO
+                    {
+                        QuestionMediaId = m.QuestionMediaId,
+                        Accent = m.Accent,
+                        AudioURL = m.AudioUrl,
+                        VideoURL = m.VideoUrl,
+                        ImageURL = m.ImageUrl,
+                        Source = m.Source
+                    }).ToList() ?? new List<ReadQuestionMediaDTO>()
+                }).ToList();
+
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                    Message = questions.Any()
+                        ? "Lấy danh sách câu hỏi thành công."
+                        : "Bài tập này chưa có câu hỏi nào.",
+                    Data = questions
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, $"Không thể lấy danh sách câu hỏi: {ex.Message}");
+            }
+        }
+
+
     }
 }

@@ -1,4 +1,5 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -62,5 +63,33 @@ namespace AESP.API.Controllers.ManagerController
             var response = await _exerciseService.DeleteExerciseAsync(id);
             return Ok(response);
         }
+
+
+
+        [HttpGet("chapter/{chapterId}")]
+        public async Task<IActionResult> GetExercisesByChapterId(Guid chapterId)
+        {
+            var result = await _exerciseService.GetExercisesByChapterIdAsync(chapterId);
+            return StatusFromResult(result);
+        }
+
+        // Helper y như trên
+        private IActionResult StatusFromResult(ResponseDTO result)
+        {
+            if (result == null)
+                return StatusCode(500, new { message = "Không có phản hồi từ server." });
+
+            return result.BusinessCode switch
+            {
+                BusinessCode.VALIDATION_FAILED => BadRequest(result),
+                BusinessCode.DATA_NOT_FOUND => NotFound(result),
+                BusinessCode.EXCEPTION => StatusCode(500, result),
+                BusinessCode.INSERT_SUCESSFULLY => StatusCode(201, result),
+                _ => Ok(result)
+            };
+        }
+
+
+
     }
 }
