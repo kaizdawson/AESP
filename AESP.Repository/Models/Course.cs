@@ -15,7 +15,6 @@ namespace AESP.Repository.Models
         [Required]
         public string Title { get; set; } = string.Empty;
 
-        public string Type { get; set; } = string.Empty;
         public int NumberOfChapter { get; set; }
         public int OrderIndex { get; set; }
         public string Level { get; set; } = string.Empty;

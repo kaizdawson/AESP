@@ -18,7 +18,6 @@ namespace AESP.Common.DTOs
         public string Text { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
-        public string IPA { get; set; } = string.Empty;
         public string PhonemeJson { get; set; } = string.Empty;
     }
 
@@ -28,7 +27,6 @@ namespace AESP.Common.DTOs
         public string Text { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
-        public string IPA { get; set; } = string.Empty;
         public string PhonemeJson { get; set; } = string.Empty;
     }
 
@@ -38,7 +36,6 @@ namespace AESP.Common.DTOs
         public string? Text { get; set; }
         public string? Type { get; set; }
         public int? OrderIndex { get; set; }
-        public string? IPA { get; set; }
         public string? PhonemeJson { get; set; }
     }
 
@@ -108,7 +105,6 @@ namespace AESP.Common.DTOs
     public class CreateCourseFullDTO
     {
         public string Title { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
         public int NumberOfChapter { get; set; }
         public int OrderIndex { get; set; }
         public CourseLevel Level { get; set; }
@@ -120,7 +116,6 @@ namespace AESP.Common.DTOs
     {
         public Guid CourseId { get; set; }
         public string Title { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
         public int NumberOfChapter { get; set; }
         public int OrderIndex { get; set; }
         public string Level { get; set; } = string.Empty;
@@ -137,7 +132,6 @@ namespace AESP.Common.DTOs
     public class UpdateCourseFullDTO
     {
         public string? Title { get; set; }
-        public string? Type { get; set; }
         public int? NumberOfChapter { get; set; }
         public int? OrderIndex { get; set; }
         public CourseLevel? Level { get; set; }
@@ -149,7 +143,6 @@ namespace AESP.Common.DTOs
     public class CreateSimpleCourseDTO
     {
         public string Title { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
         public int NumberOfChapter { get; set; }
         public int OrderIndex { get; set; }
         public CourseLevel Level { get; set; }
@@ -170,7 +163,6 @@ namespace AESP.Common.DTOs
     public class UpdateSimpleCourseDTO
     {
         public string? Title { get; set; }
-        public string? Type { get; set; }
         public int? NumberOfChapter { get; set; }
         public int? OrderIndex { get; set; }
         public CourseLevel? Level { get; set; }
