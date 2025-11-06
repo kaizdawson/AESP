@@ -1,13 +1,12 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Service.Contract;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MimeKit.Encodings;
+using QRCoder;
 using SkiaSharp;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using QRCoder;
-using SkiaSharp;
 
 namespace AESP.Service.Implementation
 {
@@ -16,19 +15,26 @@ namespace AESP.Service.Implementation
         private readonly HttpClient _httpClient;
         private readonly PayOSConfig _config;
         private readonly ILogger<PayOSService> _logger;
+        private readonly ICloudinaryService _cloudinaryService;
 
-        public PayOSService(HttpClient httpClient, IOptions<PayOSConfig> config, ILogger<PayOSService> logger)
+        public PayOSService(
+            HttpClient httpClient,
+            IOptions<PayOSConfig> config,
+            ILogger<PayOSService> logger,
+            ICloudinaryService cloudinaryService)
         {
             _httpClient = httpClient;
             _config = config.Value;
             _logger = logger;
+            _cloudinaryService = cloudinaryService;
         }
 
-        /// <summary>
-        /// Tạo link thanh toán PayOS và trả về checkout URL.
-        /// </summary>
-        public async Task<(string checkoutUrl, string orderCode, string qrCode, string qrDataURL)> CreatePaymentAsync(
-    decimal amount, string userId, int numberOfCoin, string? description = null, int? orderCode = null)
+        public async Task<(string checkoutUrl, string orderCode, string qrCode, string qrPublicUrl)> CreatePaymentAsync(
+            decimal amount,
+            string userId,
+            int numberOfCoin,
+            string? description = null,
+            int? orderCode = null)
         {
             var returnUrl = "https://aespwithai.com/coin";
             var cancelUrl = "https://aespwithai.com/coin?cancel=true";
@@ -71,28 +77,26 @@ namespace AESP.Service.Implementation
 
             var checkoutUrl = data.GetProperty("checkoutUrl").GetString() ?? "";
             var orderCodeStr = data.GetProperty("orderCode").GetRawText();
-
-            // ⚠️ lấy cả qrCode và qrDataURL nếu có
             var qrCode = data.TryGetProperty("qrCode", out var qrCodeProp)
                 ? qrCodeProp.GetString() ?? ""
                 : "";
 
-            string qrDataURL = "";
-            if (data.TryGetProperty("qrDataURL", out var qrDataUrlProp))
-                qrDataURL = qrDataUrlProp.GetString() ?? "";
-            else if (!string.IsNullOrEmpty(qrCode))
-                qrDataURL = GenerateQrBase64(qrCode);
+            // ✅ Tạo QR ảnh (PNG) và upload lên Cloudinary
+            string qrPublicUrl = "";
+            if (!string.IsNullOrEmpty(qrCode))
+            {
+                var qrBytes = GenerateQrBytes(qrCode);
+                qrPublicUrl = await _cloudinaryService.UploadImageAsync(qrBytes, $"qr_codes/payqr_{finalOrderCode}.png");
+            }
 
-            return (checkoutUrl, orderCodeStr, qrCode, qrBase64: qrDataURL);
+            return (checkoutUrl, orderCodeStr, qrCode, qrPublicUrl);
         }
 
-
-        private string GenerateQrBase64(string qrContent)
+        private byte[] GenerateQrBytes(string qrContent)
         {
             var qrGenerator = new QRCodeGenerator();
             var qrCodeData = qrGenerator.CreateQrCode(qrContent, QRCodeGenerator.ECCLevel.Q);
             var matrix = qrCodeData.ModuleMatrix;
-
             int pixelsPerModule = 20;
             int size = matrix.Count * pixelsPerModule;
 
@@ -112,43 +116,14 @@ namespace AESP.Service.Implementation
 
             using var image = surface.Snapshot();
             using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-            return "data:image/png;base64," + Convert.ToBase64String(data.ToArray(), Base64FormattingOptions.None);
-
+            return data.ToArray();
         }
 
-
-
-
-
-        /// <summary>
-        /// Sinh chữ ký HMAC SHA256 (dùng cho tạo request thanh toán).
-        /// </summary>
         private string GenerateSignature(string rawData)
         {
             using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_config.ChecksumKey));
             var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawData));
             return BitConverter.ToString(hash).Replace("-", "").ToLower();
-        }
-
-        /// <summary>
-        /// Xác thực chữ ký webhook từ PayOS (nếu cần verify thủ công).
-        /// </summary>
-        public bool VerifyWebhookSignature(Dictionary<string, object> payload, string providedSignature)
-        {
-            var flatData = new Dictionary<string, string>();
-            foreach (var kvp in payload)
-            {
-                flatData[kvp.Key] = kvp.Value?.ToString() ?? "";
-            }
-
-            var sorted = flatData.OrderBy(k => k.Key, StringComparer.Ordinal);
-            var rawData = string.Join("&", sorted.Select(kvp => $"{kvp.Key}={kvp.Value}"));
-
-            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_config.ChecksumKey));
-            var computedHash = BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(rawData)))
-                .Replace("-", "").ToLower();
-
-            return string.Equals(computedHash, providedSignature, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
