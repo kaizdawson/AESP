@@ -105,5 +105,21 @@ namespace AESP.Service.Implementation
             return uploadResult.SecureUrl.ToString();
         }
 
+
+        public async Task<string> UploadImageAsync(byte[] imageBytes, string fileName)
+        {
+            using var stream = new MemoryStream(imageBytes);
+            var uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription(fileName, stream),
+                PublicId = Path.GetFileNameWithoutExtension(fileName),
+                Folder = "qr_codes",
+                Overwrite = true
+            };
+
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            return uploadResult.SecureUrl?.ToString() ?? "";
+        }
+
     }
 }
