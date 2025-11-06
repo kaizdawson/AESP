@@ -97,6 +97,16 @@ namespace AESP.API.Controllers.ManagerController
         }
 
 
+        // ✅ GET CHAPTERS BY COURSE ID (chuẩn 3 lớp, dùng StatusFromResult)
+        [HttpGet("chapters/course/{courseId}")]
+        public async Task<IActionResult> GetChaptersByCourse(Guid courseId)
+        {
+            var result = await _chapterService.GetChaptersByCourseIdAsync(courseId);
+            return StatusFromResult(result);
+        }
+
+
+
 
         // ✅ Helper để tự động map status code đúng
         private IActionResult StatusFromResult(ResponseDTO result)
@@ -104,13 +114,13 @@ namespace AESP.API.Controllers.ManagerController
             if (result == null)
                 return StatusCode(500, new { message = "Không có phản hồi từ server." });
 
-            // Tùy theo BusinessCode mà chọn HTTP Code
             return result.BusinessCode switch
             {
-                BusinessCode.VALIDATION_FAILED => BadRequest(result),
-                BusinessCode.AUTH_NOT_FOUND => NotFound(result),
-                BusinessCode.EXCEPTION => StatusCode(500, result),
-                _ => Ok(result)
+                BusinessCode.VALIDATION_FAILED => BadRequest(result),  // 400
+                BusinessCode.DATA_NOT_FOUND => NotFound(result),       // 404
+                BusinessCode.EXCEPTION => StatusCode(500, result),     // 500
+                BusinessCode.INSERT_SUCESSFULLY => StatusCode(201, result), // 201 Created
+                _ => Ok(result) // 200 OK
             };
         }
     }

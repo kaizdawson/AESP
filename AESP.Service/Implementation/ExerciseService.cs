@@ -306,5 +306,61 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.EXCEPTION, $"Không thể xoá bài tập: {ex.Message}");
             }
         }
+
+        // ============================================================
+        // 🔹 GET LIST BY CHAPTER ID
+        // ============================================================
+        public async Task<ResponseDTO> GetExercisesByChapterIdAsync(Guid chapterId)
+        {
+            try
+            {
+                // 🔹 1. Kiểm tra đầu vào
+                if (chapterId == Guid.Empty)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "ChapterId không hợp lệ.");
+
+                // 🔹 2. Kiểm tra chương có tồn tại không
+                var chapter = await _chapterRepository.GetById(chapterId);
+                if (chapter == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy chương học trong hệ thống.");
+
+                // 🔹 3. Lấy toàn bộ bài tập thuộc chương (không phân trang)
+                var query = _exerciseRepository.AsQueryable()
+                    .Where(x => x.ChapterId == chapterId)
+                    .Select(ex => new ReadExerciseDTO
+                    {
+                        ExerciseId = ex.ExerciseId,
+                        Title = ex.Title,
+                        Description = ex.Description,
+                        OrderIndex = ex.OrderIndex,
+                        NumberOfQuestion = ex.NumberOfQuestion,
+                        ChapterId = ex.ChapterId,
+                        Questions = ex.Questions.Select(q => new ReadExerciseQuestionDTO
+                        {
+                            QuestionId = q.QuestionId,
+                            Text = q.Text,
+                            Type = q.Type,
+                            OrderIndex = q.OrderIndex,
+                            PhonemeJson = q.PhonemeJson
+                        }).ToList()
+                    });
+
+                var list = query.ToList();
+
+                // 🔹 4. Trả về kết quả (kể cả khi rỗng)
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                    Message = "Lấy danh sách bài tập theo chương thành công.",
+                    Data = list
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, $"Không thể lấy danh sách bài tập: {ex.Message}");
+            }
+        }
+
+
     }
 }
