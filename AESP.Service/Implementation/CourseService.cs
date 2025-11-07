@@ -446,7 +446,6 @@ namespace AESP.Service.Implementation
         {
             try
             {
-                // ✅ Tìm course
                 var course = await _courseRepository.AsQueryable()
                     .Include(c => c.Chapters)
                         .ThenInclude(ch => ch.Exercises)
@@ -456,15 +455,39 @@ namespace AESP.Service.Implementation
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học để xoá.");
 
-                // ✅ RÀNG BUỘC: Không cho phép xóa nếu có Chapter
-                // (nếu muốn “xóa cứng toàn bộ 3 tầng” thì dùng quyền admin riêng)
+                // ✅ Check learner đang học
+                var hasLearner = await _unitOfWork
+                    .GetDbContext()
+                    .Set<LearnerCourse>()
+                    .AnyAsync(lc =>
+                        lc.NumberOfCourse == course.OrderIndex &&
+                        lc.Status.ToLower() == "enrolled");
+
+                if (hasLearner)
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Không thể xoá khóa học '{course.Title}' vì đang có học viên đang học.");
+
+                // ✅ Delete all children
                 if (course.Chapters != null && course.Chapters.Any())
                 {
-                    return Fail(BusinessCode.INVALID_ACTION,
-                        $"Không thể xoá khóa học '{course.Title}' vì vẫn còn {course.Chapters.Count} chương.");
+                    foreach (var ch in course.Chapters)
+                    {
+                        if (ch.Exercises != null && ch.Exercises.Any())
+                        {
+                            foreach (var ex in ch.Exercises)
+                            {
+                                if (ex.Questions != null && ex.Questions.Any())
+                                    await _questionRepository.DeleteRange(ex.Questions);
+                            }
+
+                            await _exerciseRepository.DeleteRange(ch.Exercises);
+                        }
+                    }
+
+                    await _chapterRepository.DeleteRange(course.Chapters);
                 }
 
-                // ✅ Nếu không có Chapter nào thì xóa Course
+                // ✅ Delete course
                 await _courseRepository.Delete(course);
                 await _unitOfWork.SaveChangeAsync();
 
@@ -472,7 +495,7 @@ namespace AESP.Service.Implementation
                 {
                     IsSucess = true,
                     BusinessCode = BusinessCode.DELETE_SUCESSFULLY,
-                    Message = "Xoá khóa học thành công."
+                    Message = $"Đã xoá khóa học '{course.Title}' và toàn bộ dữ liệu liên quan thành công."
                 };
             }
             catch (Exception ex)
