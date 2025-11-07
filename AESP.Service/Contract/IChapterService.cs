@@ -11,7 +11,7 @@ namespace AESP.Service.Contract
     {
         Task<ResponseDTO> GetAllChaptersAsync(int pageNumber, int pageSize, Guid? courseId = null, string? keyword = null);
         Task<ResponseDTO> GetChapterByIdAsync(Guid id);
-        Task<ResponseDTO> CreateChapterAsync(CreateChapterDTO dto);
+        Task<ResponseDTO> CreateChapterAsync(Guid courseId, CreateChapterDTO request);
         Task<ResponseDTO> UpdateChapterAsync(Guid id, UpdateChapterDTO dto);
         Task<ResponseDTO> DeleteChapterAsync(Guid id);
         Task<ResponseDTO> GetChaptersByCourseIdAsync(Guid courseId);

@@ -166,8 +166,7 @@ namespace AESP.Common.DTOs
         public int? NumberOfChapter { get; set; }
         public int? OrderIndex { get; set; }
         public CourseLevel? Level { get; set; }
-
-        public List<UpdateSimpleCourseChapterDTO>? Chapters { get; set; }
+        public decimal? Price { get; set; }  // ✅ thêm để chỉnh giá
     }
 
     public class UpdateSimpleCourseChapterDTO

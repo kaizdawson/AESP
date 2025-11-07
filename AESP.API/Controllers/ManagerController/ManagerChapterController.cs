@@ -40,27 +40,20 @@ namespace AESP.API.Controllers.ManagerController
             return Ok(response);
         }
 
-        // ✅ CREATE
-        [HttpPost("chapters")]
-        public async Task<IActionResult> CreateChapter([FromBody] CreateSimpleChapterDTO dto)
+        // ============================================================
+        // 🔹 CREATE (truyền courseId qua path)
+        // ============================================================
+        [HttpPost("chapters/{courseId}")]
+        public async Task<IActionResult> CreateChapter(Guid courseId, [FromBody] CreateSimpleChapterDTO dto)
         {
             var fullDto = new CreateChapterDTO
             {
                 Title = dto.Title,
                 Description = dto.Description,
                 NumberOfExercise = dto.NumberOfExercise,
-                CourseId = dto.CourseId,
-                Exercises = dto.Exercises?.Select(e => new CreateChapterExerciseDTO
-                {
-                    Title = e.Title,
-                    Description = e.Description,
-                    OrderIndex = e.OrderIndex,
-                    NumberOfQuestion = e.NumberOfQuestion,
-                    Questions = new List<CreateChapterQuestionDTO>() // không cần gửi
-                }).ToList()
             };
 
-            var result = await _chapterService.CreateChapterAsync(fullDto);
+            var result = await _chapterService.CreateChapterAsync(courseId, fullDto);
             return StatusFromResult(result);
         }
 
@@ -72,20 +65,14 @@ namespace AESP.API.Controllers.ManagerController
                 Title = dto.Title ?? string.Empty,
                 Description = dto.Description ?? string.Empty,
                 NumberOfExercise = dto.NumberOfExercise,
-                Exercises = dto.Exercises?.Select(e => new UpdateChapterExerciseDTO
-                {
-                    ExerciseId = e.ExerciseId,
-                    Title = e.Title ?? string.Empty,
-                    Description = e.Description ?? string.Empty,
-                    OrderIndex = e.OrderIndex,
-                    NumberOfQuestion = e.NumberOfQuestion,
-                    Questions = new List<UpdateChapterQuestionDTO>() // placeholder
-                }).ToList()
+                CourseId = dto.CourseId
             };
 
             var result = await _chapterService.UpdateChapterAsync(id, fullDto);
             return StatusFromResult(result);
         }
+
+
 
 
         // ✅ DELETE

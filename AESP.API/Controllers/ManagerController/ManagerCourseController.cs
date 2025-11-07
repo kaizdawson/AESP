@@ -88,24 +88,10 @@ namespace AESP.API.Controllers.ManagerController
         [HttpPut("courses/{id}")]
         public async Task<IActionResult> UpdateCourse(Guid id, [FromBody] UpdateSimpleCourseDTO dto)
         {
-            var fullDto = new UpdateCourseFullDTO
-            {
-                Title = dto.Title,
-                NumberOfChapter = dto.NumberOfChapter,
-                OrderIndex = dto.OrderIndex,
-                Level = dto.Level,
-                Chapters = dto.Chapters?.Select(ch => new UpdateCourseChapterForCourseDTO
-                {
-                    ChapterId = ch.ChapterId,
-                    Title = ch.Title,
-                    Description = ch.Description,
-                    NumberOfExercise = ch.NumberOfExercise
-                }).ToList()
-            };
-
-            var result = await _courseService.UpdateFullCourseAsync(id, fullDto);
+            var result = await _courseService.UpdateCourseAsync(id, dto);
             return StatusFromResult(result);
         }
+
 
 
         // ✅ DELETE
