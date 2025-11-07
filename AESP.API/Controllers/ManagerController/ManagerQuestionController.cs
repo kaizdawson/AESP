@@ -46,13 +46,13 @@ namespace AESP.API.Controllers.ManagerController
             return StatusFromResult(result);
         }
 
-
         [HttpPut("questions/{id}")]
         public async Task<IActionResult> UpdateQuestion(Guid id, [FromBody] UpdateQuestionDTO dto)
         {
             var result = await _questionService.UpdateQuestionAsync(id, dto);
             return StatusFromResult(result);
         }
+
 
         // ✅ DELETE
         [HttpDelete("questions/{id}")]

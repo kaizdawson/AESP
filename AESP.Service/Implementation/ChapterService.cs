@@ -109,217 +109,120 @@ namespace AESP.Service.Implementation
             }
         }
 
-        // ============================================================
-        // 🔹 CREATE (CHAPTER + OPTIONAL EXERCISES + QUESTIONS)
-        // ============================================================
-        public async Task<ResponseDTO> CreateChapterAsync(CreateChapterDTO request)
+
+        public async Task<ResponseDTO> CreateChapterAsync(Guid courseId, CreateChapterDTO request)
         {
             try
             {
                 if (request == null)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu đầu vào không được để trống.");
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
+                if (string.IsNullOrWhiteSpace(request.Title))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Tên chương không được để trống.");
+                if (string.IsNullOrWhiteSpace(request.Description))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Mô tả chương không được để trống.");
+                if (courseId == Guid.Empty)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "CourseId không hợp lệ.");
+
+                // 🔹 Kiểm tra khóa học có tồn tại không
+                var course = await _courseRepository.GetById(courseId);
+                if (course == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
+
+                // 🔹 Tạo Chapter mới
+                var chapter = new Chapter
+                {
+                    ChapterId = Guid.NewGuid(),
+                    CourseId = courseId,
+                    Title = request.Title.Trim(),
+                    Description = request.Description.Trim(),
+                    NumberOfExercise = request.NumberOfExercise,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _chapterRepository.Insert(chapter);
+                await _unitOfWork.SaveChangeAsync();
+
+                // ✅ Trả về Exercises = []
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
+                    Message = "Tạo chương thành công.",
+                    Data = new
+                    {
+                        chapter.ChapterId,
+                        chapter.CourseId,
+                        chapter.Title,
+                        chapter.Description,
+                        chapter.CreatedAt,
+                        chapter.NumberOfExercise,
+                        Exercises = new List<object>() // luôn trả rỗng
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, "Không thể tạo chương: " + ex.Message);
+            }
+        }
+
+
+
+
+        public async Task<ResponseDTO> UpdateChapterAsync(Guid id, UpdateChapterDTO request)
+        {
+            try
+            {
+                var chapter = await _chapterRepository.GetById(id);
+                if (chapter == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy chương để cập nhật.");
+
+                // --- Validate ---
                 if (string.IsNullOrWhiteSpace(request.Title))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Tên chương không được để trống.");
                 if (string.IsNullOrWhiteSpace(request.Description))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Mô tả chương không được để trống.");
                 if (request.CourseId == Guid.Empty)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Khóa học không hợp lệ.");
+                    return Fail(BusinessCode.VALIDATION_FAILED, "CourseId không hợp lệ.");
 
+                // --- Kiểm tra khóa học có tồn tại ---
                 var course = await _courseRepository.GetById(request.CourseId);
                 if (course == null)
-                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học để gán.");
 
-                var chapter = new Chapter
-                {
-                    ChapterId = Guid.NewGuid(),
-                    Title = request.Title.Trim(),
-                    Description = request.Description.Trim(),
-                    CourseId = request.CourseId,
-                    NumberOfExercise = request.NumberOfExercise,
-                    CreatedAt = DateTime.UtcNow
-                };
-                await _chapterRepository.Insert(chapter);
-
-                if (request.Exercises != null && request.Exercises.Any())
-                {
-                    // insert exercises
-                    var exercises = request.Exercises.Select(ex => new Exercise
-                    {
-                        ExerciseId = Guid.NewGuid(),
-                        Title = ex.Title.Trim(),
-                        Description = ex.Description.Trim(),
-                        OrderIndex = ex.OrderIndex,
-                        NumberOfQuestion = ex.NumberOfQuestion,
-                        ChapterId = chapter.ChapterId
-                    }).ToList();
-
-                    await _exerciseRepository.InsertRange(exercises);
-
-                    // insert questions
-                    // --- Auto generate default questions cho mỗi exercise mới ---
-                    var newQuestions = new List<Question>();
-                    foreach (var ex in exercises)
-                    {
-                        newQuestions.AddRange(new[]
-                        {
-        new Question
-        {
-            QuestionId = Guid.NewGuid(),
-            ExerciseId = ex.ExerciseId,
-            Text = "Sample question 1",
-            Type = "text",
-            OrderIndex = 1,
-            PhonemeJson = ""
-        },
-        new Question
-        {
-            QuestionId = Guid.NewGuid(),
-            ExerciseId = ex.ExerciseId,
-            Text = "Sample question 2",
-            Type = "text",
-            OrderIndex = 2,
-            PhonemeJson = ""
-        }
-    });
-                    }
-                    await _questionRepository.InsertRange(newQuestions);
-
-                }
-
-                await _unitOfWork.SaveChangeAsync();
-
-                // 🔁 Reload 3 tầng trước khi trả về
-                return await GetChapterByIdAsync(chapter.ChapterId);
-            }
-            catch (Exception ex)
-            {
-                return Fail(BusinessCode.EXCEPTION, $"Không thể tạo chương: {ex.Message}");
-            }
-        }
-
-        // ============================================================
-        // 🔹 UPDATE (CHAPTER + OPTIONAL EXERCISES + QUESTIONS)
-        // ============================================================
-        public async Task<ResponseDTO> UpdateChapterAsync(Guid id, UpdateChapterDTO request)
-        {
-            try
-            {
-                var chapter = await _chapterRepository.AsQueryable()
-                    .Include(ch => ch.Exercises)
-                        .ThenInclude(ex => ex.Questions)
-                    .FirstOrDefaultAsync(x => x.ChapterId == id);
-
-                if (chapter == null)
-                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy chương để cập nhật.");
-
-                // --- VALIDATION cơ bản ---
-                if (string.IsNullOrWhiteSpace(request.Title))
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Tên chương không được để trống.");
-                if (string.IsNullOrWhiteSpace(request.Description))
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Mô tả chương không được để trống.");
-
-                // --- CẬP NHẬT FIELD CHÍNH ---
+                // --- Cập nhật ---
                 chapter.Title = request.Title.Trim();
                 chapter.Description = request.Description.Trim();
-
-                if (request.NumberOfExercise.HasValue)
-                {
-                    int newExerciseCount = request.NumberOfExercise.Value;
-                    int currentExerciseCount = chapter.Exercises.Count;
-
-                    // --- Nếu chapter có ít hơn số lượng mới => thêm Exercise mới ---
-                    if (newExerciseCount > currentExerciseCount)
-                    {
-                        var toAdd = Enumerable.Range(currentExerciseCount + 1, newExerciseCount - currentExerciseCount)
-                            .Select(i => new Exercise
-                            {
-                                ExerciseId = Guid.NewGuid(),
-                                ChapterId = chapter.ChapterId,
-                                Title = $"Exercise {i}",
-                                Description = "Auto generated exercise (update)",
-                                OrderIndex = i,
-                                NumberOfQuestion = 2
-                            }).ToList();
-
-                        await _exerciseRepository.InsertRange(toAdd);
-
-                        // ✅ Thêm question mặc định cho exercise mới
-                        var newQuestions = new List<Question>();
-                        foreach (var ex in toAdd)
-                        {
-                            newQuestions.AddRange(new[]
-                            {
-                        new Question
-                        {
-                            QuestionId = Guid.NewGuid(),
-                            ExerciseId = ex.ExerciseId,
-                            Text = "Sample question 1",
-                            Type = "text",
-                            OrderIndex = 1,
-                            PhonemeJson = ""
-                        },
-                        new Question
-                        {
-                            QuestionId = Guid.NewGuid(),
-                            ExerciseId = ex.ExerciseId,
-                            Text = "Sample question 2",
-                            Type = "text",
-                            OrderIndex = 2,
-                            PhonemeJson = ""
-                        }
-                    });
-                        }
-                        await _questionRepository.InsertRange(newQuestions);
-                    }
-                    // --- Nếu chapter có nhiều hơn số lượng mới => xoá bớt ---
-                    else if (newExerciseCount < currentExerciseCount)
-                    {
-                        var toRemove = chapter.Exercises
-                            .OrderByDescending(e => e.OrderIndex)
-                            .Take(currentExerciseCount - newExerciseCount)
-                            .ToList();
-
-                        var removeQuestions = toRemove.SelectMany(e => e.Questions).ToList();
-
-                        await _questionRepository.DeleteRange(removeQuestions);
-                        await _exerciseRepository.DeleteRange(toRemove);
-                    }
-
-                    chapter.NumberOfExercise = newExerciseCount;
-                }
-
-                // --- Nếu có danh sách exercise truyền vào -> cập nhật chi tiết ---
-                if (request.Exercises != null && request.Exercises.Any())
-                {
-                    foreach (var exDto in request.Exercises)
-                    {
-                        var exEntity = chapter.Exercises.FirstOrDefault(e => e.ExerciseId == exDto.ExerciseId);
-                        if (exEntity == null)
-                            return Fail(BusinessCode.DATA_NOT_FOUND, $"Không tìm thấy bài tập (ID: {exDto.ExerciseId}) để cập nhật.");
-
-                        if (!string.IsNullOrWhiteSpace(exDto.Title)) exEntity.Title = exDto.Title.Trim();
-                        if (!string.IsNullOrWhiteSpace(exDto.Description)) exEntity.Description = exDto.Description.Trim();
-                        if (exDto.OrderIndex.HasValue) exEntity.OrderIndex = exDto.OrderIndex.Value;
-                        if (exDto.NumberOfQuestion.HasValue) exEntity.NumberOfQuestion = exDto.NumberOfQuestion.Value;
-
-                        await _exerciseRepository.Update(exEntity);
-                    }
-                }
+                chapter.NumberOfExercise = request.NumberOfExercise ?? chapter.NumberOfExercise;
+                chapter.CourseId = request.CourseId;
 
                 await _chapterRepository.Update(chapter);
                 await _unitOfWork.SaveChangeAsync();
 
-                // --- RELOAD FULL SAU UPDATE ---
-                var result = await GetChapterByIdAsync(chapter.ChapterId);
-                result.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                result.Message = "Cập nhật chương đầy đủ thành công.";
-                return result;
+                // ✅ Trả về Exercises = []
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.UPDATE_SUCESSFULLY,
+                    Message = "Cập nhật chương thành công.",
+                    Data = new
+                    {
+                        chapter.ChapterId,
+                        chapter.CourseId,
+                        chapter.Title,
+                        chapter.Description,
+                        chapter.NumberOfExercise,
+                        chapter.CreatedAt,
+                        Exercises = new List<object>() // luôn trả rỗng
+                    }
+                };
             }
             catch (Exception ex)
             {
                 return Fail(BusinessCode.EXCEPTION, "Không thể cập nhật chương: " + ex.Message);
             }
         }
+
 
         // ============================================================
         // 🔹 DELETE (XOÁ 3 TẦNG: QUESTION → EXERCISE → CHAPTER)

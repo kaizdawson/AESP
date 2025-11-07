@@ -13,7 +13,7 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetAllCourseAsync(int pageNumber, int pageSize, string? level = null, string? keyword = null);
         Task<ResponseDTO> GetFullCourseByIdAsync(Guid id);
         Task<ResponseDTO> CreateFullCourseAsync(CreateCourseFullDTO request);
-        Task<ResponseDTO> UpdateFullCourseAsync(Guid id, UpdateCourseFullDTO request);
+        Task<ResponseDTO> UpdateCourseAsync(Guid id, UpdateSimpleCourseDTO request);
         Task<ResponseDTO> DeleteFullCourseAsync(Guid id);
 
         Task<ResponseDTO> GetCoursesByLevelAsync(string level);
