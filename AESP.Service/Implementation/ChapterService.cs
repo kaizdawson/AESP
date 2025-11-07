@@ -114,6 +114,7 @@ namespace AESP.Service.Implementation
         {
             try
             {
+                // ===== VALIDATION CƠ BẢN =====
                 if (request == null)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
                 if (string.IsNullOrWhiteSpace(request.Title))
@@ -122,13 +123,23 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Mô tả chương không được để trống.");
                 if (courseId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "CourseId không hợp lệ.");
+                if (request.NumberOfExercise <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Mỗi chương phải có ít nhất 1 bài tập.");
 
-                // 🔹 Kiểm tra khóa học có tồn tại không
+                // ===== KIỂM TRA KHÓA HỌC TỒN TẠI =====
                 var course = await _courseRepository.GetById(courseId);
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
 
-                // 🔹 Tạo Chapter mới
+                // ===== RÀNG BUỘC SỐ LƯỢNG CHAPTER =====
+                var existingCount = await _chapterRepository.AsQueryable()
+                    .CountAsync(x => x.CourseId == courseId);
+
+                if (existingCount >= course.NumberOfChapter)
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Không thể tạo thêm chương. Khóa học '{course.Title}' chỉ cho phép {course.NumberOfChapter} chương.");
+
+                // ===== TẠO CHAPTER =====
                 var chapter = new Chapter
                 {
                     ChapterId = Guid.NewGuid(),
@@ -142,7 +153,6 @@ namespace AESP.Service.Implementation
                 await _chapterRepository.Insert(chapter);
                 await _unitOfWork.SaveChangeAsync();
 
-                // ✅ Trả về Exercises = []
                 return new ResponseDTO
                 {
                     IsSucess = true,
@@ -156,7 +166,7 @@ namespace AESP.Service.Implementation
                         chapter.Description,
                         chapter.CreatedAt,
                         chapter.NumberOfExercise,
-                        Exercises = new List<object>() // luôn trả rỗng
+                        Exercises = new List<object>()
                     }
                 };
             }
@@ -185,6 +195,9 @@ namespace AESP.Service.Implementation
                 if (request.CourseId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "CourseId không hợp lệ.");
 
+                if (request.NumberOfExercise.HasValue && request.NumberOfExercise.Value <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng bài tập phải lớn hơn 0.");
+
                 // --- Kiểm tra khóa học có tồn tại ---
                 var course = await _courseRepository.GetById(request.CourseId);
                 if (course == null)
@@ -199,7 +212,6 @@ namespace AESP.Service.Implementation
                 await _chapterRepository.Update(chapter);
                 await _unitOfWork.SaveChangeAsync();
 
-                // ✅ Trả về Exercises = []
                 return new ResponseDTO
                 {
                     IsSucess = true,
@@ -213,7 +225,7 @@ namespace AESP.Service.Implementation
                         chapter.Description,
                         chapter.NumberOfExercise,
                         chapter.CreatedAt,
-                        Exercises = new List<object>() // luôn trả rỗng
+                        Exercises = new List<object>()
                     }
                 };
             }
@@ -233,18 +245,18 @@ namespace AESP.Service.Implementation
             {
                 var chapter = await _chapterRepository.AsQueryable()
                     .Include(ch => ch.Exercises)
-                        .ThenInclude(ex => ex.Questions)
+                    .ThenInclude(ex => ex.Questions)
                     .FirstOrDefaultAsync(x => x.ChapterId == id);
 
                 if (chapter == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy chương để xoá.");
 
-                var questions = chapter.Exercises.SelectMany(e => e.Questions).ToList();
-                if (questions.Any())
-                    await _questionRepository.DeleteRange(questions);
-
-                if (chapter.Exercises.Any())
-                    await _exerciseRepository.DeleteRange(chapter.Exercises.ToList());
+                // ✅ RÀNG BUỘC: Không cho phép xóa nếu có Exercise
+                if (chapter.Exercises != null && chapter.Exercises.Any())
+                {
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Không thể xoá chương '{chapter.Title}' vì vẫn còn {chapter.Exercises.Count} bài tập.");
+                }
 
                 await _chapterRepository.Delete(chapter);
                 await _unitOfWork.SaveChangeAsync();
