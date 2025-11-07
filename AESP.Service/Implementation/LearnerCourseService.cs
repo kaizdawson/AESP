@@ -3,6 +3,7 @@ using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -140,9 +141,88 @@ namespace AESP.Service.Implementation
             return Success(BusinessCode.UPDATE_SUCESSFULLY, "Cập nhật tiến độ học thành công.");
         }
 
+
+
+
+
+        public async Task<ResponseDTO> GetFullCoursesByLevelAsync(string level, string? keyword = null)
+        {
+            try
+            {
+                // ✅ Validate đầu vào
+                if (string.IsNullOrWhiteSpace(level))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Level không hợp lệ.");
+
+                // ✅ Lấy danh sách khóa học theo level
+                var courses = await _courseRepo.AsQueryable()
+                    .AsNoTracking()
+                    .Include(c => c.Chapters)
+                        .ThenInclude(ch => ch.Exercises)
+                            .ThenInclude(ex => ex.Questions)
+                    .Where(c => c.Level.ToUpper() == level.ToUpper()
+                             && (string.IsNullOrEmpty(keyword) || c.Title.Contains(keyword)))
+                    .OrderBy(c => c.OrderIndex)
+                    .ToListAsync();
+
+                if (!courses.Any())
+                    return Fail(BusinessCode.DATA_NOT_FOUND, $"Không tìm thấy khóa học cho Level {level}.");
+
+                // ✅ Map dữ liệu
+                var mapped = courses.Select(c => new ReadCourseFullDTO
+                {
+                    CourseId = c.CourseId,
+                    Title = c.Title,
+                    NumberOfChapter = c.NumberOfChapter,
+                    OrderIndex = c.OrderIndex,
+                    Level = c.Level,
+                    Price = c.Price,
+                    IsFree = c.OrderIndex == 1, // có thể điều chỉnh logic free tại đây
+                    Chapters = c.Chapters?.Select(ch => new ReadCourseChapterForCourseDTO
+                    {
+                        ChapterId = ch.ChapterId,
+                        Title = ch.Title,
+                        Description = ch.Description,
+                        NumberOfExercise = ch.NumberOfExercise,
+                        CreatedAt = ch.CreatedAt,
+                        Exercises = ch.Exercises?.Select(ex => new ReadCourseExerciseForCourseDTO
+                        {
+                            ExerciseId = ex.ExerciseId,
+                            Title = ex.Title,
+                            Description = ex.Description,
+                            OrderIndex = ex.OrderIndex,
+                            NumberOfQuestion = ex.NumberOfQuestion,
+                            Questions = ex.Questions?.Select(q => new ReadCourseQuestionForCourseDTO
+                            {
+                                QuestionId = q.QuestionId,
+                                Text = q.Text,
+                                Type = q.Type,
+                                OrderIndex = q.OrderIndex,
+                                PhonemeJson = q.PhonemeJson
+                            }).ToList() ?? new List<ReadCourseQuestionForCourseDTO>()
+                        }).ToList() ?? new List<ReadCourseExerciseForCourseDTO>()
+                    }).ToList() ?? new List<ReadCourseChapterForCourseDTO>()
+                }).ToList();
+
+                // ✅ Trả kết quả
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                    Message = $"Lấy danh sách khóa học level {level} thành công.",
+                    Data = mapped
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, $"Không thể lấy danh sách khóa học: {ex.Message}");
+            }
+        }
+
+
         // ============================================================
         // Helper methods
         // ============================================================
+
         private ResponseDTO Success(BusinessCode code, string msg)
             => new() { IsSucess = true, BusinessCode = code, Message = msg };
 
