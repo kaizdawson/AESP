@@ -3,6 +3,7 @@ using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -132,7 +133,7 @@ namespace AESP.Service.Implementation
         {
             try
             {
-                // --- VALIDATION ---
+                // --- VALIDATION CƠ BẢN ---
                 if (request == null)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
                 if (string.IsNullOrWhiteSpace(request.Title))
@@ -141,11 +142,29 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Mô tả bài tập không được để trống.");
                 if (chapterId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "ChapterId không hợp lệ.");
+                if (request.NumberOfQuestion <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Mỗi bài tập phải có ít nhất 1 câu hỏi.");
 
-                // --- KIỂM TRA CHAPTER ---
+                // --- KIỂM TRA CHAPTER CÓ TỒN TẠI ---
                 var chapter = await _chapterRepository.GetById(chapterId);
                 if (chapter == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy chương học.");
+
+                // --- RÀNG BUỘC: SỐ LƯỢNG EXERCISE KHÔNG VƯỢT QUÁ QUOTA ---
+                var existingCount = await _exerciseRepository.AsQueryable()
+                    .CountAsync(x => x.ChapterId == chapterId);
+
+                if (existingCount >= chapter.NumberOfExercise)
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Không thể tạo thêm bài tập. Chương '{chapter.Title}' chỉ cho phép {chapter.NumberOfExercise} bài tập.");
+
+                // --- RÀNG BUỘC: TITLE KHÔNG TRÙNG TRONG CÙNG CHƯƠNG ---
+                var duplicateTitle = await _exerciseRepository.AsQueryable()
+                    .AnyAsync(x => x.ChapterId == chapterId &&
+                                   x.Title.ToLower() == request.Title.Trim().ToLower());
+                if (duplicateTitle)
+                    return Fail(BusinessCode.DUPLICATE_DATA,
+                        $"Đã tồn tại bài tập '{request.Title}' trong chương này.");
 
                 // --- TẠO EXERCISE ---
                 var exercise = new Exercise
@@ -161,7 +180,7 @@ namespace AESP.Service.Implementation
                 await _exerciseRepository.Insert(exercise);
                 await _unitOfWork.SaveChangeAsync();
 
-                // --- TRẢ VỀ KẾT QUẢ (Questions = []) ---
+                // --- TRẢ KẾT QUẢ ---
                 return new ResponseDTO
                 {
                     IsSucess = true,
@@ -200,6 +219,17 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Tên bài tập không được để trống.");
                 if (string.IsNullOrWhiteSpace(request.Description))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Mô tả bài tập không được để trống.");
+                if (request.NumberOfQuestion.HasValue && request.NumberOfQuestion.Value <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng câu hỏi phải lớn hơn 0.");
+
+                // --- RÀNG BUỘC: KHÔNG TRÙNG TITLE TRONG CÙNG CHƯƠNG ---
+                var duplicateTitle = await _exerciseRepository.AsQueryable()
+                    .AnyAsync(x => x.ChapterId == exercise.ChapterId &&
+                                   x.ExerciseId != exercise.ExerciseId &&
+                                   x.Title.ToLower() == request.Title.Trim().ToLower());
+                if (duplicateTitle)
+                    return Fail(BusinessCode.DUPLICATE_DATA,
+                        $"Đã tồn tại bài tập '{request.Title}' trong chương này.");
 
                 // --- CẬP NHẬT DỮ LIỆU ---
                 exercise.Title = request.Title.Trim();
@@ -212,7 +242,7 @@ namespace AESP.Service.Implementation
                 await _exerciseRepository.Update(exercise);
                 await _unitOfWork.SaveChangeAsync();
 
-                // --- TRẢ VỀ KẾT QUẢ ---
+                // --- TRẢ KẾT QUẢ ---
                 return new ResponseDTO
                 {
                     IsSucess = true,
@@ -237,23 +267,24 @@ namespace AESP.Service.Implementation
         }
 
 
-        // ============================================================
-        // 🔹 DELETE
-        // ============================================================
         public async Task<ResponseDTO> DeleteExerciseAsync(Guid id)
         {
             try
             {
-                var exercise = await _exerciseRepository.GetFirstByExpression(
-                    x => x.ExerciseId == id,
-                    x => x.Questions
-                );
+                var exercise = await _exerciseRepository.AsQueryable()
+                    .Include(x => x.Questions)
+                    .FirstOrDefaultAsync(x => x.ExerciseId == id);
 
                 if (exercise == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài tập để xoá.");
 
-                // xoá question → exercise
-                await _questionRepository.DeleteRange(exercise.Questions);
+                // ✅ RÀNG BUỘC: Không cho phép xóa nếu có Question
+                if (exercise.Questions != null && exercise.Questions.Any())
+                {
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Không thể xoá bài tập '{exercise.Title}' vì vẫn còn {exercise.Questions.Count} câu hỏi.");
+                }
+
                 await _exerciseRepository.Delete(exercise);
                 await _unitOfWork.SaveChangeAsync();
 
@@ -269,6 +300,7 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.EXCEPTION, $"Không thể xoá bài tập: {ex.Message}");
             }
         }
+
 
         // ============================================================
         // 🔹 GET LIST BY CHAPTER ID
