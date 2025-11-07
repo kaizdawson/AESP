@@ -11,7 +11,6 @@ namespace AESP.Common.DTOs
     // ============================================================
     public class CreateQuestionMediaV2DTO
     {
-        public Guid QuestionId { get; set; }  // ✅ Gắn vào QuestionId để tạo nhanh media theo câu hỏi
         public string Accent { get; set; } = string.Empty;
         public string? AudioUrl { get; set; }
         public string? VideoUrl { get; set; }
