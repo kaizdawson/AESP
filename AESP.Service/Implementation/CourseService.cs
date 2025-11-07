@@ -311,13 +311,42 @@ namespace AESP.Service.Implementation
         {
             try
             {
+                // ===== VALIDATION CƠ BẢN =====
                 if (request == null)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
-                if (string.IsNullOrWhiteSpace(request.Title))
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được trống.");
-               
 
-                // 🔹 1. Tạo Course (chưa có Chapter nào)
+                if (string.IsNullOrWhiteSpace(request.Title))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được để trống.");
+
+                if (request.NumberOfChapter <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng chương phải lớn hơn 0.");
+
+                if (request.OrderIndex <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex phải lớn hơn 0.");
+
+
+                if (request.Price < 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Giá khóa học không thể âm.");
+
+                // ===== CHECK TRÙNG TITLE TRONG CÙNG LEVEL =====
+                var duplicateTitle = await _courseRepository.AsQueryable()
+                    .AnyAsync(x => x.Title.ToLower() == request.Title.Trim().ToLower()
+                                && x.Level == request.Level.ToString());
+
+                if (duplicateTitle)
+                    return Fail(BusinessCode.DUPLICATE_DATA,
+                        $"Đã tồn tại khóa học '{request.Title}' ở cấp độ {request.Level}.");
+
+                // ===== CHECK TRÙNG ORDERINDEX TRONG CÙNG LEVEL =====
+                var duplicateOrder = await _courseRepository.AsQueryable()
+                    .AnyAsync(x => x.Level == request.Level.ToString()
+                                && x.OrderIndex == request.OrderIndex);
+
+                if (duplicateOrder)
+                    return Fail(BusinessCode.DUPLICATE_DATA,
+                        $"Đã tồn tại khóa học có OrderIndex {request.OrderIndex} trong level {request.Level}.");
+
+                // ===== CREATE COURSE =====
                 var course = new Course
                 {
                     CourseId = Guid.NewGuid(),
@@ -330,8 +359,6 @@ namespace AESP.Service.Implementation
 
                 await _courseRepository.Insert(course);
                 await _unitOfWork.SaveChangeAsync();
-
-                // ✅ Không auto tạo chapter / exercise / question
 
                 return new ResponseDTO
                 {
@@ -346,10 +373,9 @@ namespace AESP.Service.Implementation
                         course.OrderIndex,
                         course.Level,
                         course.Price,
-                        Chapters = new List<object>() // ✅ luôn trả về mảng trống []
+                        Chapters = new List<object>()
                     }
                 };
-
             }
             catch (Exception ex)
             {
@@ -367,17 +393,17 @@ namespace AESP.Service.Implementation
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học để cập nhật.");
 
-                // --- VALIDATION cơ bản ---
+                // ===== VALIDATION CƠ BẢN =====
                 if (string.IsNullOrWhiteSpace(request.Title))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được để trống.");
                 if (!request.NumberOfChapter.HasValue)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng chương không được để trống.");
-                if (!request.OrderIndex.HasValue)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Thứ tự khóa học không được để trống.");
+                if (!request.OrderIndex.HasValue || request.OrderIndex.Value <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex phải lớn hơn 0.");
                 if (!request.Level.HasValue)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Trình độ (Level) không được để trống.");
 
-                // --- CẬP NHẬT FIELD ---
+                // ===== CẬP NHẬT =====
                 course.Title = request.Title.Trim();
                 course.NumberOfChapter = request.NumberOfChapter.Value;
                 course.OrderIndex = request.OrderIndex.Value;
@@ -389,7 +415,6 @@ namespace AESP.Service.Implementation
                 await _courseRepository.Update(course);
                 await _unitOfWork.SaveChangeAsync();
 
-                // --- KẾT QUẢ TRẢ VỀ ---
                 return new ResponseDTO
                 {
                     IsSucess = true,
@@ -414,7 +439,6 @@ namespace AESP.Service.Implementation
         }
 
 
-
         // ============================================================
         // 🔹 DELETE FULL COURSE
         // ============================================================
@@ -422,7 +446,7 @@ namespace AESP.Service.Implementation
         {
             try
             {
-                // ✅ Load đủ 3 tầng bằng Include / ThenInclude
+                // ✅ Tìm course
                 var course = await _courseRepository.AsQueryable()
                     .Include(c => c.Chapters)
                         .ThenInclude(ch => ch.Exercises)
@@ -432,44 +456,28 @@ namespace AESP.Service.Implementation
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học để xoá.");
 
-                // ✅ Lấy danh sách tất cả question
-                var questions = course.Chapters
-                    .SelectMany(c => c.Exercises)
-                    .SelectMany(e => e.Questions)
-                    .ToList();
+                // ✅ RÀNG BUỘC: Không cho phép xóa nếu có Chapter
+                // (nếu muốn “xóa cứng toàn bộ 3 tầng” thì dùng quyền admin riêng)
+                if (course.Chapters != null && course.Chapters.Any())
+                {
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Không thể xoá khóa học '{course.Title}' vì vẫn còn {course.Chapters.Count} chương.");
+                }
 
-                if (questions.Any())
-                    await _questionRepository.DeleteRange(questions);
-
-                // ✅ Lấy danh sách exercise
-                var exercises = course.Chapters
-                    .SelectMany(c => c.Exercises)
-                    .ToList();
-
-                if (exercises.Any())
-                    await _exerciseRepository.DeleteRange(exercises);
-
-                // ✅ Lấy danh sách chapter
-                var chapters = course.Chapters.ToList();
-
-                if (chapters.Any())
-                    await _chapterRepository.DeleteRange(chapters);
-
-                // ✅ Cuối cùng xóa course
+                // ✅ Nếu không có Chapter nào thì xóa Course
                 await _courseRepository.Delete(course);
-
                 await _unitOfWork.SaveChangeAsync();
 
                 return new ResponseDTO
                 {
                     IsSucess = true,
                     BusinessCode = BusinessCode.DELETE_SUCESSFULLY,
-                    Message = "Xoá khóa học đầy đủ thành công."
+                    Message = "Xoá khóa học thành công."
                 };
             }
             catch (Exception ex)
             {
-                return Fail(BusinessCode.EXCEPTION, "Không thể xoá khóa học đầy đủ: " + ex.Message);
+                return Fail(BusinessCode.EXCEPTION, "Không thể xoá khóa học: " + ex.Message);
             }
         }
 
