@@ -103,13 +103,42 @@ namespace AESP.API.Controllers.ManagerController
 
             return result.BusinessCode switch
             {
-                BusinessCode.VALIDATION_FAILED => BadRequest(result),  // 400
-                BusinessCode.DATA_NOT_FOUND => NotFound(result),       // 404
-                BusinessCode.EXCEPTION => StatusCode(500, result),     // 500
-                BusinessCode.INSERT_SUCESSFULLY => StatusCode(201, result), // 201 Created
-                _ => Ok(result) // 200 OK
+                // ❌ 400 – Dữ liệu không hợp lệ, trùng lặp, hành động sai, đầu vào sai
+                BusinessCode.VALIDATION_FAILED or
+                BusinessCode.VALIDATION_ERROR or
+                BusinessCode.INVALID_INPUT or
+                BusinessCode.INVALID_DATA or
+                BusinessCode.INVALID_ACTION or
+                BusinessCode.DUPLICATE_DATA
+                    => BadRequest(result),
+
+                // 🚫 401 – Không có quyền hoặc chưa xác thực
+                BusinessCode.AUTH_NOT_FOUND or BusinessCode.ACCESS_DENIED
+                    => Unauthorized(result),
+
+                // 🔍 404 – Không tìm thấy
+                BusinessCode.DATA_NOT_FOUND
+                    => NotFound(result),
+
+                // 💥 500 – Lỗi hệ thống
+                BusinessCode.EXCEPTION or BusinessCode.INTERNAL_ERROR
+                    => StatusCode(500, result),
+
+                // ✅ 201 – Tạo thành công
+                BusinessCode.INSERT_SUCESSFULLY or BusinessCode.CREATED_SUCCESSFULLY
+                    => StatusCode(StatusCodes.Status201Created, result),
+
+                // ✅ 200 – Cập nhật, xóa, lấy dữ liệu thành công
+                BusinessCode.GET_DATA_SUCCESSFULLY or
+                BusinessCode.UPDATE_SUCESSFULLY or
+                BusinessCode.DELETE_SUCESSFULLY
+                    => Ok(result),
+
+                // Mặc định 200 OK nếu không match case nào
+                _ => Ok(result)
             };
         }
+
     }
 }
 
