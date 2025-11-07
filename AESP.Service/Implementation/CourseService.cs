@@ -311,13 +311,42 @@ namespace AESP.Service.Implementation
         {
             try
             {
+                // ===== VALIDATION CƠ BẢN =====
                 if (request == null)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
-                if (string.IsNullOrWhiteSpace(request.Title))
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được trống.");
-               
 
-                // 🔹 1. Tạo Course (chưa có Chapter nào)
+                if (string.IsNullOrWhiteSpace(request.Title))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được để trống.");
+
+                if (request.NumberOfChapter <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng chương phải lớn hơn 0.");
+
+                if (request.OrderIndex <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex phải lớn hơn 0.");
+
+
+                if (request.Price < 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Giá khóa học không thể âm.");
+
+                // ===== CHECK TRÙNG TITLE TRONG CÙNG LEVEL =====
+                var duplicateTitle = await _courseRepository.AsQueryable()
+                    .AnyAsync(x => x.Title.ToLower() == request.Title.Trim().ToLower()
+                                && x.Level == request.Level.ToString());
+
+                if (duplicateTitle)
+                    return Fail(BusinessCode.DUPLICATE_DATA,
+                        $"Đã tồn tại khóa học '{request.Title}' ở cấp độ {request.Level}.");
+
+                // ===== CHECK TRÙNG ORDERINDEX TRONG CÙNG LEVEL =====
+                var duplicateOrder = await _courseRepository.AsQueryable()
+                    .AnyAsync(x => x.Level == request.Level.ToString()
+                                && x.OrderIndex == request.OrderIndex);
+
+                if (duplicateOrder)
+                    return Fail(BusinessCode.DUPLICATE_DATA,
+                        $"Đã tồn tại khóa học có OrderIndex {request.OrderIndex} trong level {request.Level}.");
+
+                // ===== CREATE COURSE =====
                 var course = new Course
                 {
                     CourseId = Guid.NewGuid(),
@@ -330,8 +359,6 @@ namespace AESP.Service.Implementation
 
                 await _courseRepository.Insert(course);
                 await _unitOfWork.SaveChangeAsync();
-
-                // ✅ Không auto tạo chapter / exercise / question
 
                 return new ResponseDTO
                 {
@@ -346,10 +373,9 @@ namespace AESP.Service.Implementation
                         course.OrderIndex,
                         course.Level,
                         course.Price,
-                        Chapters = new List<object>() // ✅ luôn trả về mảng trống []
+                        Chapters = new List<object>()
                     }
                 };
-
             }
             catch (Exception ex)
             {
@@ -359,127 +385,58 @@ namespace AESP.Service.Implementation
 
 
 
-        // ============================================================
-        // 🔹 UPDATE (COURSE + CHAPTER + AUTO SYNC EXERCISE + QUESTION)
-        // ============================================================
-        public async Task<ResponseDTO> UpdateFullCourseAsync(Guid id, UpdateCourseFullDTO request)
+        public async Task<ResponseDTO> UpdateCourseAsync(Guid id, UpdateSimpleCourseDTO request)
         {
             try
             {
-                var course = await _courseRepository.AsQueryable()
-                    .Include(c => c.Chapters)
-                        .ThenInclude(ch => ch.Exercises)
-                            .ThenInclude(ex => ex.Questions)
-                    .FirstOrDefaultAsync(c => c.CourseId == id);
-
+                var course = await _courseRepository.GetById(id);
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học để cập nhật.");
 
-                // --- CẬP NHẬT COURSE CƠ BẢN ---
-                if (!string.IsNullOrWhiteSpace(request.Title)) course.Title = request.Title.Trim();
-                if (request.NumberOfChapter.HasValue) course.NumberOfChapter = request.NumberOfChapter.Value;
-                if (request.OrderIndex.HasValue) course.OrderIndex = request.OrderIndex.Value;
-                if (request.Level.HasValue) course.Level = request.Level.ToString();
+                // ===== VALIDATION CƠ BẢN =====
+                if (string.IsNullOrWhiteSpace(request.Title))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được để trống.");
+                if (!request.NumberOfChapter.HasValue)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng chương không được để trống.");
+                if (!request.OrderIndex.HasValue || request.OrderIndex.Value <= 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex phải lớn hơn 0.");
+                if (!request.Level.HasValue)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Trình độ (Level) không được để trống.");
+
+                // ===== CẬP NHẬT =====
+                course.Title = request.Title.Trim();
+                course.NumberOfChapter = request.NumberOfChapter.Value;
+                course.OrderIndex = request.OrderIndex.Value;
+                course.Level = request.Level.ToString();
+
+                if (request.Price.HasValue)
+                    course.Price = request.Price.Value;
 
                 await _courseRepository.Update(course);
-
-                // --- CẬP NHẬT CHAPTER + EXERCISE + QUESTION ---
-                if (request.Chapters != null && request.Chapters.Any())
-                {
-                    foreach (var chDto in request.Chapters)
-                    {
-                        var chapter = course.Chapters.FirstOrDefault(x => x.ChapterId == chDto.ChapterId);
-
-                        // ❌ Nếu không có chapterId hợp lệ -> fail luôn
-                        if (chapter == null)
-                            return Fail(BusinessCode.DATA_NOT_FOUND, $"Không tìm thấy chương (ID: {chDto.ChapterId}) để cập nhật.");
-
-
-                        if (!string.IsNullOrWhiteSpace(chDto.Title)) chapter.Title = chDto.Title.Trim();
-                        if (!string.IsNullOrWhiteSpace(chDto.Description)) chapter.Description = chDto.Description.Trim();
-                        if (chDto.NumberOfExercise.HasValue)
-                        {
-                            int newExerciseCount = chDto.NumberOfExercise.Value;
-                            int currentExerciseCount = chapter.Exercises.Count;
-
-                            // --- Nếu chapter có ít hơn số lượng mới => thêm Exercise mới ---
-                            if (newExerciseCount > currentExerciseCount)
-                            {
-                                var toAdd = Enumerable.Range(currentExerciseCount + 1, newExerciseCount - currentExerciseCount)
-                                    .Select(i => new Exercise
-                                    {
-                                        ExerciseId = Guid.NewGuid(),
-                                        ChapterId = chapter.ChapterId,
-                                        Title = $"Exercise {i}",
-                                        Description = "Auto generated exercise (update)",
-                                        OrderIndex = i,
-                                        NumberOfQuestion = 2
-                                    }).ToList();
-
-                                await _exerciseRepository.InsertRange(toAdd);
-
-                                // Thêm question mặc định cho exercise mới
-                                var newQuestions = new List<Question>();
-                                foreach (var ex in toAdd)
-                                {
-                                    newQuestions.AddRange(new[]
-                                    {
-                                new Question
-                                {
-                                    QuestionId = Guid.NewGuid(),
-                                    ExerciseId = ex.ExerciseId,
-                                    Text = "Sample question 1",
-                                    Type = "text",
-                                    OrderIndex = 1,
-                                    PhonemeJson = ""
-                                },
-                                new Question
-                                {
-                                    QuestionId = Guid.NewGuid(),
-                                    ExerciseId = ex.ExerciseId,
-                                    Text = "Sample question 2",
-                                    Type = "text",
-                                    OrderIndex = 2,
-                                    PhonemeJson = ""
-                                }
-                            });
-                                }
-                                await _questionRepository.InsertRange(newQuestions);
-                            }
-                            // --- Nếu chapter có nhiều hơn số lượng mới => xoá bớt ---
-                            else if (newExerciseCount < currentExerciseCount)
-                            {
-                                var toRemove = chapter.Exercises
-                                    .OrderByDescending(e => e.OrderIndex)
-                                    .Take(currentExerciseCount - newExerciseCount)
-                                    .ToList();
-
-                                var removeQuestions = toRemove.SelectMany(e => e.Questions).ToList();
-
-                                await _questionRepository.DeleteRange(removeQuestions);
-                                await _exerciseRepository.DeleteRange(toRemove);
-                            }
-
-                            chapter.NumberOfExercise = newExerciseCount;
-                            await _chapterRepository.Update(chapter);
-                        }
-                    }
-                }
-
                 await _unitOfWork.SaveChangeAsync();
 
-                // --- LOAD LẠI FULL DỮ LIỆU ---
-                var result = await GetFullCourseByIdAsync(course.CourseId);
-                result.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                result.Message = "Cập nhật khóa học đầy đủ thành công.";
-                return result;
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.UPDATE_SUCESSFULLY,
+                    Message = "Cập nhật khóa học thành công.",
+                    Data = new
+                    {
+                        course.CourseId,
+                        course.Title,
+                        course.NumberOfChapter,
+                        course.OrderIndex,
+                        course.Level,
+                        course.Price,
+                        Chapters = new List<object>()
+                    }
+                };
             }
             catch (Exception ex)
             {
                 return Fail(BusinessCode.EXCEPTION, "Không thể cập nhật khóa học: " + ex.Message);
             }
         }
-
 
 
         // ============================================================
@@ -489,7 +446,7 @@ namespace AESP.Service.Implementation
         {
             try
             {
-                // ✅ Load đủ 3 tầng bằng Include / ThenInclude
+                // ✅ Tìm course
                 var course = await _courseRepository.AsQueryable()
                     .Include(c => c.Chapters)
                         .ThenInclude(ch => ch.Exercises)
@@ -499,44 +456,28 @@ namespace AESP.Service.Implementation
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học để xoá.");
 
-                // ✅ Lấy danh sách tất cả question
-                var questions = course.Chapters
-                    .SelectMany(c => c.Exercises)
-                    .SelectMany(e => e.Questions)
-                    .ToList();
+                // ✅ RÀNG BUỘC: Không cho phép xóa nếu có Chapter
+                // (nếu muốn “xóa cứng toàn bộ 3 tầng” thì dùng quyền admin riêng)
+                if (course.Chapters != null && course.Chapters.Any())
+                {
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Không thể xoá khóa học '{course.Title}' vì vẫn còn {course.Chapters.Count} chương.");
+                }
 
-                if (questions.Any())
-                    await _questionRepository.DeleteRange(questions);
-
-                // ✅ Lấy danh sách exercise
-                var exercises = course.Chapters
-                    .SelectMany(c => c.Exercises)
-                    .ToList();
-
-                if (exercises.Any())
-                    await _exerciseRepository.DeleteRange(exercises);
-
-                // ✅ Lấy danh sách chapter
-                var chapters = course.Chapters.ToList();
-
-                if (chapters.Any())
-                    await _chapterRepository.DeleteRange(chapters);
-
-                // ✅ Cuối cùng xóa course
+                // ✅ Nếu không có Chapter nào thì xóa Course
                 await _courseRepository.Delete(course);
-
                 await _unitOfWork.SaveChangeAsync();
 
                 return new ResponseDTO
                 {
                     IsSucess = true,
                     BusinessCode = BusinessCode.DELETE_SUCESSFULLY,
-                    Message = "Xoá khóa học đầy đủ thành công."
+                    Message = "Xoá khóa học thành công."
                 };
             }
             catch (Exception ex)
             {
-                return Fail(BusinessCode.EXCEPTION, "Không thể xoá khóa học đầy đủ: " + ex.Message);
+                return Fail(BusinessCode.EXCEPTION, "Không thể xoá khóa học: " + ex.Message);
             }
         }
 

@@ -20,48 +20,52 @@ namespace AESP.API.Controllers.ManagerController
             _exerciseService = exerciseService;
         }
 
-        // ✅ GET ALL
         [HttpGet]
         public async Task<IActionResult> GetAllExercises(
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10,
-            [FromQuery] Guid? chapterId = null,
-            [FromQuery] string? keyword = null)
+          [FromQuery] int pageNumber = 1,
+          [FromQuery] int pageSize = 10,
+          [FromQuery] Guid? chapterId = null,
+          [FromQuery] string? keyword = null)
         {
-            var response = await _exerciseService.GetAllExercisesAsync(pageNumber, pageSize, chapterId, keyword);
-            return Ok(response);
+            var result = await _exerciseService.GetAllExercisesAsync(pageNumber, pageSize, chapterId, keyword);
+            return StatusFromResult(result);
         }
 
-        // ✅ GET BY ID
+      
         [HttpGet("{id}")]
         public async Task<IActionResult> GetExerciseById(Guid id)
         {
-            var response = await _exerciseService.GetExerciseByIdAsync(id);
-            return Ok(response);
+            var result = await _exerciseService.GetExerciseByIdAsync(id);
+            return StatusFromResult(result);
         }
 
-        // ✅ CREATE
-        [HttpPost]
-        public async Task<IActionResult> CreateExercise([FromBody] CreateExerciseDTO dto)
+
+        // 🔹 CREATE (truyền chapterId qua path)
+        // ============================================================
+        [HttpPost("exercises/{chapterId}")]
+        public async Task<IActionResult> CreateExercise(Guid chapterId, [FromBody] CreateExerciseDTO dto)
         {
-            var response = await _exerciseService.CreateExerciseAsync(dto);
-            return Ok(response);
+            var result = await _exerciseService.CreateExerciseAsync(chapterId, dto);
+            return StatusFromResult(result);
         }
 
-        // ✅ UPDATE
-        [HttpPut("{id}")]
+        // ============================================================
+        // 🔹 UPDATE
+        // ============================================================
+        [HttpPut("exercises/{id}")]
         public async Task<IActionResult> UpdateExercise(Guid id, [FromBody] UpdateExerciseDTO dto)
         {
-            var response = await _exerciseService.UpdateExerciseAsync(id, dto);
-            return Ok(response);
+            var result = await _exerciseService.UpdateExerciseAsync(id, dto);
+            return StatusFromResult(result);
         }
 
-        // ✅ DELETE
+
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteExercise(Guid id)
         {
-            var response = await _exerciseService.DeleteExerciseAsync(id);
-            return Ok(response);
+            var result = await _exerciseService.DeleteExerciseAsync(id);
+            return StatusFromResult(result);
         }
 
 
