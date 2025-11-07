@@ -11,9 +11,7 @@ namespace AESP.Common.DTOs
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public int NumberOfExercise { get; set; }
-        public Guid CourseId { get; set; }   // để biết chương thuộc khóa học nào
-
-        public List<CreateChapterExerciseDTO>? Exercises { get; set; }
+       
     }
 
     public class CreateChapterExerciseDTO
@@ -46,7 +44,6 @@ namespace AESP.Common.DTOs
         public int? NumberOfExercise { get; set; }
         public Guid CourseId { get; set; }
 
-        public List<UpdateChapterExerciseDTO>? Exercises { get; set; }
     }
 
     public class UpdateChapterExerciseDTO
@@ -113,8 +110,6 @@ namespace AESP.Common.DTOs
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public int NumberOfExercise { get; set; }
-        public Guid CourseId { get; set; }
-        public List<CreateSimpleExerciseDTO>? Exercises { get; set; }
     }
 
     public class CreateSimpleExerciseDTO
@@ -125,14 +120,14 @@ namespace AESP.Common.DTOs
         public int NumberOfQuestion { get; set; }
     }
 
-    // 🔹 UPDATE (gọn)
     public class UpdateSimpleChapterDTO
     {
         public string? Title { get; set; }
         public string? Description { get; set; }
         public int? NumberOfExercise { get; set; }
-        public List<UpdateSimpleExerciseDTO>? Exercises { get; set; }
+        public Guid CourseId { get; set; }
     }
+
 
     public class UpdateSimpleExerciseDTO
     {
