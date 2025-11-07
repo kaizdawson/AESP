@@ -131,15 +131,12 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.EXCEPTION, "Lỗi khi lấy câu hỏi: " + ex.Message);
             }
         }
-
-        // ---------------- CREATE ----------------
         public async Task<ResponseDTO> CreateQuestionsByExerciseIdAsync(Guid exerciseId, List<CreateQuestionDTO> requests)
         {
             try
             {
-                // --- VALIDATION ---
                 if (exerciseId == Guid.Empty)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "ExerciseId không được để trống.");
+                    return Fail(BusinessCode.VALIDATION_FAILED, "ExerciseId không hợp lệ.");
 
                 var exercise = await _exerciseRepository.GetById(exerciseId);
                 if (exercise == null)
@@ -148,93 +145,41 @@ namespace AESP.Service.Implementation
                 if (requests == null || !requests.Any())
                     return Fail(BusinessCode.VALIDATION_FAILED, "Danh sách câu hỏi không được để trống.");
 
+                // 🔹 Tạo danh sách Question
+                var questions = new List<Question>();
                 int index = 1;
                 foreach (var req in requests)
                 {
                     if (req == null)
                         return Fail(BusinessCode.VALIDATION_FAILED, $"Câu hỏi thứ {index} bị null.");
-
                     if (string.IsNullOrWhiteSpace(req.Text))
-                        return Fail(BusinessCode.VALIDATION_FAILED, $"Câu hỏi thứ {index}: 'Text' không được để trống.");
-
+                        return Fail(BusinessCode.VALIDATION_FAILED, $"Câu hỏi thứ {index}: Text không được để trống.");
                     if (!Enum.IsDefined(typeof(QuestionType), req.Type))
-                        return Fail(BusinessCode.VALIDATION_FAILED, $"Câu hỏi thứ {index}: 'Type' không hợp lệ.");
+                        return Fail(BusinessCode.VALIDATION_FAILED, $"Câu hỏi thứ {index}: Type không hợp lệ.");
 
-                    if (req.OrderIndex < 0)
-                        return Fail(BusinessCode.VALIDATION_FAILED, $"Câu hỏi thứ {index}: 'OrderIndex' phải ≥ 0.");
-
-                    if (string.IsNullOrWhiteSpace(req.PhonemeJson))
-                        return Fail(BusinessCode.VALIDATION_FAILED, $"Câu hỏi thứ {index}: 'PhonemeJson' không được để trống.");
-
-                    if (req.Media != null && req.Media.Any())
-                    {
-                        int mediaIndex = 1;
-                        foreach (var m in req.Media)
-                        {
-                            if (string.IsNullOrWhiteSpace(m.Accent))
-                                return Fail(BusinessCode.VALIDATION_FAILED,
-                                    $"Câu hỏi {index}, Media {mediaIndex}: 'Accent' không được để trống.");
-
-                            if (string.IsNullOrWhiteSpace(m.AudioURL) &&
-                                string.IsNullOrWhiteSpace(m.VideoURL) &&
-                                string.IsNullOrWhiteSpace(m.ImageURL))
-                                return Fail(BusinessCode.VALIDATION_FAILED,
-                                    $"Câu hỏi {index}, Media {mediaIndex}: ít nhất 1 trong 3 URL (Audio, Video, Image) phải có giá trị.");
-
-                            mediaIndex++;
-                        }
-                    }
-
-                    index++;
-                }
-
-                // --- TẠO DANH SÁCH QUESTION + MEDIA ---
-                var questions = new List<Question>();
-                var medias = new List<QuestionMedia>();
-
-                foreach (var req in requests)
-                {
-                    var question = new Question
+                    questions.Add(new Question
                     {
                         QuestionId = Guid.NewGuid(),
                         ExerciseId = exerciseId,
                         Text = req.Text.Trim(),
-                        Type = req.Type.ToString(), // enum → string
+                        Type = req.Type.ToString(),
                         OrderIndex = req.OrderIndex,
-                        PhonemeJson = req.PhonemeJson.Trim()
-                    };
+                        PhonemeJson = req.PhonemeJson?.Trim() ?? string.Empty
+                    });
 
-                    questions.Add(question);
-
-                    if (req.Media != null && req.Media.Any())
-                    {
-                        medias.AddRange(req.Media.Select(m => new QuestionMedia
-                        {
-                            QuestionMediaId = Guid.NewGuid(),
-                            QuestionId = question.QuestionId,
-                            Accent = m.Accent.Trim(),
-                            AudioUrl = m.AudioURL ?? "",
-                            VideoUrl = m.VideoURL ?? "",
-                            ImageUrl = m.ImageURL ?? "",
-                            Source = m.Source ?? ""
-                        }));
-                    }
+                    index++;
                 }
 
                 await _questionRepository.InsertRange(questions);
-                if (medias.Any())
-                    await _mediaRepository.InsertRange(medias);
                 await _unitOfWork.SaveChangeAsync();
 
-                // --- LOAD LẠI QUESTIONS ---
-                var context = _questionRepository.GetDbContext();
-                var createdQuestions = await context.Questions
-                    .Include(q => q.QuestionMedias)
+                // 🔹 Load lại danh sách để trả về
+                var created = await _questionRepository.AsQueryable()
                     .Where(q => q.ExerciseId == exerciseId)
                     .OrderBy(q => q.OrderIndex)
                     .ToListAsync();
 
-                var dto = createdQuestions.Select(q => new ReadQuestionDTO
+                var dto = created.Select(q => new ReadQuestionDTO
                 {
                     QuestionId = q.QuestionId,
                     ExerciseId = q.ExerciseId,
@@ -242,15 +187,7 @@ namespace AESP.Service.Implementation
                     Type = q.Type,
                     OrderIndex = q.OrderIndex,
                     PhonemeJson = q.PhonemeJson,
-                    Media = q.QuestionMedias?.Select(m => new ReadQuestionMediaDTO
-                    {
-                        QuestionMediaId = m.QuestionMediaId,
-                        Accent = m.Accent,
-                        AudioURL = m.AudioUrl,
-                        VideoURL = m.VideoUrl,
-                        ImageURL = m.ImageUrl,
-                        Source = m.Source
-                    }).ToList()
+                    Media = new List<ReadQuestionMediaDTO>() // luôn trả về mảng rỗng
                 }).ToList();
 
                 return new ResponseDTO
@@ -263,95 +200,52 @@ namespace AESP.Service.Implementation
             }
             catch (Exception ex)
             {
-                var inner = ex.InnerException?.Message ?? "";
-                return Fail(BusinessCode.EXCEPTION, $"Không thể tạo câu hỏi: {ex.Message} | {inner}");
+                return Fail(BusinessCode.EXCEPTION, "Không thể tạo câu hỏi: " + ex.Message);
             }
         }
-        // ---------------- UPDATE ----------------
+
+
         public async Task<ResponseDTO> UpdateQuestionAsync(Guid id, UpdateQuestionDTO request)
         {
             try
             {
                 if (request == null)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu đầu vào không được để trống.");
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu đầu vào không hợp lệ.");
 
-                var question = await _questionRepository.GetFirstByExpression(
-                    x => x.QuestionId == id,
-                    x => x.QuestionMedias
-                );
-
+                var question = await _questionRepository.GetById(id);
                 if (question == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy câu hỏi cần cập nhật.");
 
-                // --- VALIDATION FIELD ---
-                if (request.Text != null && string.IsNullOrWhiteSpace(request.Text))
+                // 🔹 Validation cơ bản
+                if (string.IsNullOrWhiteSpace(request.Text))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Text không được để trống.");
-
                 if (request.Type.HasValue && !Enum.IsDefined(typeof(QuestionType), request.Type.Value))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Type không hợp lệ.");
-
                 if (request.OrderIndex.HasValue && request.OrderIndex.Value < 0)
                     return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex không hợp lệ.");
 
-                // --- UPDATE MAIN ---
-                if (!string.IsNullOrWhiteSpace(request.Text))
-                    question.Text = request.Text.Trim();
-
+                // 🔹 Cập nhật các field
+                question.Text = request.Text.Trim();
                 if (request.Type.HasValue)
                     question.Type = request.Type.Value.ToString();
-
                 if (request.OrderIndex.HasValue)
                     question.OrderIndex = request.OrderIndex.Value;
-
                 if (!string.IsNullOrWhiteSpace(request.PhonemeJson))
                     question.PhonemeJson = request.PhonemeJson.Trim();
 
                 await _questionRepository.Update(question);
                 await _unitOfWork.SaveChangeAsync();
 
-                // --- UPDATE MEDIA ---
-                if (request.Media != null && request.Media.Any())
-                {
-                    foreach (var m in request.Media)
-                    {
-                        var existingMedia = question.QuestionMedias.FirstOrDefault(x => x.QuestionMediaId == m.QuestionMediaId);
-                        if (existingMedia == null)
-                            return Fail(BusinessCode.DATA_NOT_FOUND, $"Không tìm thấy media ID {m.QuestionMediaId}");
-
-                        existingMedia.Accent = m.Accent.Trim();
-                        existingMedia.AudioUrl = m.AudioURL;
-                        existingMedia.VideoUrl = m.VideoURL;
-                        existingMedia.ImageUrl = m.ImageURL;
-                        existingMedia.Source = m.Source;
-
-                        await _mediaRepository.Update(existingMedia);
-                    }
-                    await _unitOfWork.SaveChangeAsync();
-                }
-
-                // --- LOAD LẠI FULL DATA ---
-                var updated = await _questionRepository.GetFirstByExpression(
-                    x => x.QuestionId == question.QuestionId,
-                    x => x.QuestionMedias
-                );
-
+                // 🔹 Trả về DTO (không có Media)
                 var dto = new ReadQuestionDTO
                 {
-                    QuestionId = updated.QuestionId,
-                    ExerciseId = updated.ExerciseId,
-                    Text = updated.Text,
-                    Type = updated.Type,
-                    OrderIndex = updated.OrderIndex,
-                    PhonemeJson = updated.PhonemeJson,
-                    Media = updated.QuestionMedias?.Select(m => new ReadQuestionMediaDTO
-                    {
-                        QuestionMediaId = m.QuestionMediaId,
-                        Accent = m.Accent,
-                        AudioURL = m.AudioUrl,
-                        VideoURL = m.VideoUrl,
-                        ImageURL = m.ImageUrl,
-                        Source = m.Source
-                    }).ToList()
+                    QuestionId = question.QuestionId,
+                    ExerciseId = question.ExerciseId,
+                    Text = question.Text,
+                    Type = question.Type,
+                    OrderIndex = question.OrderIndex,
+                    PhonemeJson = question.PhonemeJson,
+                    Media = new List<ReadQuestionMediaDTO>() // luôn rỗng
                 };
 
                 return new ResponseDTO
@@ -367,6 +261,9 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.EXCEPTION, "Không thể cập nhật câu hỏi: " + ex.Message);
             }
         }
+
+
+
 
 
         public async Task<ResponseDTO> DeleteQuestionAsync(Guid id)

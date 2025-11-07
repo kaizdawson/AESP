@@ -3,27 +3,20 @@ using System.Collections.Generic;
 
 namespace AESP.Common.DTOs
 {
-    // ============================================================
-    // 🔹 CREATE
-    // ============================================================
     public class CreateExerciseDTO
     {
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
         public int NumberOfQuestion { get; set; }
-        public Guid ChapterId { get; set; }
-
-        // ✅ Có thể tạo luôn danh sách câu hỏi
-        public List<CreateExerciseQuestionDTO>? Questions { get; set; }
     }
+
 
     public class CreateExerciseQuestionDTO
     {
         public string Text { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
-        public string IPA { get; set; } = string.Empty;
         public string PhonemeJson { get; set; } = string.Empty;
     }
 
@@ -36,8 +29,6 @@ namespace AESP.Common.DTOs
         public string? Description { get; set; }
         public int? OrderIndex { get; set; }
         public int? NumberOfQuestion { get; set; }
-
-        public List<UpdateExerciseQuestionDTO>? Questions { get; set; }
     }
 
     public class UpdateExerciseQuestionDTO
@@ -46,7 +37,6 @@ namespace AESP.Common.DTOs
         public string? Text { get; set; }
         public string? Type { get; set; }
         public int? OrderIndex { get; set; }
-        public string? IPA { get; set; }
         public string? PhonemeJson { get; set; }
     }
 
@@ -71,7 +61,6 @@ namespace AESP.Common.DTOs
         public string Text { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
-        public string IPA { get; set; } = string.Empty;
         public string PhonemeJson { get; set; } = string.Empty;
     }
 }

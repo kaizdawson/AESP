@@ -18,19 +18,16 @@ namespace AESP.Common.DTOs
         public QuestionType Type { get; set; }
         public int OrderIndex { get; set; }
         public string PhonemeJson { get; set; } = string.Empty;
-
-        public List<CreateQuestionMediaDTO>? Media { get; set; }
     }
+
 
     // ---------------- UPDATE ----------------
     public class UpdateQuestionDTO
     {
-        public string? Text { get; set; }
+        public string Text { get; set; } = string.Empty;
         public QuestionType? Type { get; set; }
         public int? OrderIndex { get; set; }
         public string? PhonemeJson { get; set; }
-
-        public List<UpdateQuestionMediaDTO>? Media { get; set; }
     }
 
     // ---------------- READ ----------------
