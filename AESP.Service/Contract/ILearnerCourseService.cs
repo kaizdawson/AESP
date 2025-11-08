@@ -12,5 +12,7 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> EnrollAsync(Guid learnerId, Guid courseId);
         Task<ResponseDTO> UnenrollAsync(Guid learnerId, Guid courseId);
         Task<ResponseDTO> UpdateProgressAsync(Guid learnerId, Guid courseId, double progress);
+        Task<ResponseDTO> GetFullCoursesByLevelAsync(string level, string? keyword = null);
+
     }
 }
