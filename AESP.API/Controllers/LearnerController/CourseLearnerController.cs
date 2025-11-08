@@ -23,19 +23,31 @@ namespace AESP.API.Controllers.LearnerController
             _learnerCourseService = learnerCourseService;
         }
 
-        // ============================================================
-        // 🔹 Lấy danh sách khóa học theo Level hiện tại của Learner
-        // ============================================================
-        [HttpGet("level")]
-        public async Task<IActionResult> LearnerGetLevel(
-            [FromQuery] string? level,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10,
-            [FromQuery] string? keyword = null)
+        //// ============================================================
+        //// 🔹 Lấy danh sách khóa học theo Level hiện tại của Learner
+        //// ============================================================
+        //[HttpGet("level")]
+        //public async Task<IActionResult> LearnerGetLevel(
+        //    [FromQuery] string? level,
+        //    [FromQuery] int pageNumber = 1,
+        //    [FromQuery] int pageSize = 10,
+        //    [FromQuery] string? keyword = null)
+        //{
+        //    var result = await _courseService.GetAllCourseAsync(pageNumber, pageSize, level, keyword);
+        //    return Ok(result);
+        //}
+
+
+
+        [HttpGet("level/full")]
+        public async Task<IActionResult> GetFullCoursesByLevel(
+     [FromQuery] string level,
+     [FromQuery] string? keyword = null)
         {
-            var result = await _courseService.GetAllCourseAsync(pageNumber, pageSize, level, keyword);
-            return Ok(result);
+            var result = await _learnerCourseService.GetFullCoursesByLevelAsync(level, keyword);
+            return HandleResult(result);
         }
+
 
         // ============================================================
         // 🔹 Xem chi tiết 1 khóa học (bao gồm Chapter / Exercise / Question)
