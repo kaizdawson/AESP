@@ -80,7 +80,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(60)
+                Expires = DateTime.UtcNow.AddDays(7)
             });
 
             return Ok(new
@@ -254,7 +254,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(60)
+                Expires = DateTime.UtcNow.AddDays(7)
             });
 
             return Ok(new
@@ -285,7 +285,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(60)
+                Expires = DateTime.UtcNow.AddDays(7)
             });
 
 
