@@ -90,8 +90,9 @@ namespace AESP.API.Controllers.LearnerController
         {
             Guid learnerId = Guid.Parse(User.Claims.First(x => x.Type == "sub").Value);
             var result = await _learnerCourseService.UnenrollAsync(learnerId, courseId);
-            return Ok(result);
+            return HandleResult(result);
         }
+
 
 
 
