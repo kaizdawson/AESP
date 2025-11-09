@@ -20,10 +20,10 @@ namespace AESP.API.Controllers.AdminController
 
         //  Lấy danh sách reviewer chờ duyệt
         [HttpGet("pending")]
-        public async Task<IActionResult> GetPendingReviewers([FromQuery] int pageNumber, [FromQuery] int pageSize)
+        public async Task<IActionResult> GetPendingReviewers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var result = await _adminReviewerService.GetPendingReviewersAsync(pageNumber, pageSize);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         //  Duyệt reviewer
@@ -31,7 +31,7 @@ namespace AESP.API.Controllers.AdminController
         public async Task<IActionResult> ApproveReviewer(Guid certificateId)
         {
             var result = await _adminReviewerService.ApproveReviewerByCertificateAsync(certificateId);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         //  Từ chối reviewer
@@ -39,7 +39,7 @@ namespace AESP.API.Controllers.AdminController
         public async Task<IActionResult> RejectReviewer(Guid certificateId)
         {
             var result = await _adminReviewerService.RejectReviewerByCertificateAsync(certificateId);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
         [HttpGet("active")]
         public async Task<IActionResult> GetActiveReviewers(
@@ -49,13 +49,13 @@ namespace AESP.API.Controllers.AdminController
     [FromQuery] string? filterStatus = "Actived")
         {
             var result = await _adminReviewerService.GetActiveReviewersAsync(search, pageNumber, pageSize, filterStatus);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
         [HttpGet("{reviewerProfileId}/detail")]
         public async Task<IActionResult> GetReviewerDetail(Guid reviewerProfileId)
         {
             var result = await _adminReviewerService.GetReviewerDetailAsync(reviewerProfileId);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
         [HttpPut("ban/{userId}")]
         public async Task<IActionResult> BanReviewer(Guid userId, [FromBody] BanReasonDTO body)
@@ -64,7 +64,7 @@ namespace AESP.API.Controllers.AdminController
                 return BadRequest(new { Message = "Lý do chặn không được để trống." });
 
             var result = await _adminReviewerService.BanReviewerAsync(userId, body.Reason.Trim());
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
 }
