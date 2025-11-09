@@ -1,7 +1,9 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Common.Helpers;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
+using System.Text;
 
 namespace AESP.Service.Implementation
 {
@@ -83,16 +85,22 @@ namespace AESP.Service.Implementation
 
         public async Task<(bool Success, string Message)> CreateManagerAsync(CreateManagerDto dto)
         {
-            // Kiểm tra trùng email hoặc phone
             var existingUser = await _userRepository.GetByExpression(u =>
-                u.Email == dto.Email || u.PhoneNumber == dto.PhoneNumber);
+         u.Email == dto.Email || u.PhoneNumber == dto.PhoneNumber);
 
             if (existingUser != null)
                 return (false, "Email hoặc số điện thoại này đã tồn tại trong hệ thống.");
 
-            // Hash mật khẩu (đơn giản hóa, có thể thay bằng bcrypt)
+            // password gốc
+            string plainPassword = dto.Password;
+
+            // hash cho login
             using var sha = System.Security.Cryptography.SHA256.Create();
-            string hashedPassword = Convert.ToBase64String(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(dto.Password)));
+            string hashedPassword = Convert.ToBase64String(
+                sha.ComputeHash(Encoding.UTF8.GetBytes(plainPassword)));
+
+            // mã hoá để admin xem
+            string encryptedPassword = AesEncryptionHelper.Encrypt(plainPassword);
 
             var user = new User
             {
@@ -101,6 +109,7 @@ namespace AESP.Service.Implementation
                 Email = dto.Email,
                 PhoneNumber = dto.PhoneNumber,
                 PasswordHash = hashedPassword,
+                EncryptedPassword = encryptedPassword, // ✅ thêm dòng này
                 Role = "MANAGER",
                 Status = "Active"
             };

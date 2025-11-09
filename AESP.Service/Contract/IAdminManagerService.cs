@@ -11,6 +11,8 @@ namespace AESP.Service.Contract
     {
         Task<ResponseDTO> GetManagersAsync(string? search, int pageNumber, int pageSize);
         Task<ResponseDTO> GetManagerDetailAsync(Guid userId);
+        Task<ResponseDTO> UpdateManagerAsync(Guid userId, UpdateManagerDto dto);
+
 
     }
 }
