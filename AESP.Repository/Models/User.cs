@@ -21,7 +21,7 @@ namespace AESP.Repository.Models
         public string Role { get; set; } = string.Empty;
 
         public int CoinBalance { get; set; } = 0;
-
+        public string? EncryptedPassword { get; set; }
         public DateTime? LastActiveAt { get; set; }
         public virtual LearnerProfile LearnerProfile { get; set; }
         public virtual ReviewerProfile ReviewerProfile { get; set; }
