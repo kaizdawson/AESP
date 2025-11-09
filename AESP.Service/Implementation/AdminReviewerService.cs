@@ -323,10 +323,11 @@ Trân trọng,
             {
                 var dbContext = _reviewerProfileRepository.GetDbContext();
 
+                // ✅ Bỏ lỗi khi có space hoặc khác hoa thường
                 var query = dbContext.ReviewerProfiles
                     .Include(x => x.User)
                     .Include(x => x.Certificates)
-                    .Where(x => x.Status == "Pending");
+                    .Where(x => x.Status.Trim().ToLower() == "pending");
 
                 var reviewers = await query
                     .Skip((pageNumber - 1) * pageSize)
