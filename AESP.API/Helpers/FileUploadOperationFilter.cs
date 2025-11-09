@@ -7,6 +7,9 @@ namespace AESP.API.Helpers
     {
         public void Apply(OpenApiOperation operation, OperationFilterContext context)
         {
+            var controllerName = context.ApiDescription.ActionDescriptor.RouteValues["controller"];
+            if (controllerName == null || !controllerName.Contains("Certificate"))
+                return;
             // Kiểm tra xem endpoint có dùng IFormFile không
             var hasFileParam = context.ApiDescription.ParameterDescriptions
                 .Any(p => p.ModelMetadata?.ModelType == typeof(IFormFile));

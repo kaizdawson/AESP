@@ -22,19 +22,22 @@ namespace AESP.Service.Implementation
         private readonly IUnitOfWork _unitOfWork;
         private readonly IEmailService _emailService;
         private readonly IGenericRepository<Notification> _notificationRepository;
+        private readonly IGenericRepository<LearningPathCourse> _learningPathCourseRepository;
 
         public AdminLearnerService(
-            IGenericRepository<User> userRepository,
-            IGenericRepository<LearnerProfile> learnerProfileRepository,
-            IGenericRepository<Feedback> feedbackRepository,
+             IGenericRepository<User> userRepository,
+             IGenericRepository<LearnerProfile> learnerProfileRepository,
+             IGenericRepository<Feedback> feedbackRepository,
              IGenericRepository<Notification> notificationRepository,
-            IUnitOfWork unitOfWork,
-            IEmailService emailService)
+             IGenericRepository<LearningPathCourse> learningPathCourseRepository,
+             IUnitOfWork unitOfWork,
+             IEmailService emailService)
         {
             _userRepository = userRepository;
             _learnerProfileRepository = learnerProfileRepository;
             _feedbackRepository = feedbackRepository;
             _notificationRepository = notificationRepository;
+            _learningPathCourseRepository = learningPathCourseRepository;
             _unitOfWork = unitOfWork;
             _emailService = emailService;
         }
@@ -164,219 +167,232 @@ Trân trọng,
             return dto;
         }
 
-        //public async Task<ResponseDTO> GetActiveLearnersAsync(string? search, int pageNumber, int pageSize, string? filterStatus)
-        //{
-        //    var dto = new ResponseDTO();
-        //    try
-        //    {
-        //        var db = _learnerProfileRepository.GetDbContext();
+        public async Task<ResponseDTO> GetActiveLearnersAsync(string? search, int pageNumber, int pageSize, string? filterStatus)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                var db = _learnerProfileRepository.GetDbContext();
 
-        //        var query = db.LearnerProfiles
-        //            .Include(l => l.User)
-        //            .Include(l => l.LearnerCourses)
-        //            .AsQueryable();
+                // --- B1: Query danh sách học viên ---
+                var learnersQuery = db.LearnerProfiles
+                    .Include(l => l.User)
+                    .AsQueryable();
 
-        //        if (!string.IsNullOrWhiteSpace(search))
-        //        {
-        //            var keyword = search.Trim().ToLower();
-        //            query = query.Where(l =>
-        //                l.User.FullName.ToLower().Contains(keyword) ||
-        //                l.User.Email.ToLower().Contains(keyword) ||
-        //                l.User.PhoneNumber.Contains(keyword));
-        //        }
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var keyword = search.Trim().ToLower();
+                    learnersQuery = learnersQuery.Where(l =>
+                        l.User.FullName.ToLower().Contains(keyword) ||
+                        l.User.Email.ToLower().Contains(keyword) ||
+                        l.User.PhoneNumber.Contains(keyword));
+                }
 
-        //        // Load course meta 1 lần, tránh query lặp
-        //        var courseMetas = await db.Courses
-        //            .Select(c => new { c.OrderIndex, c.Title, c.Price, c.Duration })
-        //            .ToListAsync();
+                var learners = await learnersQuery.ToListAsync();
+                var learnerIds = learners.Select(l => l.LearnerProfileId).ToList();
 
-        //        var now = DateTime.UtcNow;
+                // --- B2: Lấy tất cả LearnerCourse của các học viên ---
+                var learnerCourses = await db.LearnerCourses
+                    .Where(lc => learnerIds.Contains(lc.LearnerProfileId))
+                    .ToListAsync();
 
-        //        // EF không hiểu helper → chuyển ra memory sau khi đã filter đủ
-        //        var learners = await query.ToListAsync();
+                // --- B3: Lấy tất cả LearningPathCourse có liên quan ---
+                var learnerCourseIds = learnerCourses.Select(lc => lc.LearnerCourseId).ToList();
+                var learningPathCourses = await db.LearningPathCourses
+                    .Include(lp => lp.Course)
+                    .Where(lp => learnerCourseIds.Contains(lp.LearnerCourseId))
+                    .ToListAsync();
 
-        //        var mapped = learners.Select(l =>
-        //        {
-        //            var daysInactive = (now - (l.User.LastActiveAt ?? l.User.CreatedAt)).TotalDays;
-        //            var userStatus = l.User.IsDeleted ? "Banned" : (daysInactive > 30 ? "Inactive" : "Active");
+                var now = DateTime.UtcNow;
 
-        //            // Khóa đang học (Enrolled) mới là “current”
-        //            var current = l.LearnerCourses
-        //                .Where(c => StatusHelper.EqualsCourseStatus(c.Status, CourseStatus.Enrolled))
-        //                .OrderByDescending(c => c.GeneratedDate)
-        //                .FirstOrDefault();
+                // --- B4: Mapping dữ liệu trả về ---
+                var mapped = learners.Select(l =>
+                {
+                    var daysInactive = (now - (l.User.LastActiveAt ?? l.User.CreatedAt)).TotalDays;
+                    var userStatus = l.User.IsDeleted ? "Banned" :
+                                     (daysInactive > 30 ? "Inactive" : "Active");
 
-        //            ReadLearnerCourseDTOS? currentDto = null;
-        //            if (current != null)
-        //            {
-        //                var meta = courseMetas.FirstOrDefault(m => m.OrderIndex == current.NumberOfCourse);
-        //                currentDto = new ReadLearnerCourseDTOS
-        //                {
-        //                    LearnerCourseId = current.LearnerCourseId,
-        //                    NumberOfCourse = current.NumberOfCourse,
-        //                    Status = StatusHelper.ToCourseStatus(current.Status),
-        //                    Progress = current.Progress,
-        //                    Title = meta?.Title ?? $"Course #{current.NumberOfCourse}",
-        //                    Price = meta?.Price ?? 0,
-        //                    Duration = meta?.Duration ?? 0,
-        //                    StartTime = current.GeneratedDate,
-        //                    EndTime = current.GeneratedDate.AddDays(meta?.Duration ?? 0)
-        //                };
-        //            }
+                    // 🔹 Lấy tất cả LearnerCourseId của học viên này
+                    var learnerCourseIdsOfLearner = learnerCourses
+                        .Where(x => x.LearnerProfileId == l.LearnerProfileId)
+                        .Select(x => x.LearnerCourseId)
+                        .ToList();
 
-        //            return new
-        //            {
-        //                l.LearnerProfileId,
-        //                FullName = l.User.FullName,
-        //                Email = l.User.Email,
-        //                Phone = l.User.PhoneNumber,
-        //                Level = l.Level,
-        //                PronunciationScore = l.PronunciationScore,
-        //                Status = userStatus,
-        //                JoinDate = l.User.CreatedAt,
-        //                LastActiveAt = l.User.LastActiveAt,
+                    // 🔹 Lấy tất cả LearningPathCourse liên quan
+                    var lpOfLearner = learningPathCourses
+                        .Where(lp => learnerCourseIdsOfLearner.Contains(lp.LearnerCourseId))
+                        .ToList();
 
-        //                // Tối giản cho list
-        //                CurrentCourseTitle = currentDto?.Title ?? "(Chưa ghi danh khóa nào)",
-        //                CurrentCourseStatus = currentDto?.Status.ToString() ?? "-",
-        //                CurrentCourseStart = currentDto?.StartTime,
-        //                CurrentCourseEnd = currentDto?.EndTime
-        //            };
-        //        });
+                    // 🔹 Xác định khóa học hiện tại (Pending hoặc Enrolled)
+                    var currentLp = lpOfLearner
+                        .Where(lp =>
+                            StatusHelper.EqualsCourseStatus(lp.Status, CourseStatus.Pending) ||
+                            StatusHelper.EqualsCourseStatus(lp.Status, CourseStatus.Enrolled))
+                        .OrderByDescending(lp => lp.OrderIndex)
+                        .FirstOrDefault();
 
-        //        if (!string.IsNullOrWhiteSpace(filterStatus))
-        //            mapped = mapped.Where(m => string.Equals(m.Status, filterStatus, StringComparison.OrdinalIgnoreCase));
+                    return new
+                    {
+                        l.LearnerProfileId,
+                        FullName = l.User.FullName,
+                        Email = l.User.Email,
+                        Phone = l.User.PhoneNumber,
+                        Level = l.Level,
+                        PronunciationScore = l.PronunciationScore,
+                        Status = userStatus,
+                        JoinDate = l.User.CreatedAt,
+                        LastActiveAt = l.User.LastActiveAt,
+                        CurrentCourseTitle = currentLp?.Course?.Title ?? "(Chưa học khóa nào)",
+                        CurrentCourseStatus = currentLp != null
+                             ? StatusHelper.ToCourseStatus(currentLp.Status).ToString()
+                             : "-",
+                        CurrentCourseProgress = currentLp?.Progress ?? 0
+                    };
+                });
 
-        //        mapped = mapped
-        //            .OrderBy(m => m.Status == "Banned" ? 3 : m.Status == "Inactive" ? 2 : 1)
-        //            .ThenBy(m => m.FullName);
+                // --- B5: Lọc theo trạng thái (Active / Banned / Inactive) ---
+                if (!string.IsNullOrWhiteSpace(filterStatus))
+                    mapped = mapped.Where(m => string.Equals(m.Status, filterStatus, StringComparison.OrdinalIgnoreCase));
 
-        //        var total = mapped.Count();
-        //        var items = mapped.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+                // --- B6: Phân trang ---
+                var total = mapped.Count();
+                var items = mapped
+                    .OrderBy(m => m.Status == "Banned" ? 3 : m.Status == "Inactive" ? 2 : 1)
+                    .ThenBy(m => m.FullName)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
 
-        //        dto.IsSucess = true;
-        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-        //        dto.Message = "Lấy danh sách người học thành công.";
-        //        dto.Data = new { PageNumber = pageNumber, PageSize = pageSize, TotalItems = total, Items = items };
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        dto.IsSucess = false;
-        //        dto.BusinessCode = BusinessCode.EXCEPTION;
-        //        dto.Message = "Lỗi khi lấy danh sách người học: " + ex.Message;
-        //    }
-        //    return dto;
-        //}
+                // --- B7: Kết quả ---
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách học viên thành công.";
+                dto.Data = new { PageNumber = pageNumber, PageSize = pageSize, TotalItems = total, Items = items };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy danh sách học viên: " + ex.Message;
+            }
 
-        // ============================================================
-        // ✅ 3️⃣ Chi tiết học viên (Profile + Course Progress + Pronunciation)
-        // ============================================================
-        //public async Task<ResponseDTO> GetLearnerDetailAsync(Guid learnerProfileId)
-        //{
-        //    var dto = new ResponseDTO();
+            return dto;
+        }
 
-        //    try
-        //    {
-        //        var db = _learnerProfileRepository.GetDbContext();
+         //============================================================
+         //✅ 3️⃣ Chi tiết học viên(Profile + Course Progress + Pronunciation)
+         //============================================================
+        public async Task<ResponseDTO> GetLearnerDetailAsync(Guid learnerProfileId)
+        {
+            var dto = new ResponseDTO();
 
-        //        // --- B1: Load learner + các quan hệ cần thiết ---
-        //        var learner = await db.LearnerProfiles
-        //            .Include(l => l.User)
-        //            .Include(l => l.LearnerCourses)
-        //            .Include(l => l.Assessments)
-        //            .FirstOrDefaultAsync(l => l.LearnerProfileId == learnerProfileId);
+            try
+            {
+                var db = _learnerProfileRepository.GetDbContext();
 
-        //        if (learner == null)
-        //        {
-        //            return new ResponseDTO
-        //            {
-        //                IsSucess = false,
-        //                BusinessCode = BusinessCode.DATA_NOT_FOUND,
-        //                Message = "Không tìm thấy người học."
-        //            };
-        //        }
+                // --- B1: Load learner + quan hệ cần thiết ---
+                var learner = await db.LearnerProfiles
+                    .Include(l => l.User)
+                    .Include(l => l.LearnerCourses)
+                    .Include(l => l.Assessments)
+                    .FirstOrDefaultAsync(l => l.LearnerProfileId == learnerProfileId);
 
+                if (learner == null)
+                {
+                    return new ResponseDTO
+                    {
+                        IsSucess = false,
+                        BusinessCode = BusinessCode.DATA_NOT_FOUND,
+                        Message = "Không tìm thấy người học."
+                    };
+                }
 
-        //        var courseMetas = await db.Courses
-        //   .Select(c => new { c.OrderIndex, c.Title, c.Price, c.Duration })
-        //   .ToListAsync();
+                // --- B2: Lấy danh sách tất cả LearningPathCourse của học viên ---
+                var learnerCourseIds = learner.LearnerCourses.Select(lc => lc.LearnerCourseId).ToList();
 
-        //        // Xác định course hiện tại = Enrolled mới là “đang học”
-        //        var current = learner.LearnerCourses
-        //            .Where(c => StatusHelper.EqualsCourseStatus(c.Status, CourseStatus.Enrolled))
-        //            .OrderByDescending(c => c.GeneratedDate)
-        //            .FirstOrDefault();
+                var learningPathCourses = await db.LearningPathCourses
+                    .Include(lp => lp.Course)
+                    .Where(lp => learnerCourseIds.Contains(lp.LearnerCourseId))
+                    .ToListAsync();
 
-        //        ReadLearnerCourseDTOS? currentDto = null;
-        //        if (current != null)
-        //        {
-        //            var meta = courseMetas.FirstOrDefault(m => m.OrderIndex == current.NumberOfCourse);
-        //            currentDto = new ReadLearnerCourseDTOS
-        //            {
-        //                LearnerCourseId = current.LearnerCourseId,
-        //                NumberOfCourse = current.NumberOfCourse,
-        //                Status = StatusHelper.ToCourseStatus(current.Status),
-        //                Progress = current.Progress,
-        //                Title = meta?.Title ?? $"Course #{current.NumberOfCourse}",
-        //                Price = meta?.Price ?? 0,
-        //                Duration = meta?.Duration ?? 0,
-        //                StartTime = current.GeneratedDate,
-        //                EndTime = current.GeneratedDate.AddDays(meta?.Duration ?? 0)
-        //            };
-        //        }
+                // --- B3: Xác định khóa học hiện tại ---
+                var currentLp = learningPathCourses
+                    .Where(lp => StatusHelper.InCourseStatus(lp.Status, CourseStatus.Pending, CourseStatus.Enrolled))
+                    .OrderByDescending(lp => lp.OrderIndex)
+                    .FirstOrDefault();
 
-        //        // Danh sách đã hoàn thành
-        //        var completedDtos = learner.LearnerCourses
-        //            .Where(c => StatusHelper.EqualsCourseStatus(c.Status, CourseStatus.Completed))
-        //            .OrderByDescending(c => c.GeneratedDate)
-        //            .Select(c =>
-        //            {
-        //                var meta = courseMetas.FirstOrDefault(m => m.OrderIndex == c.NumberOfCourse);
-        //                return new ReadLearnerCourseDTOS
-        //                {
-        //                    LearnerCourseId = c.LearnerCourseId,
-        //                    NumberOfCourse = c.NumberOfCourse,
-        //                    Status = CourseStatus.Completed,
-        //                    Progress = c.Progress,
-        //                    Title = meta?.Title ?? $"Course #{c.NumberOfCourse}",
-        //                    Price = meta?.Price ?? 0,
-        //                    Duration = meta?.Duration ?? 0,
-        //                    StartTime = c.GeneratedDate,
-        //                    EndTime = c.GeneratedDate.AddDays(meta?.Duration ?? 0)
-        //                };
-        //            })
-        //            .ToList();
+                ReadLearnerCourseDTOS? currentDto = null;
+                if (currentLp != null)
+                {
+                    var course = currentLp.Course;
+                    currentDto = new ReadLearnerCourseDTOS
+                    {
+                        Status = StatusHelper.ToCourseStatus(currentLp.Status),
+                        Progress = currentLp.Progress,
+                        Title = course?.Title ?? "(Không rõ)",
+                        Price = course?.Price ?? 0,
+                        Duration = course?.Duration ?? 0,
+                        // ✅ Lấy thời gian học dựa theo tài khoản học viên
+                        StartTime = learner.User.CreatedAt,
+                        EndTime = learner.User.CreatedAt.AddDays(course?.Duration ?? 0)
+                    };
+                }
 
-        //        var result = new ReadLearnerDetailDTO
-        //        {
-        //            LearnerProfileId = learner.LearnerProfileId,
-        //            FullName = learner.User.FullName,
-        //            Email = learner.User.Email,
-        //            PhoneNumber = learner.User.PhoneNumber,
-        //            Level = learner.Level,
-        //            PronunciationScore = learner.PronunciationScore,
-        //            DailyMinutes = learner.DailyMinutes,
-        //            Status = learner.User.IsDeleted ? "Banned" : learner.User.Status,
-        //            JoinDate = learner.User.CreatedAt,
-        //            LastActiveAt = learner.User.LastActiveAt,
-        //            CurrentCourse = currentDto,
-        //            CompletedCourses = completedDtos,
-        //            AssessmentCount = learner.Assessments.Count,
-        //            AvgScore = learner.Assessments.Any() ? learner.Assessments.Average(a => a.Score) : 0
-        //        };
+                // --- B4: Danh sách khóa học đã hoàn thành ---
+                var completedDtos = learningPathCourses
+                    .Where(lp => StatusHelper.EqualsCourseStatus(lp.Status, CourseStatus.Completed))
+                    .OrderBy(lp => lp.OrderIndex)
+                    .Select(lp => new ReadLearnerCourseDTOS
+                    {
+                        Status = CourseStatus.Completed,
+                        Progress = lp.Progress,
+                        Title = lp.Course?.Title ?? "(Không rõ)",
+                        Price = lp.Course?.Price ?? 0,
+                        Duration = lp.Course?.Duration ?? 0,
+                        // ✅ Học viên hoàn thành cũng tính thời gian theo tài khoản của họ
+                        StartTime = learner.User.CreatedAt,
+                        EndTime = learner.User.CreatedAt.AddDays(lp.Course?.Duration ?? 0)
+                    })
+                    .ToList();
+                var allCourses = new List<ReadLearnerCourseDTOS>();
 
-        //        dto.IsSucess = true;
-        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-        //        dto.Message = "Lấy chi tiết người học thành công.";
-        //        dto.Data = result;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        dto.IsSucess = false;
-        //        dto.BusinessCode = BusinessCode.EXCEPTION;
-        //        dto.Message = "Lỗi khi lấy chi tiết người học: " + ex.Message;
-        //    }
-        //    return dto;
-        //}
+                if (currentDto != null)
+                    allCourses.Add(currentDto);
+
+                if (completedDtos.Any())
+                    allCourses.AddRange(completedDtos);
+
+                // --- B5: Tổng hợp dữ liệu ---
+                var result = new ReadLearnerDetailDTO
+                {
+                    LearnerProfileId = learner.LearnerProfileId,
+                    FullName = learner.User.FullName,
+                    Email = learner.User.Email,
+                    PhoneNumber = learner.User.PhoneNumber,
+                    Level = learner.Level,
+                    PronunciationScore = learner.PronunciationScore,
+                    DailyMinutes = learner.DailyMinutes,
+                    Status = learner.User.IsDeleted ? "Banned" : learner.User.Status,
+                    JoinDate = learner.User.CreatedAt,
+                    LastActiveAt = learner.User.LastActiveAt,
+                    Courses = allCourses,
+                    AssessmentCount = learner.Assessments.Count,
+                    AvgScore = learner.Assessments.Any() ? learner.Assessments.Average(a => a.Score) : 0
+                };
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy chi tiết người học thành công.";
+                dto.Data = result;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy chi tiết người học: " + ex.Message;
+            }
+
+            return dto;
+        }
     }
 }

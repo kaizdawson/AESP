@@ -9,8 +9,8 @@ namespace AESP.Common.DTOs
 {
     public class ReadLearnerCourseDTOS
     {
-        public Guid LearnerCourseId { get; set; }
-        public int NumberOfCourse { get; set; }
+       
+       
         public CourseStatus Status { get; set; }   // <-- enum cho FE
         public double Progress { get; set; }
 
@@ -35,10 +35,7 @@ namespace AESP.Common.DTOs
         public DateTime? LastActiveAt { get; set; }
 
         // Khóa học hiện tại (nếu có)
-        public ReadLearnerCourseDTOS? CurrentCourse { get; set; }
-
-        // Các khóa đã hoàn thành
-        public List<ReadLearnerCourseDTOS> CompletedCourses { get; set; } = new();
+        public List<ReadLearnerCourseDTOS> Courses { get; set; } = new();
 
         // Thống kê
         public int AssessmentCount { get; set; }
