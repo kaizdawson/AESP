@@ -101,6 +101,7 @@ builder.Services.AddScoped<IAuthQueryRepository, AuthQueryRepository>();
 builder.Services.AddScoped<IAuthQueryService, AuthQueryService>();
 builder.Services.AddScoped<ICoinService, CoinService>();
 builder.Services.AddScoped<ILearnerCourseService, LearnerCourseService>();
+builder.Services.AddScoped<ILearningPathCourseService, LearningPathCourseService>();
 
 builder.Services.AddScoped<IQuestionMediaService, QuestionMediaService>();
 

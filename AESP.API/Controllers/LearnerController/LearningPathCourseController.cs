@@ -1,0 +1,116 @@
+﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
+using AESP.Service.Contract;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+
+namespace AESP.API.Controllers.LearningPathCourseController
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize(Roles = "LEARNER")]
+    public class LearningPathCourseController : ControllerBase
+    {
+        private readonly ILearningPathCourseService _service;
+
+        public LearningPathCourseController(ILearningPathCourseService service)
+        {
+            _service = service;
+        }
+
+       
+        [HttpGet("learner-course/{learnerCourseId}")]
+        public async Task<IActionResult> GetAll(Guid learnerCourseId)
+        {
+            var result = await _service.GetAllAsync(learnerCourseId);
+            return StatusFromResult(result);
+        }
+
+        
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var result = await _service.GetByIdAsync(id);
+            return StatusFromResult(result);
+        }
+
+     
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateLearningPathCourseDTO dto)
+        {
+            if (dto == null)
+                return BadRequest(new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.INVALID_INPUT,
+                    Message = "Dữ liệu đầu vào không hợp lệ."
+                });
+
+            var result = await _service.CreateAsync(dto);
+            return StatusFromResult(result);
+        }
+
+     
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateLearningPathCourseDTO dto)
+        {
+            if (dto == null)
+                return BadRequest(new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.INVALID_INPUT,
+                    Message = "Dữ liệu đầu vào không hợp lệ."
+                });
+
+            var result = await _service.UpdateAsync(id, dto);
+            return StatusFromResult(result);
+        }
+
+       
+     
+       
+        private IActionResult StatusFromResult(ResponseDTO result)
+        {
+            if (result == null)
+                return StatusCode(500, new { message = "Không có phản hồi từ server." });
+
+            return result.BusinessCode switch
+            {
+                // ❌ 400 – Dữ liệu không hợp lệ, trùng lặp, hành động sai
+                BusinessCode.VALIDATION_FAILED or
+                BusinessCode.VALIDATION_ERROR or
+                BusinessCode.INVALID_INPUT or
+                BusinessCode.INVALID_DATA or
+                BusinessCode.INVALID_ACTION or
+                BusinessCode.DUPLICATE_DATA
+                    => BadRequest(result),
+
+                // 🚫 401 – Không có quyền
+                BusinessCode.AUTH_NOT_FOUND or BusinessCode.ACCESS_DENIED
+                    => Unauthorized(result),
+
+                // 🔍 404 – Không tìm thấy
+                BusinessCode.DATA_NOT_FOUND
+                    => NotFound(result),
+
+                // 💥 500 – Lỗi hệ thống
+                BusinessCode.EXCEPTION or BusinessCode.INTERNAL_ERROR
+                    => StatusCode(500, result),
+
+                // ✅ 201 – Tạo thành công
+                BusinessCode.INSERT_SUCESSFULLY or BusinessCode.CREATED_SUCCESSFULLY
+                    => StatusCode(StatusCodes.Status201Created, result),
+
+                // ✅ 200 – Cập nhật, xóa, lấy dữ liệu thành công
+                BusinessCode.GET_DATA_SUCCESSFULLY or
+                BusinessCode.UPDATE_SUCESSFULLY or
+                BusinessCode.DELETE_SUCESSFULLY
+                    => Ok(result),
+
+                // Mặc định 200 OK
+                _ => Ok(result)
+            };
+        }
+    }
+}
