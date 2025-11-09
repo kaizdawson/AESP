@@ -27,6 +27,39 @@ namespace AESP.Service.Implementation
             _uow = uow;
         }
 
+        public async Task<ResponseDTO> UpdateAvatarAsync(Guid userId, IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return new ResponseDTO { IsSucess = false, BusinessCode = BusinessCode.INVALID_INPUT, Message = "File không hợp lệ." };
+
+            var user = await _userRepo.GetById(userId);
+            if (user == null)
+                return new ResponseDTO { IsSucess = false, BusinessCode = BusinessCode.DATA_NOT_FOUND, Message = "Không tìm thấy người dùng." };
+
+            //  Nếu user đã có avatar, ta có thể ghi đè hoặc xóa cũ nếu muốn
+            var upload = await _cloudinary.UploadFileAsync(file, "avatars");
+            if (!upload.IsSuccess)
+                return new ResponseDTO { IsSucess = false, BusinessCode = BusinessCode.EXCEPTION, Message = upload.Message };
+
+            user.AvatarUrl = upload.Url;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userRepo.Update(user);
+            await _uow.SaveChangeAsync();
+
+            return new ResponseDTO
+            {
+                IsSucess = true,
+                BusinessCode = BusinessCode.UPDATE_SUCESSFULLY,
+                Message = "Cập nhật ảnh đại diện thành công.",
+                Data = new
+                {
+                    user.UserId,
+                    user.FullName,
+                    user.AvatarUrl
+                }
+            };
+        }
+
         public async Task<ResponseDTO> UploadAvatarAsync(Guid userId, IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -48,8 +81,8 @@ namespace AESP.Service.Implementation
             return new ResponseDTO
             {
                 IsSucess = true,
-                BusinessCode = BusinessCode.UPDATE_SUCESSFULLY,
-                Message = "Cập nhật avatar thành công.",
+                BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
+                Message = "Tải lên ảnh đại diện thành công.",
                 Data = new { user.UserId, user.AvatarUrl }
             };
         }

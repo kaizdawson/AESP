@@ -29,5 +29,16 @@ namespace AESP.API.Controllers.Controller
             var result = await _avatarService.UploadAvatarAsync(Guid.Parse(userIdClaim), dto.File);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
+        [HttpPut("avatar")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateAvatar([FromForm] UploadAvatarFileDto dto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null)
+                return Unauthorized(new { message = "Không xác định được người dùng từ token." });
+
+            var result = await _avatarService.UpdateAvatarAsync(Guid.Parse(userIdClaim), dto.File);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
     }
 }

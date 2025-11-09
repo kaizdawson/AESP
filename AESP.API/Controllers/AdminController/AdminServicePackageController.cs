@@ -23,14 +23,14 @@ namespace AESP.API.Controllers.AdminController
         public async Task<IActionResult> GetAllActive()
         {
             var result = await _service.GetAllActiveAsync();
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
         
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] string? search)
         {
             var result = await _service.GetAllAsync(search);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         [HttpPost]
@@ -57,7 +57,7 @@ namespace AESP.API.Controllers.AdminController
             }
 
             var result = await _service.CreateAsync(dto);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         [HttpPut("{id}")]
@@ -85,21 +85,21 @@ namespace AESP.API.Controllers.AdminController
             }
 
             var result = await _service.UpdateAsync(id, dto);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _service.DeleteAsync(id);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         [HttpPatch("{id}/toggle-status")]
         public async Task<IActionResult> ToggleStatus(Guid id)
         {
             var result = await _service.ToggleStatusAsync(id);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         [HttpPatch("{id}/bonus")]
@@ -121,7 +121,7 @@ namespace AESP.API.Controllers.AdminController
             }
 
             var result = await _service.UpdateBonusPercentAsync(id, dto);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
 
