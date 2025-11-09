@@ -23,7 +23,7 @@ namespace AESP.API.Controllers.ReviewerController
         public async Task<IActionResult> GetProfile(Guid userId)
         {
             var result = await _reviewerProfileService.GetProfileResponseByUserIdAsync(userId);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         // ✅ UPDATE PROFILE
@@ -47,7 +47,7 @@ namespace AESP.API.Controllers.ReviewerController
             }
 
             var result = await _reviewerProfileService.UpdateProfileAsync(userId, dto);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
 }

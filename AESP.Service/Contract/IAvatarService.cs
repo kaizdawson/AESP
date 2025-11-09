@@ -11,5 +11,6 @@ namespace AESP.Service.Contract
     public interface IAvatarService
     {
         Task<ResponseDTO> UploadAvatarAsync(Guid userId, IFormFile file);
+        Task<ResponseDTO> UpdateAvatarAsync(Guid userId, IFormFile file);
     }
 }
