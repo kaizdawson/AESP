@@ -15,17 +15,20 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<LearningPathCourse> _repo;
         private readonly IGenericRepository<Course> _courseRepo;
         private readonly IGenericRepository<LearnerCourse> _learnerCourseRepo;
+        private readonly IGenericRepository<LearnerProfile> _learnerProfileRepo;
         private readonly IUnitOfWork _unitOfWork;
 
         public LearningPathCourseService(
             IGenericRepository<LearningPathCourse> repo,
             IGenericRepository<Course> courseRepo,
             IGenericRepository<LearnerCourse> learnerCourseRepo,
+            IGenericRepository<LearnerProfile> learnerProfileRepo,
             IUnitOfWork unitOfWork)
         {
             _repo = repo;
             _courseRepo = courseRepo;
             _learnerCourseRepo = learnerCourseRepo;
+            _learnerProfileRepo = learnerProfileRepo;
             _unitOfWork = unitOfWork;
         }
 
@@ -55,13 +58,7 @@ namespace AESP.Service.Implementation
                 .OrderBy(x => x.OrderIndex)
                 .ToListAsync();
 
-            return new ResponseDTO
-            {
-                IsSucess = true,
-                BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
-                Message = "Lấy danh sách khóa học trong lộ trình thành công.",
-                Data = data
-            };
+            return Success(BusinessCode.GET_DATA_SUCCESSFULLY, "Lấy danh sách khóa học trong lộ trình thành công.", data);
         }
 
         // ============================================================
@@ -74,14 +71,7 @@ namespace AESP.Service.Implementation
                 .FirstOrDefaultAsync(x => x.LearningPathCourseId == id);
 
             if (entity == null)
-            {
-                return new ResponseDTO
-                {
-                    IsSucess = false,
-                    BusinessCode = BusinessCode.DATA_NOT_FOUND,
-                    Message = "Không tìm thấy khóa học trong lộ trình."
-                };
-            }
+                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trong lộ trình.");
 
             var dto = new ReadLearningPathCourseDTO
             {
@@ -95,13 +85,7 @@ namespace AESP.Service.Implementation
                 OrderIndex = entity.OrderIndex
             };
 
-            return new ResponseDTO
-            {
-                IsSucess = true,
-                BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
-                Message = "Lấy chi tiết khóa học trong lộ trình thành công.",
-                Data = dto
-            };
+            return Success(BusinessCode.GET_DATA_SUCCESSFULLY, "Lấy chi tiết khóa học trong lộ trình thành công.", dto);
         }
 
         // ============================================================
@@ -112,12 +96,7 @@ namespace AESP.Service.Implementation
             try
             {
                 if (dto.LearnerCourseId == Guid.Empty || dto.CourseId == Guid.Empty)
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        BusinessCode = BusinessCode.VALIDATION_FAILED,
-                        Message = "Thiếu thông tin khóa học hoặc lộ trình học viên."
-                    };
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Thiếu thông tin khóa học hoặc lộ trình học viên.");
 
                 var learnerCourse = await _learnerCourseRepo.AsQueryable()
                     .Include(lc => lc.LearnerProfile)
@@ -125,58 +104,37 @@ namespace AESP.Service.Implementation
                     .FirstOrDefaultAsync(lc => lc.LearnerCourseId == dto.LearnerCourseId);
 
                 if (learnerCourse == null)
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        BusinessCode = BusinessCode.DATA_NOT_FOUND,
-                        Message = "Không tìm thấy lộ trình học của học viên."
-                    };
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học của học viên.");
 
                 var course = await _courseRepo.GetById(dto.CourseId);
                 if (course == null)
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        BusinessCode = BusinessCode.DATA_NOT_FOUND,
-                        Message = "Không tìm thấy khóa học."
-                    };
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
 
                 int orderIndex = course.OrderIndex;
 
-                var exists = await _repo.AsQueryable()
-                    .AnyAsync(x => x.LearnerCourseId == dto.LearnerCourseId && x.CourseId == dto.CourseId);
-                if (exists)
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        BusinessCode = BusinessCode.DUPLICATE_DATA,
-                        Message = "Khóa học này đã có trong lộ trình."
-                    };
+                // Kiểm tra trùng course hoặc orderindex
+                if (await _repo.AsQueryable().AnyAsync(x =>
+                    x.LearnerCourseId == dto.LearnerCourseId && x.CourseId == dto.CourseId))
+                    return Fail(BusinessCode.DUPLICATE_DATA, "Khóa học này đã có trong lộ trình.");
 
-                var duplicateOrder = await _repo.AsQueryable()
-                    .AnyAsync(x => x.LearnerCourseId == dto.LearnerCourseId && x.OrderIndex == orderIndex);
-                if (duplicateOrder)
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        BusinessCode = BusinessCode.DUPLICATE_DATA,
-                        Message = $"OrderIndex {orderIndex} đã được sử dụng trong lộ trình này."
-                    };
+                // ✅ Sửa chỗ này - chỉ check trùng OrderIndex trong cùng level
+                if (await _repo.AsQueryable()
+                    .Include(x => x.Course)
+                    .AnyAsync(x => x.LearnerCourseId == dto.LearnerCourseId
+                                && x.OrderIndex == orderIndex
+                                && x.Course.Level == course.Level))
+                    return Fail(BusinessCode.DUPLICATE_DATA,
+                        $"OrderIndex {orderIndex} đã được sử dụng trong level {course.Level} này.");
 
+
+                // Kiểm tra khóa trước đã completed chưa
                 if (orderIndex > 1)
                 {
-                    var prev = await _repo.AsQueryable()
-                        .FirstOrDefaultAsync(x =>
-                            x.LearnerCourseId == dto.LearnerCourseId &&
-                            x.OrderIndex == orderIndex - 1);
+                    var prev = await _repo.AsQueryable().FirstOrDefaultAsync(x =>
+                        x.LearnerCourseId == dto.LearnerCourseId && x.OrderIndex == orderIndex - 1);
 
                     if (prev == null || !string.Equals(prev.Status, "Completed", StringComparison.OrdinalIgnoreCase))
-                        return new ResponseDTO
-                        {
-                            IsSucess = false,
-                            BusinessCode = BusinessCode.INVALID_ACTION,
-                            Message = "Bạn cần hoàn thành khóa học trước đó trước khi mở khóa tiếp theo."
-                        };
+                        return Fail(BusinessCode.INVALID_ACTION, "Bạn cần hoàn thành khóa học trước đó trước khi mở khóa tiếp theo.");
                 }
 
                 var levelCourses = await _courseRepo.AsQueryable()
@@ -191,12 +149,7 @@ namespace AESP.Service.Implementation
                 {
                     int price = (int)Math.Round(course.Price);
                     if (learnerUser.CoinBalance < price)
-                        return new ResponseDTO
-                        {
-                            IsSucess = false,
-                            BusinessCode = BusinessCode.INVALID_ACTION,
-                            Message = "Không đủ xu để mở khóa học này."
-                        };
+                        return Fail(BusinessCode.INVALID_ACTION, "Không đủ xu để mở khóa học này.");
 
                     learnerUser.CoinBalance -= price;
                     _courseRepo.GetDbContext().Set<User>().Update(learnerUser);
@@ -220,30 +173,19 @@ namespace AESP.Service.Implementation
                     ? "Mở khóa học miễn phí đầu tiên trong level thành công."
                     : "Mở khóa học thành công. Đã trừ xu tương ứng.";
 
-                return new ResponseDTO
+                return Success(BusinessCode.INSERT_SUCESSFULLY, message, new
                 {
-                    IsSucess = true,
-                    BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
-                    Message = message,
-                    Data = new
-                    {
-                        entity.LearningPathCourseId,
-                        entity.LearnerCourseId,
-                        entity.CourseId,
-                        entity.OrderIndex,
-                        entity.Status,
-                        RemainingCoins = learnerUser.CoinBalance
-                    }
-                };
+                    entity.LearningPathCourseId,
+                    entity.LearnerCourseId,
+                    entity.CourseId,
+                    entity.OrderIndex,
+                    entity.Status,
+                    RemainingCoins = learnerUser.CoinBalance
+                });
             }
             catch (Exception ex)
             {
-                return new ResponseDTO
-                {
-                    IsSucess = false,
-                    BusinessCode = BusinessCode.EXCEPTION,
-                    Message = "Lỗi khi mở khóa học trong lộ trình: " + ex.Message
-                };
+                return Fail(BusinessCode.EXCEPTION, "Lỗi khi mở khóa học trong lộ trình: " + ex.Message);
             }
         }
 
@@ -256,86 +198,93 @@ namespace AESP.Service.Implementation
                 .Include(x => x.Course)
                 .Include(x => x.LearnerCourse)
                     .ThenInclude(lc => lc.LearnerProfile)
-                        .ThenInclude(lp => lp.User)
                 .FirstOrDefaultAsync(x => x.LearningPathCourseId == id);
 
             if (entity == null)
-            {
-                return new ResponseDTO
-                {
-                    IsSucess = false,
-                    BusinessCode = BusinessCode.DATA_NOT_FOUND,
-                    Message = "Không tìm thấy khóa học trong lộ trình."
-                };
-            }
+                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trong lộ trình.");
 
             if (dto.OrderIndex <= 0)
-                return new ResponseDTO
-                {
-                    IsSucess = false,
-                    BusinessCode = BusinessCode.VALIDATION_FAILED,
-                    Message = "Thứ tự (OrderIndex) phải lớn hơn 0."
-                };
+                return Fail(BusinessCode.VALIDATION_FAILED, "Thứ tự (OrderIndex) phải lớn hơn 0.");
 
             var duplicateOrder = await _repo.AsQueryable()
-                .AnyAsync(x =>
-                    x.LearnerCourseId == entity.LearnerCourseId &&
-                    x.OrderIndex == dto.OrderIndex &&
-                    x.LearningPathCourseId != entity.LearningPathCourseId);
+     .Include(x => x.Course)
+     .AnyAsync(x =>
+         x.LearnerCourseId == entity.LearnerCourseId &&
+         x.OrderIndex == dto.OrderIndex &&
+         x.Course.Level == entity.Course.Level && // chỉ check trùng trong cùng level
+         x.LearningPathCourseId != entity.LearningPathCourseId);
+
             if (duplicateOrder)
-                return new ResponseDTO
-                {
-                    IsSucess = false,
-                    BusinessCode = BusinessCode.DUPLICATE_DATA,
-                    Message = $"OrderIndex {dto.OrderIndex} đã được sử dụng trong lộ trình này."
-                };
+                return Fail(BusinessCode.DUPLICATE_DATA,
+                    $"OrderIndex {dto.OrderIndex} đã được sử dụng trong level {entity.Course.Level} này.");
+
 
             if (dto.Progress.HasValue)
             {
                 if (dto.Progress.Value < 0 || dto.Progress.Value > 100)
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        BusinessCode = BusinessCode.VALIDATION_FAILED,
-                        Message = "Progress phải nằm trong khoảng 0 - 100."
-                    };
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Progress phải nằm trong khoảng 0 - 100.");
                 entity.Progress = dto.Progress.Value;
             }
 
-            var allowedStatuses = new[] { "NotStarted", "InProgress", "Completed" };
+            var allowedStatuses = new[] { "NotStarted", "Enrolled", "InProgress", "Completed" };
             if (!string.IsNullOrEmpty(dto.Status))
             {
                 if (!allowedStatuses.Contains(dto.Status))
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        BusinessCode = BusinessCode.INVALID_DATA,
-                        Message = $"Trạng thái '{dto.Status}' không hợp lệ."
-                    };
+                    return Fail(BusinessCode.INVALID_DATA, $"Trạng thái '{dto.Status}' không hợp lệ.");
+
                 entity.Status = dto.Status;
             }
 
             entity.OrderIndex = dto.OrderIndex;
 
+            // ✅ Nếu học xong (Completed) → kiểm tra qua level
+            if (entity.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+            {
+                var learner = entity.LearnerCourse.LearnerProfile;
+                var currentLevel = entity.Course.Level;
+
+                var levelCourses = await _courseRepo.AsQueryable()
+                    .Where(c => c.Level == currentLevel)
+                    .Select(c => c.CourseId)
+                    .ToListAsync();
+
+                var completedCount = await _repo.AsQueryable()
+                    .CountAsync(lp => lp.LearnerCourse.LearnerProfileId == learner.LearnerProfileId
+                                   && lp.Status.ToLower() == "completed"
+                                   && levelCourses.Contains(lp.CourseId));
+
+                if (completedCount == levelCourses.Count && levelCourses.Count > 0)
+                {
+                    string[] levels = { "A1", "A2", "B1", "B2", "C1", "C2" };
+                    int idx = Array.IndexOf(levels, learner.Level);
+                    if (idx >= 0 && idx < levels.Length - 1)
+                    {
+                        learner.Level = levels[idx + 1];
+                        await _learnerProfileRepo.Update(learner);
+                    }
+                }
+            }
+
             await _repo.Update(entity);
             await _unitOfWork.SaveChangeAsync();
 
-            return new ResponseDTO
+            return Success(BusinessCode.UPDATE_SUCESSFULLY, "Cập nhật khóa học trong lộ trình thành công.", new
             {
-                IsSucess = true,
-                BusinessCode = BusinessCode.UPDATE_SUCESSFULLY,
-                Message = "Cập nhật khóa học trong lộ trình thành công.",
-                Data = new
-                {
-                    entity.LearningPathCourseId,
-                    entity.CourseId,
-                    entity.OrderIndex,
-                    entity.Status,
-                    entity.Progress
-                }
-            };
+                entity.LearningPathCourseId,
+                entity.CourseId,
+                entity.OrderIndex,
+                entity.Status,
+                entity.Progress
+            });
         }
 
-     
+        // ============================================================
+        // 🔹 Helper
+        // ============================================================
+        private static ResponseDTO Success(BusinessCode code, string msg, object? data = null)
+            => new ResponseDTO { IsSucess = true, BusinessCode = code, Message = msg, Data = data };
+
+        private static ResponseDTO Fail(BusinessCode code, string msg)
+            => new ResponseDTO { IsSucess = false, BusinessCode = code, Message = msg };
     }
 }
