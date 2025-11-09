@@ -33,13 +33,13 @@ namespace AESP.API.Controllers.ManagerController
             return Ok(response);
         }
 
-        // ✅ GET BY ID
         [HttpGet("{id}")]
         public async Task<IActionResult> GetChapterById(Guid id)
         {
             var response = await _chapterService.GetChapterByIdAsync(id);
-            return Ok(response);
+            return StatusFromResult(response);
         }
+
 
         // ============================================================
         // 🔹 CREATE (truyền courseId qua path)
