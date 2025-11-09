@@ -17,9 +17,9 @@ namespace AESP.Repository.Models
         public Guid LearnerProfileId { get; set; }
 
         public DateTime GeneratedDate { get; set; }
-        public string Status { get; set; } = string.Empty;
+       
         public int NumberOfCourse { get; set; }
-        public double Progress { get; set; }
+
 
         public virtual LearnerProfile LearnerProfile { get; set; }
     }
