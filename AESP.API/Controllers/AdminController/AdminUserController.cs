@@ -22,7 +22,7 @@ namespace AESP.API.Controllers.AdminController
         public async Task<IActionResult> GetUsersByRole(string roleName)
         {
             var result = await _adminUserService.GetUsersByRoleAsync(roleName);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         //  GET chi tiết user theo ID
@@ -30,7 +30,7 @@ namespace AESP.API.Controllers.AdminController
         public async Task<IActionResult> GetUserDetail(Guid userId)
         {
             var result = await _adminUserService.GetUserDetailAsync(userId);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
 }
