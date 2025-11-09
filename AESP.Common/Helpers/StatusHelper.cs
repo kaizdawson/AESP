@@ -14,6 +14,7 @@ namespace AESP.Common.Helpers
             {
                 ["Pending"] = CourseStatus.Pending,
                 ["Enrolled"] = CourseStatus.Enrolled,
+                ["Active"] = CourseStatus.Enrolled,
                 ["Completed"] = CourseStatus.Completed,
                 ["Expired"] = CourseStatus.Expired,
                 ["Cancelled"] = CourseStatus.Cancelled

@@ -27,7 +27,7 @@ namespace AESP.API.Controllers.ReviewerController
         public async Task<IActionResult> GetCertificates(Guid reviewerProfileId)
         {
             var result = await _certificateService.GetByReviewerProfileIdAsync(reviewerProfileId);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         //  UPLOAD FILE — /api/reviewer/certificates/upload/{profileId}
@@ -50,7 +50,7 @@ namespace AESP.API.Controllers.ReviewerController
                 return BadRequest(new { message = "Tên chứng chỉ không được để trống." });
 
             var result = await _certificateService.UploadCertificateAsync(reviewerProfile.ReviewerProfileId, file, name.Trim());
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         //  DELETE — /api/reviewer/certificates/{certificateId}
@@ -58,7 +58,7 @@ namespace AESP.API.Controllers.ReviewerController
         public async Task<IActionResult> DeleteCertificate(Guid certificateId)
         {
             var result = await _certificateService.DeleteAsync(certificateId);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
 }
