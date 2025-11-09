@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class Course 
+    public class Course : BaseEntity
     {
         [Key]
         public Guid CourseId { get; set; }
@@ -22,7 +22,8 @@ namespace AESP.Repository.Models
 
         public decimal Price { get; set; } = 0;
 
-
+        [Range(1, 365, ErrorMessage = "Thời lượng phải từ 1 đến 365 ngày.")]
+        public int Duration { get; set; }
         public virtual ICollection<Chapter> Chapters { get; set; }
         public virtual ICollection<LearningPathCourse> LearningPathCourses { get; set; }
     }

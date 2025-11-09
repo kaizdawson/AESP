@@ -1,4 +1,5 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,13 +12,14 @@ namespace AESP.API.Controllers.AdminController
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;
+        private readonly IAdminManagerService _adminManagerService;
 
-        public AdminController(IAdminService adminService)
+        public AdminController(IAdminService adminService, IAdminManagerService adminManagerService)
         {
             _adminService = adminService;
+            _adminManagerService = adminManagerService;
         }
 
-        
         [HttpGet("accounts")]
         public async Task<IActionResult> GetAllAccounts()
         {
@@ -81,6 +83,27 @@ namespace AESP.API.Controllers.AdminController
                 return BadRequest(new { message = result.Message });
 
             return Ok(new { message = result.Message });
+        }
+        [HttpPut("update-manager")]
+        public async Task<IActionResult> UpdateManager(Guid userId, [FromBody] UpdateManagerDto dto)
+        {
+            if (!ModelState.IsValid)
+            {
+                var firstError = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .FirstOrDefault();
+
+                return BadRequest(new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.VALIDATION_FAILED,
+                    Message = firstError ?? "Dữ liệu không hợp lệ."
+                });
+            }
+
+            var result = await _adminManagerService.UpdateManagerAsync(userId, dto);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
 }
