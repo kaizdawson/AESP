@@ -32,7 +32,7 @@ namespace AESP.API.Controllers
 
             var result = await _feedbackService.AddFeedbackAsync(dto);
 
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
 
