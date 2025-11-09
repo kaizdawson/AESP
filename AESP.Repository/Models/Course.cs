@@ -24,7 +24,13 @@ namespace AESP.Repository.Models
 
         [Range(1, 365, ErrorMessage = "Thời lượng phải từ 1 đến 365 ngày.")]
         public int Duration { get; set; }
+
+        [Required]
+        [MaxLength(50)]
+        public string Status { get; set; } = "Active";
+
         public virtual ICollection<Chapter> Chapters { get; set; }
+
         public virtual ICollection<LearningPathCourse> LearningPathCourses { get; set; }
     }
 }
