@@ -18,18 +18,22 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<LearnerProfile> _learnerProfileRepo;
         private readonly IGenericRepository<Course> _courseRepo;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IGenericRepository<LearningPathCourse> _learningPathCourseRepo;
 
         public LearnerCourseService(
             IGenericRepository<LearnerCourse> learnerCourseRepo,
             IGenericRepository<LearnerProfile> learnerProfileRepo,
             IGenericRepository<Course> courseRepo,
+            IGenericRepository<LearningPathCourse> learningPathCourseRepo,
             IUnitOfWork unitOfWork)
         {
             _learnerCourseRepo = learnerCourseRepo;
             _learnerProfileRepo = learnerProfileRepo;
             _courseRepo = courseRepo;
+            _learningPathCourseRepo = learningPathCourseRepo;
             _unitOfWork = unitOfWork;
         }
+
 
         // ============================================================
         // 🔹 ENROLL COURSE
@@ -44,7 +48,7 @@ namespace AESP.Service.Implementation
             if (course == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
 
-            // Kiểm tra level hợp lệ
+            // ✅ Kiểm tra level hợp lệ
             string[] levelOrder = { "A1", "A2", "B1", "B2", "C1", "C2" };
             int learnerIndex = Array.IndexOf(levelOrder, learner.Level);
             int courseIndex = Array.IndexOf(levelOrder, course.Level);
@@ -53,28 +57,78 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.VALIDATION_FAILED,
                     $"Bạn chưa đủ điều kiện học Level {course.Level}. Hãy hoàn thành Level {learner.Level} trước.");
 
-            // Kiểm tra đã enroll chưa
-            var existed = await _learnerCourseRepo.GetFirstByExpression(x =>
-                x.LearnerProfileId == learner.LearnerProfileId && x.NumberOfCourse == course.OrderIndex);
-
-            if (existed != null)
-                return Fail(BusinessCode.VALIDATION_FAILED, "Bạn đã đăng ký khóa học này rồi.");
-
-            var entity = new LearnerCourse
+            // ✅ Lấy LearnerCourse (1-1)
+            var learnerCourse = await _learnerCourseRepo.GetFirstByExpression(x => x.LearnerProfileId == learner.LearnerProfileId);
+            if (learnerCourse == null)
             {
-                LearnerCourseId = Guid.NewGuid(),
-                LearnerProfileId = learner.LearnerProfileId,
-                GeneratedDate = DateTime.UtcNow,
-                NumberOfCourse = course.OrderIndex,
-                Progress = 0,
-                Status = LearnerCourseStatus.Enrolled.ToString()
-            };
+                learnerCourse = new LearnerCourse
+                {
+                    LearnerCourseId = Guid.NewGuid(),
+                    LearnerProfileId = learner.LearnerProfileId,
+                    GeneratedDate = DateTime.UtcNow,
+                    NumberOfCourse = course.OrderIndex
+                };
+                await _learnerCourseRepo.Insert(learnerCourse);
+            }
 
-            await _learnerCourseRepo.Insert(entity);
-            await _unitOfWork.SaveChangeAsync();
+            // ✅ Tìm LearningPathCourse hiện có
+            var lp = await _learningPathCourseRepo.GetFirstByExpression(x =>
+                x.LearnerCourseId == learnerCourse.LearnerCourseId &&
+                x.CourseId == course.CourseId);
 
-            return Success(BusinessCode.INSERT_SUCESSFULLY, $"Đăng ký khóa học {course.Title} thành công.");
+            // --- CHƯA TẠO KHÓA NÀO TRONG LỘ TRÌNH ---
+            if (lp == null)
+            {
+                // Tự tạo khóa học mới trong lộ trình (NotStarted → Enrolled)
+                var newLp = new LearningPathCourse
+                {
+                    LearningPathCourseId = Guid.NewGuid(),
+                    LearnerCourseId = learnerCourse.LearnerCourseId,
+                    CourseId = course.CourseId,
+                    OrderIndex = course.OrderIndex,
+                    NumberOfChapter = course.NumberOfChapter,
+                    Status = "Enrolled",
+                    Progress = 0
+                };
+
+                await _learningPathCourseRepo.Insert(newLp);
+                await _unitOfWork.SaveChangeAsync();
+                return Success(BusinessCode.INSERT_SUCESSFULLY, $"Đăng ký khóa học '{course.Title}' thành công.");
+            }
+
+            // --- ĐÃ TỒN TẠI KHÓA NÀY TRONG LỘ TRÌNH ---
+            if (lp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+            {
+                lp.Status = "ReEnrolled";
+                lp.Progress = 0;
+                await _learningPathCourseRepo.Update(lp);
+                await _unitOfWork.SaveChangeAsync();
+                return Success(BusinessCode.UPDATE_SUCESSFULLY, $"Đăng ký lại khóa học '{course.Title}' thành công.");
+            }
+
+            if (lp.Status.Equals("NotStarted", StringComparison.OrdinalIgnoreCase))
+            {
+                lp.Status = "Enrolled";
+                await _learningPathCourseRepo.Update(lp);
+                await _unitOfWork.SaveChangeAsync();
+                return Success(BusinessCode.UPDATE_SUCESSFULLY, $"Bắt đầu học khóa '{course.Title}' thành công.");
+            }
+
+            // --- Nếu đang học hoặc bị hủy ---
+            if (lp.Status.Equals("Enrolled", StringComparison.OrdinalIgnoreCase))
+                return Fail(BusinessCode.DUPLICATE_DATA, "Bạn đã đăng ký và đang học khóa này.");
+
+            if (lp.Status.Equals("Cancelled", StringComparison.OrdinalIgnoreCase))
+            {
+                lp.Status = "Enrolled";
+                await _learningPathCourseRepo.Update(lp);
+                await _unitOfWork.SaveChangeAsync();
+                return Success(BusinessCode.UPDATE_SUCESSFULLY, $"Khôi phục học lại khóa '{course.Title}' thành công.");
+            }
+
+            return Fail(BusinessCode.INVALID_ACTION, $"Không thể đăng ký khóa học ở trạng thái '{lp.Status}'.");
         }
+
 
         // ============================================================
         // 🔹 UNENROLL COURSE
@@ -85,18 +139,19 @@ namespace AESP.Service.Implementation
             if (learner == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
 
-            var course = await _courseRepo.GetById(courseId);
-            if (course == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
+            var learnerCourse = await _learnerCourseRepo.GetFirstByExpression(x => x.LearnerProfileId == learner.LearnerProfileId);
+            if (learnerCourse == null)
+                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học.");
 
-            var record = await _learnerCourseRepo.GetFirstByExpression(x =>
-                x.LearnerProfileId == learner.LearnerProfileId && x.NumberOfCourse == course.OrderIndex);
+            var record = await _learningPathCourseRepo.GetFirstByExpression(x =>
+                x.LearnerCourseId == learnerCourse.LearnerCourseId &&
+                x.CourseId == courseId);
 
             if (record == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Bạn chưa đăng ký khóa học này.");
 
-            record.Status = LearnerCourseStatus.Cancelled.ToString();
-            await _learnerCourseRepo.Update(record);
+            record.Status = "Cancelled";
+            await _learningPathCourseRepo.Update(record);
             await _unitOfWork.SaveChangeAsync();
 
             return Success(BusinessCode.DELETE_SUCESSFULLY, "Hủy đăng ký khóa học thành công.");
@@ -111,12 +166,13 @@ namespace AESP.Service.Implementation
             if (learner == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
 
-            var course = await _courseRepo.GetById(courseId);
-            if (course == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
+            var learnerCourse = await _learnerCourseRepo.GetFirstByExpression(x => x.LearnerProfileId == learner.LearnerProfileId);
+            if (learnerCourse == null)
+                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học.");
 
-            var record = await _learnerCourseRepo.GetFirstByExpression(x =>
-                x.LearnerProfileId == learner.LearnerProfileId && x.NumberOfCourse == course.OrderIndex);
+            var record = await _learningPathCourseRepo.GetFirstByExpression(x =>
+                x.LearnerCourseId == learnerCourse.LearnerCourseId &&
+                x.CourseId == courseId);
 
             if (record == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Bạn chưa đăng ký khóa học này.");
@@ -124,18 +180,19 @@ namespace AESP.Service.Implementation
             record.Progress = progress;
             if (progress >= 100)
             {
-                record.Status = LearnerCourseStatus.Completed.ToString();
+                record.Status = "Completed";
 
                 // tự nâng Level học viên
                 string[] order = { "A1", "A2", "B1", "B2", "C1", "C2" };
                 int index = Array.IndexOf(order, learner.Level);
                 if (index >= 0 && index < order.Length - 1)
+                {
                     learner.Level = order[index + 1];
-
-                await _learnerProfileRepo.Update(learner);
+                    await _learnerProfileRepo.Update(learner);
+                }
             }
 
-            await _learnerCourseRepo.Update(record);
+            await _learningPathCourseRepo.Update(record);
             await _unitOfWork.SaveChangeAsync();
 
             return Success(BusinessCode.UPDATE_SUCESSFULLY, "Cập nhật tiến độ học thành công.");

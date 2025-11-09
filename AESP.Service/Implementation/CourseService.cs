@@ -78,6 +78,8 @@ namespace AESP.Service.Implementation
                         OrderIndex = c.OrderIndex,
                         Level = c.Level,
                         Price = c.Price,
+                        Duration = c.Duration,
+                        Status = c.Status,
                         IsFree = isFree,
                         Chapters = c.Chapters?.Select(ch => new ReadCourseChapterForCourseDTO
                         {
@@ -154,6 +156,8 @@ namespace AESP.Service.Implementation
                     OrderIndex = course.OrderIndex,
                     Level = course.Level,
                     Price = course.Price,
+                    Duration = course.Duration,
+                    Status = course.Status,
                     IsFree = isFree,
                     Chapters = course.Chapters.Select(ch => new ReadCourseChapterForCourseDTO
                     {
@@ -324,9 +328,12 @@ namespace AESP.Service.Implementation
                 if (request.OrderIndex <= 0)
                     return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex phải lớn hơn 0.");
 
-
                 if (request.Price < 0)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Giá khóa học không thể âm.");
+
+                // ✅ Thêm validate Duration (1–365 ngày)
+                if (request.Duration <= 0 || request.Duration > 365)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Thời lượng học phải từ 1 đến 365 ngày.");
 
                 // ===== CHECK TRÙNG TITLE TRONG CÙNG LEVEL =====
                 var duplicateTitle = await _courseRepository.AsQueryable()
@@ -354,12 +361,15 @@ namespace AESP.Service.Implementation
                     NumberOfChapter = request.NumberOfChapter,
                     OrderIndex = request.OrderIndex,
                     Level = request.Level.ToString(),
-                    Price = request.Price
+                    Price = request.Price,
+                    Duration = request.Duration,
+                    Status = string.IsNullOrEmpty(request.Status) ? "Active" : request.Status.Trim()
                 };
 
                 await _courseRepository.Insert(course);
                 await _unitOfWork.SaveChangeAsync();
 
+                // ✅ Trả đủ dữ liệu (thêm Duration + Status)
                 return new ResponseDTO
                 {
                     IsSucess = true,
@@ -373,6 +383,8 @@ namespace AESP.Service.Implementation
                         course.OrderIndex,
                         course.Level,
                         course.Price,
+                        course.Duration,
+                        course.Status,
                         Chapters = new List<object>()
                     }
                 };
@@ -403,6 +415,10 @@ namespace AESP.Service.Implementation
                 if (!request.Level.HasValue)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Trình độ (Level) không được để trống.");
 
+                // ✅ Validate Duration nếu có truyền
+                if (request.Duration.HasValue && (request.Duration.Value <= 0 || request.Duration.Value > 365))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Thời lượng học phải từ 1 đến 365 ngày.");
+
                 // ===== CẬP NHẬT =====
                 course.Title = request.Title.Trim();
                 course.NumberOfChapter = request.NumberOfChapter.Value;
@@ -412,9 +428,16 @@ namespace AESP.Service.Implementation
                 if (request.Price.HasValue)
                     course.Price = request.Price.Value;
 
+                if (request.Duration.HasValue)
+                    course.Duration = request.Duration.Value;
+
+                if (!string.IsNullOrWhiteSpace(request.Status))
+                    course.Status = request.Status.Trim();
+
                 await _courseRepository.Update(course);
                 await _unitOfWork.SaveChangeAsync();
 
+                // ✅ Trả đủ dữ liệu (thêm Duration + Status)
                 return new ResponseDTO
                 {
                     IsSucess = true,
@@ -428,6 +451,8 @@ namespace AESP.Service.Implementation
                         course.OrderIndex,
                         course.Level,
                         course.Price,
+                        course.Duration,
+                        course.Status,
                         Chapters = new List<object>()
                     }
                 };
@@ -456,12 +481,14 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học để xoá.");
 
                 // ✅ Check learner đang học
+                // ✅ Check học viên đang học dựa theo LearningPathCourse (khóa học còn active)
                 var hasLearner = await _unitOfWork
                     .GetDbContext()
-                    .Set<LearnerCourse>()
-                    .AnyAsync(lc =>
-                        lc.NumberOfCourse == course.OrderIndex &&
-                        lc.Status.ToLower() == "enrolled");
+                    .Set<LearningPathCourse>()
+                    .AnyAsync(lp =>
+                        lp.CourseId == course.CourseId &&
+                        lp.Status.ToLower() == "enrolled");
+
 
                 if (hasLearner)
                     return Fail(BusinessCode.INVALID_ACTION,
@@ -532,7 +559,9 @@ namespace AESP.Service.Implementation
                     c.NumberOfChapter,
                     c.OrderIndex,
                     c.Level,
-                    c.Price
+                    c.Price,
+                    c.Duration,
+                    c.Status
                 }).ToList();
 
                 return new ResponseDTO
