@@ -3,6 +3,7 @@ using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AESP.API.Controllers.ManagerController
@@ -75,13 +76,13 @@ namespace AESP.API.Controllers.ManagerController
 
 
 
-        // ✅ DELETE
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteChapter(Guid id)
         {
-            var response = await _chapterService.DeleteChapterAsync(id);
-            return Ok(response);
+            var result = await _chapterService.DeleteChapterAsync(id);
+            return StatusFromResult(result);
         }
+
 
 
         // ✅ GET CHAPTERS BY COURSE ID (chuẩn 3 lớp, dùng StatusFromResult)
