@@ -109,7 +109,10 @@ namespace AESP.Common.DTOs
         public int OrderIndex { get; set; }
         public CourseLevel Level { get; set; }
         public decimal Price { get; set; }
+        public int Duration { get; set; } = 30;
+        public string Status { get; set; } = "Active";
         public List<CreateCourseChapterForCourseDTO>? Chapters { get; set; }
+
     }
 
     public class ReadCourseFullDTO
@@ -119,14 +122,12 @@ namespace AESP.Common.DTOs
         public int NumberOfChapter { get; set; }
         public int OrderIndex { get; set; }
         public string Level { get; set; } = string.Empty;
-
-        // ✅ Giá mỗi khóa học (set trong DB)
         public decimal Price { get; set; }
-
-        // ✅ Tính toán runtime: khóa này free hay không
+        public int Duration { get; set; }
+        public string Status { get; set; } = string.Empty;
         public bool IsFree { get; set; }
-
         public List<ReadCourseChapterForCourseDTO>? Chapters { get; set; }
+
     }
 
     public class UpdateCourseFullDTO
@@ -135,7 +136,11 @@ namespace AESP.Common.DTOs
         public int? NumberOfChapter { get; set; }
         public int? OrderIndex { get; set; }
         public CourseLevel? Level { get; set; }
+        public decimal? Price { get; set; }
+        public int? Duration { get; set; }
+        public string? Status { get; set; }
         public List<UpdateCourseChapterForCourseDTO>? Chapters { get; set; }
+
     }
 
 
@@ -147,6 +152,10 @@ namespace AESP.Common.DTOs
         public int OrderIndex { get; set; }
         public CourseLevel Level { get; set; }
         public decimal Price { get; set; }
+        public int Duration { get; set; } = 30;
+        public string Status { get; set; } = "Active";
+
+
 
         // chỉ chứa mảng Chapter — không có Exercise/Question
         //public List<CreateSimpleCourseChapterDTO>? Chapters { get; set; }
@@ -166,7 +175,11 @@ namespace AESP.Common.DTOs
         public int? NumberOfChapter { get; set; }
         public int? OrderIndex { get; set; }
         public CourseLevel? Level { get; set; }
-        public decimal? Price { get; set; }  // ✅ thêm để chỉnh giá
+        public decimal? Price { get; set; }
+        public int? Duration { get; set; }
+        public string? Status { get; set; }
+
+
     }
 
     public class UpdateSimpleCourseChapterDTO
