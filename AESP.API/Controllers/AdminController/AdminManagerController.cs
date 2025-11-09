@@ -25,7 +25,7 @@ namespace AESP.API.Controllers.AdminController
             [FromQuery] int pageSize = 10)
         {
             var result = await _adminManagerService.GetManagersAsync(search, pageNumber, pageSize);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
         // 🔹 Xem chi tiết Manager
@@ -33,7 +33,7 @@ namespace AESP.API.Controllers.AdminController
         public async Task<IActionResult> GetManagerDetail(Guid userId)
         {
             var result = await _adminManagerService.GetManagerDetailAsync(userId);
-            return Ok(result);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
 }
