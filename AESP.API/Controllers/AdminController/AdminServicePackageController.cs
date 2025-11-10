@@ -1,5 +1,6 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Repository.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -27,9 +28,13 @@ namespace AESP.API.Controllers.AdminController
         }
         
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] string? search)
+        public async Task<IActionResult> GetAll(
+    [FromQuery] string? search,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] string? filter = "All")
         {
-            var result = await _service.GetAllAsync(search);
+            var result = await _service.GetAllAsync(search, pageNumber, pageSize, filter);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
@@ -102,27 +107,27 @@ namespace AESP.API.Controllers.AdminController
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
-        [HttpPatch("{id}/bonus")]
-        public async Task<IActionResult> UpdateBonus(Guid id, [FromBody] UpdateBonusPercentDto dto)
-        {
-            if (!ModelState.IsValid)
-            {
-                var firstError = ModelState
-                    .Where(x => x.Value.Errors.Count > 0)
-                    .Select(x => x.Value.Errors.First().ErrorMessage)
-                    .FirstOrDefault();
+        //[HttpPatch("{id}/bonus")]
+        //public async Task<IActionResult> UpdateBonus(Guid id, [FromBody] UpdateBonusPercentDto dto)
+        //{
+        //    if (!ModelState.IsValid)
+        //    {
+        //        var firstError = ModelState
+        //            .Where(x => x.Value.Errors.Count > 0)
+        //            .Select(x => x.Value.Errors.First().ErrorMessage)
+        //            .FirstOrDefault();
 
-                return BadRequest(new
-                {
-                    isSucess = false,
-                    businessCode = 4001,
-                    message = firstError ?? "Dữ liệu không hợp lệ."
-                });
-            }
+        //        return BadRequest(new
+        //        {
+        //            isSucess = false,
+        //            businessCode = 4001,
+        //            message = firstError ?? "Dữ liệu không hợp lệ."
+        //        });
+        //    }
 
-            var result = await _service.UpdateBonusPercentAsync(id, dto);
-            return StatusCode(result.IsSucess ? 200 : 400, result);
-        }
+        //    var result = await _service.UpdateBonusPercentAsync(id, dto);
+        //    return StatusCode(result.IsSucess ? 200 : 400, result);
+        //}
 
 
 
