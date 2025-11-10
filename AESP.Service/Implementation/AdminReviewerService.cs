@@ -268,10 +268,11 @@ Trân trọng,
                     return new
                     {
                         r.ReviewerProfileId,
+                        UserId = r.User.UserId,
                         FullName = r.User.FullName,
                         Email = r.User.Email,
                         Phone = r.User.PhoneNumber,
-                        Level = r.Levels,
+                        Level = r.Level,
                         Experience = r.Experience,
                         Rating = r.Rating,
                         Status = status,
@@ -358,6 +359,7 @@ Trân trọng,
                     Items = reviewers.Select(x => new
                     {
                         x.ReviewerProfileId,
+                        UserId = x.User.UserId,
                         FullName = x.User.FullName,
                         Email = x.User.Email,
                         Phone = x.User.PhoneNumber,
@@ -428,10 +430,12 @@ Trân trọng,
                 dto.Data = new
                 {
                     reviewer.ReviewerProfileId,
+                    UserId = reviewer.User.UserId,
                     reviewer.User.FullName,
                     reviewer.User.Email,
                     reviewer.Experience,
-                    reviewer.Levels,
+                    reviewer.User.PhoneNumber,
+                    reviewer.Level,
                     reviewer.Rating,
                     reviewer.Status,
                     reviewer.User.CreatedAt,
@@ -533,6 +537,58 @@ Trân trọng,
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
                 dto.Message = "Lỗi khi từ chối reviewer: " + ex.Message;
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> UpdateReviewerLevelAsync(Guid reviewerProfileId, string newLevel)
+        {
+            ResponseDTO dto = new ResponseDTO();
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(newLevel))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "Level không được để trống.";
+                    return dto;
+                }
+
+                var profile = await _reviewerProfileRepository.GetFirstByExpression(
+                    x => x.ReviewerProfileId == reviewerProfileId,
+                    x => x.User
+                );
+
+                if (profile == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy hồ sơ reviewer.";
+                    return dto;
+                }
+
+                profile.Level = newLevel.Trim();
+
+                await _reviewerProfileRepository.Update(profile);
+                await _unitOfWork.SaveChangeAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                dto.Message = $"Cập nhật cấp độ reviewer thành công.";
+                dto.Data = new
+                {
+                    profile.ReviewerProfileId,
+                    FullName = profile.User.FullName,
+                    NewLevel = profile.Level
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi cập nhật cấp độ reviewer: " + ex.Message;
             }
 
             return dto;
