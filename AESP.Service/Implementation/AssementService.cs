@@ -46,6 +46,17 @@ namespace AESP.Service.Implementation
             };
         }
 
+        private static ResponseDTO Success(BusinessCode code, string msg, object? data = null)
+        {
+            return new ResponseDTO
+            {
+                IsSucess = true,
+                BusinessCode = code,
+                Message = msg,
+                Data = data
+            };
+        }
+
         // ✅ GET ALL
         public async Task<ResponseDTO> GetAllAssessmentsAsync(int pageNumber, int pageSize, Guid? learnerId = null, string? keyword = null)
         {
@@ -409,7 +420,6 @@ namespace AESP.Service.Implementation
                 var learnerProfile = await _learnerProfileRepository.GetByExpression(lp => lp.UserId == userId);
                 if (learnerProfile == null)
                 {
-                    // ✅ Tự tạo hồ sơ học viên nếu chưa có
                     learnerProfile = new LearnerProfile
                     {
                         LearnerProfileId = Guid.NewGuid(),
@@ -422,13 +432,17 @@ namespace AESP.Service.Implementation
 
                 Guid learnerProfileId = learnerProfile.LearnerProfileId;
 
-                // --- 2️⃣ Kiểm tra đã có bài test nào chưa ---
-                var existingAssessment = await _assessmentRepository
-                    .GetByExpression(a => a.LearnerProfileId == learnerProfileId);
+                // --- 2️⃣ Kiểm tra xem học viên đã có bài test nào chưa ---
+                var existingAssessment = await _assessmentRepository.AsQueryable()
+                    .Include(a => a.AssessmentDetails)
+                    .ThenInclude(d => d.QuestionAssessment)
+                    .Where(a => a.LearnerProfileId == learnerProfileId)
+                    .OrderByDescending(a => a.CreatedAt)
+                    .FirstOrDefaultAsync();
 
-                // --- 3️⃣ Nếu chưa có → tự tạo bài test mới ---
                 if (existingAssessment == null)
                 {
+                    // ❗️Chưa có bài test nào → tạo mới 1 bài test với câu hỏi mặc định
                     var dbQuestion = _questionAssessmentRepository.GetDbContext();
                     var activeQuestions = await dbQuestion.Set<QuestionAssessment>()
                         .Where(q => q.Status == true)
@@ -438,7 +452,6 @@ namespace AESP.Service.Implementation
                     if (!activeQuestions.Any())
                         return Fail(BusinessCode.DATA_NOT_FOUND, "Không có câu hỏi nào active trong hệ thống.");
 
-                    // --- Tạo bài test ---
                     var newAssessment = new Assessment
                     {
                         AssessmentId = Guid.NewGuid(),
@@ -451,7 +464,6 @@ namespace AESP.Service.Implementation
 
                     await _assessmentRepository.Insert(newAssessment);
 
-                    // --- Tạo chi tiết ---
                     var assessmentDetails = activeQuestions.Select(q => new AssessmentDetail
                     {
                         AssessmentDetailId = Guid.NewGuid(),
@@ -469,24 +481,23 @@ namespace AESP.Service.Implementation
                     existingAssessment = newAssessment;
                 }
 
-                // --- 4️⃣ Load lại dữ liệu đầy đủ ---
+                // --- 3️⃣ Không tạo thêm mới nữa nếu học viên đã có test ---
                 var dbContext = _assessmentRepository.GetDbContext();
                 var assessmentWithDetails = await dbContext.Assessments
                     .Include(a => a.AssessmentDetails)
                     .ThenInclude(d => d.QuestionAssessment)
                     .Where(a => a.LearnerProfileId == learnerProfileId)
+                    .OrderByDescending(a => a.CreatedAt)
                     .FirstOrDefaultAsync();
 
                 if (assessmentWithDetails == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài test của học viên này.");
 
-                // --- 5️⃣ Map dữ liệu ra DTO ---
+                // --- 4️⃣ Trả dữ liệu ra (chỉ là câu hỏi để học viên làm) ---
                 var mapped = new
                 {
                     assessmentWithDetails.AssessmentId,
                     assessmentWithDetails.CreatedAt,
-                    assessmentWithDetails.Score,
-                    assessmentWithDetails.Feedback,
                     assessmentWithDetails.NumberOfQuestion,
                     Sections = assessmentWithDetails.AssessmentDetails
                         .Where(d => d.QuestionAssessment != null && d.QuestionAssessment.Status)
@@ -502,11 +513,10 @@ namespace AESP.Service.Implementation
                         }).ToList()
                 };
 
-                // --- 6️⃣ Trả kết quả ---
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy bài test đầu vào thành công.";
-                dto.Data = new List<object> { mapped };
+                dto.Message = "Lấy danh sách câu hỏi bài test đầu vào thành công.";
+                dto.Data = mapped;
             }
             catch (Exception ex)
             {
@@ -520,105 +530,138 @@ namespace AESP.Service.Implementation
         {
             try
             {
-                // --- 1️⃣ Validate cơ bản ---
+                // 🧩 1️⃣ VALIDATION CƠ BẢN
+                if (dto == null)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu đầu vào không được để trống.");
+
                 if (dto.LearnerProfileId == Guid.Empty)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Thiếu LearnerProfileId.");
-                if (dto.Tests == null || !dto.Tests.Any())
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Phải có ít nhất 1 nhóm test.");
+                    return Fail(BusinessCode.VALIDATION_FAILED, "LearnerProfileId không hợp lệ.");
+
                 if (dto.NumberOfQuestion <= 0)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng câu hỏi không hợp lệ.");
+                    return Fail(BusinessCode.VALIDATION_FAILED, "NumberOfQuestion phải lớn hơn 0.");
 
-                // --- 2️⃣ Check learner tồn tại ---
-                var learner = await _learnerProfileRepository.GetById(dto.LearnerProfileId);
-                if (learner == null)
-                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy học viên.");
-                // --- 3️⃣ Kiểm tra đã làm test chưa ---
+                if (dto.Tests == null || !dto.Tests.Any())
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Tests không được để trống.");
+
+                foreach (var test in dto.Tests)
+                {
+                    if (test.AssessmentDetails == null || !test.AssessmentDetails.Any())
+                        return Fail(BusinessCode.VALIDATION_FAILED, "Mỗi phần test phải có ít nhất 1 câu hỏi.");
+
+                    foreach (var detail in test.AssessmentDetails)
+                    {
+                        if (detail.QuestionAssessmentId == Guid.Empty)
+                            return Fail(BusinessCode.VALIDATION_FAILED, "Một câu hỏi có QuestionAssessmentId không hợp lệ.");
+
+                        if (detail.Score < 0 || detail.Score > 100)
+                            return Fail(BusinessCode.VALIDATION_FAILED, "Điểm Score phải nằm trong khoảng 0 - 100.");
+
+                        detail.AI_Feedback ??= string.Empty;
+                    }
+                }
+
+                // 🧩 2️⃣ KIỂM TRA HỌC VIÊN ĐÃ LÀM TEST CHƯA
                 var existed = await _assessmentRepository.AsQueryable()
-                    .FirstOrDefaultAsync(x => x.LearnerProfileId == dto.LearnerProfileId && x.Score > 0);
+                    .FirstOrDefaultAsync(x => x.LearnerProfileId == dto.LearnerProfileId);
 
-                if (existed != null)
+                // Nếu đã có và Score > 0 → không cho nộp lại
+                if (existed != null && existed.Score > 0)
                     return Fail(BusinessCode.INVALID_ACTION, "Bạn đã hoàn thành bài test đầu vào. Không thể làm lại.");
 
+                // 🧩 3️⃣ TÍNH TOÁN TRUNG BÌNH
+                double totalScore = 0;
+                int totalCount = 0;
 
-                // --- 4️⃣ Tính tổng điểm ---
-                var allDetails = dto.Tests.SelectMany(x => x.AssessmentDetails).ToList();
-                if (!allDetails.Any())
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Không có câu hỏi nào hợp lệ.");
-
-                double totalScore = allDetails.Sum(d => d.Score);
-                double average = totalScore / allDetails.Count;
-
-                // --- 5️⃣ Tạo assessment chính ---
-                var assessment = new Assessment
+                foreach (var test in dto.Tests)
                 {
-                    AssessmentId = Guid.NewGuid(),
-                    LearnerProfileId = dto.LearnerProfileId,
-                    CreatedAt = DateTime.UtcNow,
-                    Score = Math.Round(average, 2),
-                    Feedback = $"Kết quả Placement Test: {Math.Round(average, 2)}/100",
-                    NumberOfQuestion = dto.NumberOfQuestion
-                };
+                    foreach (var detail in test.AssessmentDetails)
+                    {
+                        totalScore += detail.Score;
+                        totalCount++;
+                    }
+                }
 
-                await _assessmentRepository.Insert(assessment);
-                await _unitOfWork.SaveChangeAsync();
+                double averageScore = totalCount > 0 ? totalScore / totalCount : 0;
 
-                // --- 6️⃣ Lấy map Type từ QuestionAssessment ---
-                var db = _questionAssessmentRepository.GetDbContext();
-                var allQIds = allDetails.Select(d => d.QuestionAssessmentId).ToList();
-                var questionMap = await db.Set<QuestionAssessment>()
-                    .Where(q => allQIds.Contains(q.QuestionAssessmentId))
-                    .Select(q => new { q.QuestionAssessmentId, q.Type })
-                    .ToDictionaryAsync(x => x.QuestionAssessmentId, x => x.Type);
-
-                // --- 7️⃣ Tạo detail ---
-                var details = allDetails.Select(d => new AssessmentDetail
+                Assessment assessment;
+                if (existed != null)
                 {
-                    AssessmentDetailId = Guid.NewGuid(),
-                    AssessmentId = assessment.AssessmentId,
-                    QuestionAssessmentId = d.QuestionAssessmentId,
-                    Type = questionMap.ContainsKey(d.QuestionAssessmentId) ? questionMap[d.QuestionAssessmentId] : "Unknown",
-                    Score = d.Score,
-                    AI_Feedback = d.AI_Feedback,
-                    AnswerAudio = d.AnswerAudio
-                }).ToList();
+                    // ✅ Đã có bài test → chỉ update dòng cũ
+                    assessment = existed;
+                    assessment.Score = averageScore;
+                    assessment.Feedback = string.Empty;
+                    assessment.NumberOfQuestion = dto.NumberOfQuestion;
+
+                    await _assessmentRepository.Update(assessment);
+                }
+                else
+                {
+                    // ✅ Chưa có bài nào → tạo mới
+                    assessment = new Assessment
+                    {
+                        AssessmentId = Guid.NewGuid(),
+                        LearnerProfileId = dto.LearnerProfileId,
+                        CreatedAt = DateTime.UtcNow,
+                        Score = averageScore,
+                        Feedback = string.Empty,
+                        NumberOfQuestion = dto.NumberOfQuestion
+                    };
+
+                    await _assessmentRepository.Insert(assessment);
+                }
+
+                // Xóa hết detail cũ (nếu có) để ghi lại chi tiết mới
+                var oldDetails = await _assessmentDetailRepository.AsQueryable()
+                    .Where(d => d.AssessmentId == assessment.AssessmentId)
+                    .ToListAsync();
+                if (oldDetails.Any())
+                    await _assessmentDetailRepository.DeleteRange(oldDetails);
+
+                // 🧩 4️⃣ GHI CHI TIẾT CÂU HỎI
+                var details = dto.Tests
+                    .SelectMany(t => t.AssessmentDetails.Select(d => new AssessmentDetail
+                    {
+                        AssessmentDetailId = Guid.NewGuid(),
+                        AssessmentId = assessment.AssessmentId,
+                        QuestionAssessmentId = d.QuestionAssessmentId,
+                        Type = string.Empty,
+                        Score = d.Score,
+                        AI_Feedback = d.AI_Feedback ?? string.Empty,
+                    }))
+                    .ToList();
 
                 await _assessmentDetailRepository.InsertRange(details);
                 await _unitOfWork.SaveChangeAsync();
 
-                // --- 8️⃣ Xác định level ---
-                string assignedLevel = average switch
-                {
-                    < 60 => "A1",
-                    < 75 => "A2",
-                    < 85 => "B1",
-                    < 95 => "B2",
-                    _ => "C1"
-                };
+                // 🧩 5️⃣ GÁN LEVEL MỚI THEO ĐIỂM
+                string assignedLevel = "A1";
+                if (averageScore >= 90) assignedLevel = "C1";
+                else if (averageScore >= 75) assignedLevel = "B2";
+                else if (averageScore >= 60) assignedLevel = "B1";
+                else if (averageScore >= 45) assignedLevel = "A2";
 
-                learner.Level = assignedLevel;
-                await _learnerProfileRepository.Update(learner);
-                await _unitOfWork.SaveChangeAsync();
-
-                // --- 9️⃣ Trả response ---
-                return new ResponseDTO
+                var learner = await _learnerProfileRepository.GetById(dto.LearnerProfileId);
+                if (learner != null)
                 {
-                    IsSucess = true,
-                    BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
-                    Message = "Đã ghi kết quả bài test đầu vào thành công.",
-                    Data = new
-                    {
-                        assessment.AssessmentId,
-                        assessment.LearnerProfileId,
-                        AverageScore = Math.Round(average, 2),
-                        AssignedLevel = assignedLevel,
-                        dto.NumberOfQuestion,
-                        TotalSections = dto.Tests.Count
-                    }
-                };
+                    learner.Level = assignedLevel;
+                    learner.PronunciationScore = averageScore;
+                    await _learnerProfileRepository.Update(learner);
+                    await _unitOfWork.SaveChangeAsync();
+                }
+
+                // 🧩 6️⃣ TRẢ KẾT QUẢ
+                return Success(BusinessCode.UPDATE_SUCESSFULLY, "Đã ghi kết quả bài test đầu vào thành công.", new
+                {
+                    assessment.AssessmentId,
+                    dto.LearnerProfileId,
+                    averageScore,
+                    assignedLevel
+                });
             }
             catch (Exception ex)
             {
-                return Fail(BusinessCode.EXCEPTION, "Lỗi khi ghi bài test đầu vào: " + ex.Message);
+                var inner = ex.InnerException?.Message ?? ex.Message;
+                return Fail(BusinessCode.EXCEPTION, "Lỗi khi ghi bài test đầu vào: " + inner);
             }
         }
 
