@@ -50,7 +50,7 @@ namespace AESP.Service.Implementation
                         reviewerProfile.Experience,
                         reviewerProfile.Rating,
                         reviewerProfile.Status,
-                        reviewerProfile.Levels,
+                        reviewerProfile.Level,
                         Balance = user.CoinBalance, // lấy coin từ User
                         reviewerProfile.CreatedAt,
                         reviewerProfile.UpdatedAt,

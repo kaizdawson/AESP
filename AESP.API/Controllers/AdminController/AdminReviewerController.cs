@@ -66,5 +66,11 @@ namespace AESP.API.Controllers.AdminController
             var result = await _adminReviewerService.BanReviewerAsync(userId, body.Reason.Trim());
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
+        [HttpPut("level/{reviewerProfileId}")]
+        public async Task<IActionResult> UpdateReviewerLevel(Guid reviewerProfileId, [FromBody] UpdateReviewerLevelDto dto)
+        {
+            var result = await _adminReviewerService.UpdateReviewerLevelAsync(reviewerProfileId, dto.Level);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
     }
 }

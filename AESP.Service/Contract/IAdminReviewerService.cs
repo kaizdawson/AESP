@@ -15,5 +15,6 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetActiveReviewersAsync(string? search, int pageNumber, int pageSize, string? filterStatus);
         Task<ResponseDTO> GetReviewerDetailAsync(Guid reviewerProfileId);
         Task<ResponseDTO> BanReviewerAsync(Guid userId, string reason);
+        Task<ResponseDTO> UpdateReviewerLevelAsync(Guid reviewerProfileId, string newLevel);
     }
 }
