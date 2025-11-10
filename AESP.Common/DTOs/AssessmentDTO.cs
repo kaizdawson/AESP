@@ -83,14 +83,20 @@ namespace AESP.Common.DTOs
     {
         public Guid LearnerProfileId { get; set; }
         public int NumberOfQuestion { get; set; }
-        public string Type { get; set; } = "PlacementTest";
         public List<PlacementSectionDTO> Tests { get; set; } = new();
     }
 
     public class PlacementSectionDTO
     {
-        public string Type { get; set; } = string.Empty; // Word / Phrase / Sentence
-        public List<CreateAssessmentDetailInAssessmentDTO> AssessmentDetails { get; set; } = new();
+        public string Type { get; set; } = string.Empty;
+        public List<CreateAssessmentDetailInAssessmentForLearnerDTO> AssessmentDetails { get; set; } = new();
+    }
+
+    public class CreateAssessmentDetailInAssessmentForLearnerDTO
+    {
+        public Guid QuestionAssessmentId { get; set; }
+        public double Score { get; set; }
+        public string? AI_Feedback { get; set; }
     }
 
 }
