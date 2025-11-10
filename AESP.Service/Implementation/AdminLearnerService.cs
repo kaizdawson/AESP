@@ -234,6 +234,7 @@ Trân trọng,
                     return new
                     {
                         l.LearnerProfileId,
+                        UserId = l.User.UserId,
                         FullName = l.User.FullName,
                         Email = l.User.Email,
                         Phone = l.User.PhoneNumber,
@@ -366,6 +367,7 @@ Trân trọng,
                 var result = new ReadLearnerDetailDTO
                 {
                     LearnerProfileId = learner.LearnerProfileId,
+                    UserId = learner.User.UserId,
                     FullName = learner.User.FullName,
                     Email = learner.User.Email,
                     PhoneNumber = learner.User.PhoneNumber,

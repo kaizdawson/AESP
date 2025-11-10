@@ -16,11 +16,11 @@ namespace AESP.Repository.Models
 
         [ForeignKey("User")]
         public Guid UserId { get; set; }
-        public string Experience { get; set; } = string.Empty;
+        public int Experience { get; set; } 
         public double Rating { get; set; }
         [Required]
         public string Status { get; set; } = "Draft";
-        public string Levels { get; set; } = string.Empty;
+        public string Level { get; set; } = string.Empty;
 
 
 

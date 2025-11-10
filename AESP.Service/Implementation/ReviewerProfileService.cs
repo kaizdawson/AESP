@@ -100,7 +100,6 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ Chặn update khi vẫn là Draft (chưa nộp chứng chỉ)
                 if (profile.Status == "Draft")
                 {
                     dto.IsSucess = false;
@@ -109,7 +108,6 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // ✅ Validate input
                 if (string.IsNullOrWhiteSpace(request.FullName) || request.FullName.Length < 3)
                 {
                     dto.IsSucess = false;
@@ -127,20 +125,22 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                if (string.IsNullOrWhiteSpace(request.Experience) || request.Experience.Length < 10)
+                if (request.Experience < 0 || request.Experience > 100)
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.INVALID_INPUT;
-                    dto.Message = "Kinh nghiệm phải có ít nhất 10 ký tự mô tả.";
+                    dto.Message = "Kinh nghiệm phải là số và nằm trong khoảng 0 - 100.";
                     return dto;
                 }
 
+               
+
                 // ✅ Cập nhật dữ liệu
-                profile.Experience = request.Experience.Trim();
+                profile.Experience = request.Experience;
+               
                 profile.User.FullName = request.FullName.Trim();
                 profile.User.PhoneNumber = request.PhoneNumber.Trim();
 
-                // Không đổi status ở đây nữa
                 await _reviewerProfileRepository.Update(profile);
                 await _unitOfWork.SaveChangeAsync();
 
@@ -152,6 +152,7 @@ namespace AESP.Service.Implementation
                     profile.ReviewerProfileId,
                     profile.Status,
                     profile.Experience,
+                    profile.Level,
                     FullName = profile.User.FullName,
                     PhoneNumber = profile.User.PhoneNumber,
                     Certificates = profile.Certificates?.Select(c => new

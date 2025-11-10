@@ -76,7 +76,7 @@ namespace AESP.Service.Implementation
                     Price = request.Price,
                     BaseNumberOfCoin = request.NumberOfCoin,
                     NumberOfCoin = request.NumberOfCoin,
-                    BonusPercent = 0,
+                    BonusPercent = request.BonusPercent,
                     Status = "Active",
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -186,7 +186,7 @@ namespace AESP.Service.Implementation
         
         }
 
-        public async Task<ResponseDTO> GetAllAsync(string? search)
+        public async Task<ResponseDTO> GetAllAsync(string? search, int pageNumber = 1, int pageSize = 10, string? filter = null)
         {
             var dto = new ResponseDTO();
 
@@ -194,17 +194,32 @@ namespace AESP.Service.Implementation
             {
                 var db = _servicePackageRepository.GetDbContext();
 
-                var query = db.ServicePackages.AsQueryable()
+                var query = db.ServicePackages
+                    .AsQueryable()
                     .Where(x => !x.IsDeleted);
 
+                // 🔍 Tìm kiếm theo tên
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     string keyword = search.Trim().ToLower();
                     query = query.Where(p => p.Name.ToLower().Contains(keyword));
                 }
 
+                // 🔹 Lọc trạng thái (Active / Inactive)
+                if (!string.IsNullOrWhiteSpace(filter) && filter.ToLower() != "all")
+                {
+                    string f = filter.Trim().ToLower();
+                    query = query.Where(p => p.Status.ToLower() == f);
+                }
+
+                // 🔹 Tổng số lượng item
+                var totalItems = await query.CountAsync();
+
+                // 🔹 Phân trang
                 var items = await query
                     .OrderBy(p => p.Price)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .Select(p => new
                     {
                         p.ServicePackageId,
@@ -219,10 +234,17 @@ namespace AESP.Service.Implementation
                     })
                     .ToListAsync();
 
+                // 🔹 Kết quả trả về
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy danh sách gói dịch vụ thành công.";
-                dto.Data = items;
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    Items = items
+                };
             }
             catch (Exception ex)
             {
@@ -305,6 +327,14 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
+                if (request.BonusPercent < 0 || request.BonusPercent > 100)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+                    dto.Message = "Phần trăm thưởng phải nằm trong khoảng 0–100.";
+                    return dto;
+                }
+
                 var duplicate = await _servicePackageRepository.GetByExpression(
                     x => x.ServicePackageId != id && x.Name.ToLower() == request.Name.Trim().ToLower());
                 if (duplicate != null)
@@ -320,8 +350,8 @@ namespace AESP.Service.Implementation
                 entity.Description = request.Description?.Trim() ?? string.Empty;
                 entity.Price = request.Price;
                 entity.BaseNumberOfCoin = request.NumberOfCoin;
-                entity.NumberOfCoin = entity.BaseNumberOfCoin +
-    (int)Math.Round(entity.BaseNumberOfCoin * (entity.BonusPercent / 100)); // gốc, không tính bonus
+                entity.NumberOfCoin = request.NumberOfCoin; // ✅ FE gửi giá trị cuối cùng
+                entity.BonusPercent = request.BonusPercent;
                 entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status.Trim();
                 entity.UpdatedAt = DateTime.UtcNow;
 
@@ -353,59 +383,59 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> UpdateBonusPercentAsync(Guid id, UpdateBonusPercentDto request)
-        {
-            var dto = new ResponseDTO();
+        //public async Task<ResponseDTO> UpdateBonusPercentAsync(Guid id, UpdateBonusPercentDto request)
+        //{
+        //    var dto = new ResponseDTO();
 
-            try
-            {
-                var entity = await _servicePackageRepository.GetById(id);
-                if (entity == null)
-                {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-                    dto.Message = "Không tìm thấy gói dịch vụ.";
-                    return dto;
-                }
+        //    try
+        //    {
+        //        var entity = await _servicePackageRepository.GetById(id);
+        //        if (entity == null)
+        //        {
+        //            dto.IsSucess = false;
+        //            dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+        //            dto.Message = "Không tìm thấy gói dịch vụ.";
+        //            return dto;
+        //        }
 
-                if (request.BonusPercent < 0 || request.BonusPercent > 100)
-                {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
-                    dto.Message = "Phần trăm thưởng phải nằm trong khoảng 0–100.";
-                    return dto;
-                }
+        //        if (request.BonusPercent < 0 || request.BonusPercent > 100)
+        //        {
+        //            dto.IsSucess = false;
+        //            dto.BusinessCode = BusinessCode.VALIDATION_FAILED;
+        //            dto.Message = "Phần trăm thưởng phải nằm trong khoảng 0–100.";
+        //            return dto;
+        //        }
               
 
-                var bonusCoin = (int)Math.Round(entity.BaseNumberOfCoin * (request.BonusPercent / 100));
-                entity.BonusPercent = request.BonusPercent;
-                entity.NumberOfCoin = entity.BaseNumberOfCoin + bonusCoin;
-                entity.UpdatedAt = DateTime.UtcNow;
+        //        var bonusCoin = (int)Math.Round(entity.BaseNumberOfCoin * (request.BonusPercent / 100));
+        //        entity.BonusPercent = request.BonusPercent;
+        //        entity.NumberOfCoin = entity.BaseNumberOfCoin + bonusCoin;
+        //        entity.UpdatedAt = DateTime.UtcNow;
 
-                await _servicePackageRepository.Update(entity);
-                await _unitOfWork.SaveChangeAsync();
+        //        await _servicePackageRepository.Update(entity);
+        //        await _unitOfWork.SaveChangeAsync();
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                dto.Message = $"Đã cập nhật bonus {request.BonusPercent}% cho gói {entity.Name}.";
-                dto.Data = new
-                {
-                    entity.ServicePackageId,
-                    entity.Name,
-                    entity.NumberOfCoin,
-                    entity.BonusPercent,
-                    entity.UpdatedAt
-                };
-            }
-            catch (Exception ex)
-            {
-                dto.IsSucess = false;
-                dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi cập nhật phần trăm thưởng: " + ex.Message;
-            }
+        //        dto.IsSucess = true;
+        //        dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+        //        dto.Message = $"Đã cập nhật bonus {request.BonusPercent}% cho gói {entity.Name}.";
+        //        dto.Data = new
+        //        {
+        //            entity.ServicePackageId,
+        //            entity.Name,
+        //            entity.NumberOfCoin,
+        //            entity.BonusPercent,
+        //            entity.UpdatedAt
+        //        };
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        dto.IsSucess = false;
+        //        dto.BusinessCode = BusinessCode.EXCEPTION;
+        //        dto.Message = "Lỗi khi cập nhật phần trăm thưởng: " + ex.Message;
+        //    }
 
-            return dto;
-        }
+        //    return dto;
+        //}
     }
 }
 
