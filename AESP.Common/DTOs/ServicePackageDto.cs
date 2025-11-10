@@ -25,7 +25,9 @@ namespace AESP.Common.DTOs
         [Range(1, int.MaxValue, ErrorMessage = "Số lượng coin phải > 0.")]
         public int NumberOfCoin { get; set; }
 
-        
+        [Range(0, 100, ErrorMessage = "Phần trăm thưởng phải nằm trong khoảng 0–100.")]
+        public decimal BonusPercent { get; set; } = 0; // ✅ thêm
+
 
     }
 
@@ -47,15 +49,17 @@ namespace AESP.Common.DTOs
         [Range(1, int.MaxValue, ErrorMessage = "Số lượng coin phải > 0.")]
         public int NumberOfCoin { get; set; }
 
-        
+        [Range(0, 100, ErrorMessage = "Phần trăm thưởng phải nằm trong khoảng 0–100.")]
+        public decimal BonusPercent { get; set; } = 0; // ✅ thêm
+
 
         [RegularExpression(@"^(Active|Inactive)$", ErrorMessage = "Trạng thái chỉ được là 'Active' hoặc 'Inactive'.")]
         public string? Status { get; set; }
     }
-    public class UpdateBonusPercentDto
-    {
-        [Range(0, 100, ErrorMessage = "Phần trăm thưởng phải nằm trong khoảng 0–100.")]
-        public decimal BonusPercent { get; set; }
-    }
+    //public class UpdateBonusPercentDto
+    //{
+    //    [Range(0, 100, ErrorMessage = "Phần trăm thưởng phải nằm trong khoảng 0–100.")]
+    //    public decimal BonusPercent { get; set; }
+    //}
 
 }

@@ -10,8 +10,8 @@ namespace AESP.Common.DTOs
     public class ReviewerProfileUpdateDto
     {
         [Required(ErrorMessage = "Kinh nghiệm không được để trống.")]
-        [StringLength(500, ErrorMessage = "Kinh nghiệm tối đa 500 ký tự.")]
-        public string Experience { get; set; } = string.Empty;
+        [Range(0, 100, ErrorMessage = "Kinh nghiệm phải là số và nằm trong khoảng 0 - 100 năm.")]
+        public int Experience { get; set; }
 
         [Required(ErrorMessage = "Họ và tên không được để trống.")]
         [StringLength(100, ErrorMessage = "Họ và tên tối đa 100 ký tự.")]
