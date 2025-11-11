@@ -28,6 +28,9 @@ namespace AESP.Common.DTOs
         public string Type { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
         public string PhonemeJson { get; set; } = string.Empty;
+        public List<ReadQuestionMediaForCourseDTO>? QuestionMedia { get; set; }
+
+
     }
 
     public class UpdateCourseQuestionForCourseDTO
@@ -190,4 +193,17 @@ namespace AESP.Common.DTOs
         public int? NumberOfExercise { get; set; }
     }
 
+
+    // ============================================================
+    // 🔹 QUESTION MEDIA
+    // ============================================================
+    public class ReadQuestionMediaForCourseDTO
+    {
+        public Guid QuestionMediaId { get; set; }
+        public string Accent { get; set; } = string.Empty;
+        public string AudioUrl { get; set; } = string.Empty;
+        public string VideoUrl { get; set; } = string.Empty;
+        public string ImageUrl { get; set; } = string.Empty;
+        public string Source { get; set; } = string.Empty;
+    }
 }
