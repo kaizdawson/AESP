@@ -216,6 +216,7 @@ namespace AESP.Service.Implementation
                     .Include(c => c.Chapters)
                         .ThenInclude(ch => ch.Exercises)
                             .ThenInclude(ex => ex.Questions)
+                                .ThenInclude(q => q.QuestionMedias) 
                     .Where(c => c.Level.ToUpper() == level.ToUpper()
                              && (string.IsNullOrEmpty(keyword) || c.Title.Contains(keyword)))
                     .OrderBy(c => c.OrderIndex)
@@ -254,8 +255,18 @@ namespace AESP.Service.Implementation
                                 Text = q.Text,
                                 Type = q.Type,
                                 OrderIndex = q.OrderIndex,
-                                PhonemeJson = q.PhonemeJson
+                                PhonemeJson = q.PhonemeJson,
+                                QuestionMedia = q.QuestionMedias?.Select(m => new ReadQuestionMediaForCourseDTO
+                                {
+                                    QuestionMediaId = m.QuestionMediaId,
+                                    Accent = m.Accent,
+                                    AudioUrl = m.AudioUrl,
+                                    VideoUrl = m.VideoUrl,
+                                    ImageUrl = m.ImageUrl,
+                                    Source = m.Source
+                                }).ToList() ?? new List<ReadQuestionMediaForCourseDTO>()
                             }).ToList() ?? new List<ReadCourseQuestionForCourseDTO>()
+
                         }).ToList() ?? new List<ReadCourseExerciseForCourseDTO>()
                     }).ToList() ?? new List<ReadCourseChapterForCourseDTO>()
                 }).ToList();
