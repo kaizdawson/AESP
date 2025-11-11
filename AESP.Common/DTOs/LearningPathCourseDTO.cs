@@ -22,7 +22,6 @@ namespace AESP.Common.DTOs
 
     public class UpdateLearningPathCourseDTO
     {
-        public int OrderIndex { get; set; }
         public string? Status { get; set; }
         public double? Progress { get; set; }
     }

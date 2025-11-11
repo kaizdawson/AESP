@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace AESP.API.Controllers.LearningPathCourseController
+namespace AESP.API.Controllers.LearnerController
 {
     [Route("api/[controller]")]
     [ApiController]
