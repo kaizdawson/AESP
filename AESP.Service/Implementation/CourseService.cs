@@ -347,6 +347,11 @@ namespace AESP.Service.Implementation
                 if (request.Duration <= 0 || request.Duration > 365)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Thời lượng học phải từ 1 đến 365 ngày.");
 
+
+                // ✅ Thêm validate: nếu OrderIndex = 1 thì Price phải = 0
+                if (request.OrderIndex == 1 && request.Price > 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Khóa học đầu tiên (OrderIndex = 1) phải miễn phí, giá phải bằng 0.");
+
                 // ===== CHECK TRÙNG TITLE TRONG CÙNG LEVEL =====
                 var duplicateTitle = await _courseRepository.AsQueryable()
                     .AnyAsync(x => x.Title.ToLower() == request.Title.Trim().ToLower()
