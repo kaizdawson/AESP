@@ -110,33 +110,51 @@ namespace AESP.Service.Implementation
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
 
+                // --- Kiểm tra Level hợp lệ ---
+                var learnerLevel = learnerCourse.LearnerProfile.Level;
+                string[] levels = { "A1", "A2", "B1", "B2", "C1", "C2" };
+                int learnerIndex = Array.IndexOf(levels, learnerLevel);
+                int courseIndex = Array.IndexOf(levels, course.Level);
+
+                if (courseIndex < learnerIndex)
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Bạn không thể học lại khóa ở level thấp hơn ({course.Level}) so với level hiện tại ({learnerLevel}).");
+
+                if (courseIndex > learnerIndex)
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Bạn cần hoàn thành tất cả khóa học level {learnerLevel} trước khi học level {course.Level}.");
+
+
+
+
                 int orderIndex = course.OrderIndex;
 
-                // Kiểm tra trùng course hoặc orderindex
+                // --- Kiểm tra trùng khóa học trong cùng LearnerCourse ---
                 if (await _repo.AsQueryable().AnyAsync(x =>
                     x.LearnerCourseId == dto.LearnerCourseId && x.CourseId == dto.CourseId))
                     return Fail(BusinessCode.DUPLICATE_DATA, "Khóa học này đã có trong lộ trình.");
 
-                // ✅ Sửa chỗ này - chỉ check trùng OrderIndex trong cùng level
+                // --- Kiểm tra trùng OrderIndex trong cùng Level ---
                 if (await _repo.AsQueryable()
                     .Include(x => x.Course)
-                    .AnyAsync(x => x.LearnerCourseId == dto.LearnerCourseId
-                                && x.OrderIndex == orderIndex
-                                && x.Course.Level == course.Level))
+                    .AnyAsync(x =>
+                        x.LearnerCourseId == dto.LearnerCourseId &&
+                        x.OrderIndex == orderIndex &&
+                        x.Course.Level == course.Level))
                     return Fail(BusinessCode.DUPLICATE_DATA,
                         $"OrderIndex {orderIndex} đã được sử dụng trong level {course.Level} này.");
 
-
-                // Kiểm tra khóa trước đã completed chưa
+                // --- Kiểm tra khóa trước đã hoàn thành chưa ---
                 if (orderIndex > 1)
                 {
                     var prev = await _repo.AsQueryable().FirstOrDefaultAsync(x =>
                         x.LearnerCourseId == dto.LearnerCourseId && x.OrderIndex == orderIndex - 1);
 
-                    if (prev == null || !string.Equals(prev.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                    if (prev == null || !prev.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                         return Fail(BusinessCode.INVALID_ACTION, "Bạn cần hoàn thành khóa học trước đó trước khi mở khóa tiếp theo.");
                 }
 
+                // --- Xác định khóa học miễn phí ---
                 var levelCourses = await _courseRepo.AsQueryable()
                     .Where(c => c.Level == course.Level)
                     .OrderBy(c => c.OrderIndex)
@@ -144,6 +162,7 @@ namespace AESP.Service.Implementation
 
                 bool isFreeCourseOfLevel = (levelCourses.FirstOrDefault()?.CourseId == course.CourseId);
 
+                // --- Xử lý xu người học ---
                 var learnerUser = learnerCourse.LearnerProfile.User;
                 if (!isFreeCourseOfLevel && course.Price > 0)
                 {
@@ -155,16 +174,20 @@ namespace AESP.Service.Implementation
                     _courseRepo.GetDbContext().Set<User>().Update(learnerUser);
                 }
 
+                // ✅ Chuẩn hoá trạng thái khi tạo mới (đồng bộ với Enroll)
+                string normalizedStatus = "Enrolled";   // trước đây là "NotStarted"
+
                 var entity = new LearningPathCourse
                 {
                     LearningPathCourseId = Guid.NewGuid(),
                     LearnerCourseId = dto.LearnerCourseId,
                     CourseId = dto.CourseId,
                     OrderIndex = orderIndex,
-                    Status = "NotStarted",
+                    Status = normalizedStatus,          // -> Enrolled
                     Progress = 0,
                     NumberOfChapter = course.NumberOfChapter
                 };
+
 
                 await _repo.Insert(entity);
                 await _unitOfWork.SaveChangeAsync();
@@ -179,7 +202,7 @@ namespace AESP.Service.Implementation
                     entity.LearnerCourseId,
                     entity.CourseId,
                     entity.OrderIndex,
-                    entity.Status,
+                    entity.Status, // luôn đúng casing
                     RemainingCoins = learnerUser.CoinBalance
                 });
             }
@@ -203,22 +226,24 @@ namespace AESP.Service.Implementation
             if (entity == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trong lộ trình.");
 
-            if (dto.OrderIndex <= 0)
-                return Fail(BusinessCode.VALIDATION_FAILED, "Thứ tự (OrderIndex) phải lớn hơn 0.");
+            // ✅ Tự đồng bộ OrderIndex từ Course, không cho sửa thủ công
+            var realOrderIndex = entity.Course.OrderIndex;
+            entity.OrderIndex = realOrderIndex;
 
+            // --- VALIDATION TRÙNG TRONG CÙNG LEVEL ---
             var duplicateOrder = await _repo.AsQueryable()
-     .Include(x => x.Course)
-     .AnyAsync(x =>
-         x.LearnerCourseId == entity.LearnerCourseId &&
-         x.OrderIndex == dto.OrderIndex &&
-         x.Course.Level == entity.Course.Level && // chỉ check trùng trong cùng level
-         x.LearningPathCourseId != entity.LearningPathCourseId);
+                .Include(x => x.Course)
+                .AnyAsync(x =>
+                    x.LearnerCourseId == entity.LearnerCourseId &&
+                    x.OrderIndex == realOrderIndex &&
+                    x.Course.Level == entity.Course.Level &&
+                    x.LearningPathCourseId != entity.LearningPathCourseId);
 
             if (duplicateOrder)
                 return Fail(BusinessCode.DUPLICATE_DATA,
-                    $"OrderIndex {dto.OrderIndex} đã được sử dụng trong level {entity.Course.Level} này.");
+                    $"OrderIndex {realOrderIndex} đã được sử dụng trong level {entity.Course.Level} này.");
 
-
+            // --- UPDATE PROGRESS ---
             if (dto.Progress.HasValue)
             {
                 if (dto.Progress.Value < 0 || dto.Progress.Value > 100)
@@ -226,16 +251,16 @@ namespace AESP.Service.Implementation
                 entity.Progress = dto.Progress.Value;
             }
 
+            // --- UPDATE STATUS ---
             var allowedStatuses = new[] { "NotStarted", "Enrolled", "InProgress", "Completed" };
             if (!string.IsNullOrEmpty(dto.Status))
             {
                 if (!allowedStatuses.Contains(dto.Status))
                     return Fail(BusinessCode.INVALID_DATA, $"Trạng thái '{dto.Status}' không hợp lệ.");
 
-                entity.Status = dto.Status;
+                // ✅ Chuẩn hoá lưu dạng "Completed", "InProgress", "Enrolled", "NotStarted"
+                entity.Status = char.ToUpper(dto.Status[0]) + dto.Status.Substring(1).ToLower();
             }
-
-            entity.OrderIndex = dto.OrderIndex;
 
             // ✅ Nếu học xong (Completed) → kiểm tra qua level
             if (entity.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
@@ -249,9 +274,12 @@ namespace AESP.Service.Implementation
                     .ToListAsync();
 
                 var completedCount = await _repo.AsQueryable()
-                    .CountAsync(lp => lp.LearnerCourse.LearnerProfileId == learner.LearnerProfileId
-                                   && lp.Status.ToLower() == "completed"
-                                   && levelCourses.Contains(lp.CourseId));
+     .CountAsync(lp =>
+         lp.LearnerCourse.LearnerProfileId == learner.LearnerProfileId
+         && lp.Status.ToLower() == "completed"
+         && levelCourses.Contains(lp.CourseId));
+
+
 
                 if (completedCount == levelCourses.Count && levelCourses.Count > 0)
                 {
@@ -272,7 +300,7 @@ namespace AESP.Service.Implementation
             {
                 entity.LearningPathCourseId,
                 entity.CourseId,
-                entity.OrderIndex,
+                entity.OrderIndex, // luôn là realOrderIndex
                 entity.Status,
                 entity.Progress
             });
