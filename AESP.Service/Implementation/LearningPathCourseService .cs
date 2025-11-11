@@ -110,6 +110,13 @@ namespace AESP.Service.Implementation
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
 
+
+                // ❌ Không cho phép mở khóa học đầu tiên trong level bằng API CreateAsync
+                if (course.OrderIndex == 1)
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Khóa học '{course.Title}' là khóa đầu tiên của Level {course.Level}. Vui lòng đăng ký qua tính năng Enroll.");
+
+
                 // --- Kiểm tra Level hợp lệ ---
                 var learnerLevel = learnerCourse.LearnerProfile.Level;
                 string[] levels = { "A1", "A2", "B1", "B2", "C1", "C2" };
@@ -123,9 +130,6 @@ namespace AESP.Service.Implementation
                 if (courseIndex > learnerIndex)
                     return Fail(BusinessCode.INVALID_ACTION,
                         $"Bạn cần hoàn thành tất cả khóa học level {learnerLevel} trước khi học level {course.Level}.");
-
-
-
 
                 int orderIndex = course.OrderIndex;
 
@@ -188,9 +192,17 @@ namespace AESP.Service.Implementation
                     NumberOfChapter = course.NumberOfChapter
                 };
 
-
                 await _repo.Insert(entity);
                 await _unitOfWork.SaveChangeAsync();
+
+                // ✅ Thêm đoạn này duy nhất
+                var totalCoursesInLevel = await _courseRepo.AsQueryable()
+                    .CountAsync(c => c.Level == course.Level);
+
+                learnerCourse.NumberOfCourse = totalCoursesInLevel;
+                _learnerCourseRepo.Update(learnerCourse);
+                await _unitOfWork.SaveChangeAsync();
+                // ✅ Hết phần thêm
 
                 string message = isFreeCourseOfLevel
                     ? "Mở khóa học miễn phí đầu tiên trong level thành công."
@@ -226,11 +238,11 @@ namespace AESP.Service.Implementation
             if (entity == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trong lộ trình.");
 
-            // ✅ Tự đồng bộ OrderIndex từ Course, không cho sửa thủ công
+            // ✅ Đồng bộ lại OrderIndex theo Course
             var realOrderIndex = entity.Course.OrderIndex;
             entity.OrderIndex = realOrderIndex;
 
-            // --- VALIDATION TRÙNG TRONG CÙNG LEVEL ---
+            // --- Kiểm tra trùng OrderIndex trong cùng Level ---
             var duplicateOrder = await _repo.AsQueryable()
                 .Include(x => x.Course)
                 .AnyAsync(x =>
@@ -258,41 +270,116 @@ namespace AESP.Service.Implementation
                 if (!allowedStatuses.Contains(dto.Status))
                     return Fail(BusinessCode.INVALID_DATA, $"Trạng thái '{dto.Status}' không hợp lệ.");
 
-                // ✅ Chuẩn hoá lưu dạng "Completed", "InProgress", "Enrolled", "NotStarted"
                 entity.Status = char.ToUpper(dto.Status[0]) + dto.Status.Substring(1).ToLower();
             }
 
-            // ✅ Nếu học xong (Completed) → kiểm tra qua level
+            // ============================================================
+            // 🔹 AUTO UPGRADE LEVEL KHI HOÀN THÀNH KHÓA CUỐI CÙNG TRONG LEVEL
+            // ============================================================
+            //if (entity.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+            //{
+            //    var learnerProfileId = entity.LearnerCourse.LearnerProfile.LearnerProfileId;
+            //    var currentLevel = entity.Course.Level;
+
+            //    // 🔹 Lấy tất cả course thuộc level hiện tại
+            //    var levelCourses = await _courseRepo.AsQueryable()
+            //        .Where(c => c.Level == currentLevel)
+            //        .OrderBy(c => c.OrderIndex)
+            //        .ToListAsync();
+
+            //    // 🔹 Xác định khóa cuối cùng trong level
+            //    int maxOrderIndex = levelCourses.Max(c => c.OrderIndex);
+
+            //    // 🔹 Nếu chính khóa này là khóa cuối cùng trong level
+            //    if (entity.Course.OrderIndex == maxOrderIndex)
+            //    {
+            //        // Kiểm tra xem học viên đã hoàn thành hết chưa
+            //        var completedCount = await _repo.AsQueryable()
+            //            .Include(lp => lp.Course)
+            //            .Include(lp => lp.LearnerCourse)
+            //            .CountAsync(lp =>
+            //                lp.LearnerCourse.LearnerProfileId == learnerProfileId &&
+            //                lp.Course.Level == currentLevel &&
+            //                lp.Status.ToLower() == "completed");
+
+            //        var totalCourses = levelCourses.Count;
+
+            //        if (completedCount == totalCourses && totalCourses > 0)
+            //        {
+            //            string[] levels = { "A1", "A2", "B1", "B2", "C1", "C2" };
+            //            int idx = Array.IndexOf(levels, currentLevel);
+
+            //            if (idx >= 0 && idx < levels.Length - 1)
+            //            {
+            //                var learnerProfile = await _learnerProfileRepo.GetById(learnerProfileId);
+            //                if (learnerProfile != null)
+            //                {
+            //                    learnerProfile.Level = levels[idx + 1];
+            //                    await _learnerProfileRepo.Update(learnerProfile);
+            //                }
+            //            }
+            //        }
+
+            //    }
+            //}
+
+
+
             if (entity.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
             {
-                var learner = entity.LearnerCourse.LearnerProfile;
+                var learnerProfileId = entity.LearnerCourse.LearnerProfile.LearnerProfileId;
                 var currentLevel = entity.Course.Level;
 
+                // --- Lưu ngay trước khi kiểm tra để đảm bảo DB có trạng thái mới nhất ---
+                await _repo.Update(entity);
+                await _unitOfWork.SaveChangeAsync();
+
+                // 🔹 Lấy tất cả course thuộc level hiện tại
                 var levelCourses = await _courseRepo.AsQueryable()
                     .Where(c => c.Level == currentLevel)
-                    .Select(c => c.CourseId)
+                    .OrderBy(c => c.OrderIndex)
                     .ToListAsync();
 
-                var completedCount = await _repo.AsQueryable()
-     .CountAsync(lp =>
-         lp.LearnerCourse.LearnerProfileId == learner.LearnerProfileId
-         && lp.Status.ToLower() == "completed"
-         && levelCourses.Contains(lp.CourseId));
+                int maxOrderIndex = levelCourses.Max(c => c.OrderIndex);
 
-
-
-                if (completedCount == levelCourses.Count && levelCourses.Count > 0)
+                if (entity.Course.OrderIndex == maxOrderIndex)
                 {
-                    string[] levels = { "A1", "A2", "B1", "B2", "C1", "C2" };
-                    int idx = Array.IndexOf(levels, learner.Level);
-                    if (idx >= 0 && idx < levels.Length - 1)
+                    var completedCount = await _repo.AsQueryable()
+                        .Include(lp => lp.Course)
+                        .Include(lp => lp.LearnerCourse)
+                        .CountAsync(lp =>
+                            lp.LearnerCourse.LearnerProfileId == learnerProfileId &&
+                            lp.Course.Level == currentLevel &&
+                            lp.Status.ToLower() == "completed");
+
+                    var totalCourses = levelCourses.Count;
+
+                    if (completedCount == totalCourses && totalCourses > 0)
                     {
-                        learner.Level = levels[idx + 1];
-                        await _learnerProfileRepo.Update(learner);
+                        string[] levels = { "A1", "A2", "B1", "B2", "C1", "C2" };
+                        int idx = Array.IndexOf(levels, currentLevel);
+
+                        if (idx >= 0 && idx < levels.Length - 1)
+                        {
+                            var learnerProfile = await _learnerProfileRepo.GetById(learnerProfileId);
+                            if (learnerProfile != null)
+                            {
+                                learnerProfile.Level = levels[idx + 1];
+                                await _learnerProfileRepo.Update(learnerProfile);
+                                await _unitOfWork.SaveChangeAsync(); // lưu luôn thay đổi level
+                            }
+                        }
                     }
                 }
             }
+            else
+            {
+                await _repo.Update(entity);
+                await _unitOfWork.SaveChangeAsync();
+            }
 
+
+            // --- Lưu LearningPathCourse sau cùng ---
             await _repo.Update(entity);
             await _unitOfWork.SaveChangeAsync();
 
@@ -300,7 +387,7 @@ namespace AESP.Service.Implementation
             {
                 entity.LearningPathCourseId,
                 entity.CourseId,
-                entity.OrderIndex, // luôn là realOrderIndex
+                entity.OrderIndex,
                 entity.Status,
                 entity.Progress
             });
