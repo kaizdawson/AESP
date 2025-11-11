@@ -141,6 +141,8 @@ namespace AESP.Service.Implementation
                     .Include(c => c.Chapters)
                         .ThenInclude(ch => ch.Exercises)
                             .ThenInclude(ex => ex.Questions)
+                                                    .ThenInclude(q => q.QuestionMedias) 
+
                     .FirstOrDefaultAsync(c => c.CourseId == id);
 
                 if (course == null)
@@ -180,8 +182,18 @@ namespace AESP.Service.Implementation
                                 Text = q.Text,
                                 Type = q.Type,
                                 OrderIndex = q.OrderIndex,
-                                PhonemeJson = q.PhonemeJson
+                                PhonemeJson = q.PhonemeJson,
+                                QuestionMedia = q.QuestionMedias?.Select(m => new ReadQuestionMediaForCourseDTO
+                                {
+                                    QuestionMediaId = m.QuestionMediaId,
+                                    Accent = m.Accent,
+                                    AudioUrl = m.AudioUrl,
+                                    VideoUrl = m.VideoUrl,
+                                    ImageUrl = m.ImageUrl,
+                                    Source = m.Source
+                                }).ToList() ?? new List<ReadQuestionMediaForCourseDTO>()
                             }).ToList()
+
                         }).ToList()
                     }).ToList()
                 };
