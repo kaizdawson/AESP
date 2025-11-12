@@ -1,10 +1,15 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
+using AESP.Repository.Contract;
+using AESP.Repository.Models;
 using AESP.Service.Contract;
 using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace AESP.API.Controllers.LearnerController
 {
@@ -13,14 +18,19 @@ namespace AESP.API.Controllers.LearnerController
     [Authorize(Roles = "LEARNER")]
     public class CourseLearnerController : ControllerBase
     {
-        
+
         private readonly ICourseService _courseService;
         private readonly ILearnerCourseService _learnerCourseService;
+        private readonly IGenericRepository<LearnerProfile> _learnerProfileRepo;
 
-        public CourseLearnerController(ICourseService courseService, ILearnerCourseService learnerCourseService)
+        public CourseLearnerController(
+            ICourseService courseService,
+            ILearnerCourseService learnerCourseService,
+            IGenericRepository<LearnerProfile> learnerProfileRepo)
         {
             _courseService = courseService;
             _learnerCourseService = learnerCourseService;
+            _learnerProfileRepo = learnerProfileRepo;
         }
 
         //// ============================================================
@@ -62,19 +72,53 @@ namespace AESP.API.Controllers.LearnerController
         [HttpPost("{courseId}/enroll")]
         public async Task<IActionResult> EnrollCourse(Guid courseId)
         {
-            var learnerProfileIdClaim = User.Claims.FirstOrDefault(x => x.Type == "LearnerProfileId")?.Value;
-            if (string.IsNullOrEmpty(learnerProfileIdClaim))
-                return HandleResult(new ResponseDTO
-                {
-                    IsSucess = false,
-                    BusinessCode = BusinessCode.AUTH_NOT_FOUND,
-                    Message = "Token không có LearnerProfileId."
-                });
+            try
+            {
+                // 1️⃣ Lấy LearnerProfileId từ token
+                var learnerProfileIdClaim = User.Claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
+                Guid learnerProfileId = Guid.Empty;
 
-            Guid learnerProfileId = Guid.Parse(learnerProfileIdClaim);
-            var result = await _learnerCourseService.EnrollAsync(learnerProfileId, courseId);
-            return HandleResult(result);
+                if (learnerProfileIdClaim != null && Guid.TryParse(learnerProfileIdClaim.Value, out var parsedLearnerId))
+                {
+                    learnerProfileId = parsedLearnerId;
+                }
+                else
+                {
+                    // 2️⃣ Fallback: Lấy UserId nếu token thiếu LearnerProfileId
+                    var userIdClaim = User.Claims.FirstOrDefault(c =>
+                        c.Type == JwtRegisteredClaimNames.Sub ||
+                        c.Type == ClaimTypes.NameIdentifier ||
+                        c.Type.EndsWith("/nameidentifier"));
+
+                    if (userIdClaim == null)
+                        return Unauthorized(new { message = "Token không chứa UserId hoặc LearnerProfileId." });
+
+                    Guid userId = Guid.Parse(userIdClaim.Value);
+
+                    // 3️⃣ Tìm LearnerProfile bằng UserId
+                    var learnerProfile = await _learnerProfileRepo.AsQueryable()
+                        .FirstOrDefaultAsync(lp => lp.UserId == userId);
+
+                    if (learnerProfile == null)
+                        return Unauthorized(new { message = "Không tìm thấy hồ sơ học viên (LearnerProfile)." });
+
+                    learnerProfileId = learnerProfile.LearnerProfileId;
+                }
+
+                // 4️⃣ Gọi service enroll
+                var result = await _learnerCourseService.EnrollAsync(learnerProfileId, courseId);
+
+                if (!result.IsSucess)
+                    return BadRequest(result);
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
+            }
         }
+    
 
 
         [HttpPut("{courseId}/progress")]
