@@ -53,76 +53,67 @@ namespace AESP.Service.Implementation
 
             string[] levelOrder = { "A1", "A2", "B1", "B2", "C1", "C2" };
             int courseIndex = Array.IndexOf(levelOrder, course.Level);
+            int learnerIndex = Array.IndexOf(levelOrder, learner.Level);
 
-            // Lấy danh sách tất cả level mà learner đã có khóa học
-            var learnerLevels = await (
-                from lp in _learningPathCourseRepo.AsQueryable()
+            // ✅ Kiểm tra learner đã từng enroll level này chưa
+            var existedLearnerCourse = await (
+                from lc in _learnerCourseRepo.AsQueryable()
+                join lp in _learningPathCourseRepo.AsQueryable() on lc.LearnerCourseId equals lp.LearnerCourseId
                 join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
-                join lc in _learnerCourseRepo.AsQueryable() on lp.LearnerCourseId equals lc.LearnerCourseId
-                where lc.LearnerProfileId == learner.LearnerProfileId
-                select c.Level
-            ).Distinct().ToListAsync();
+                where lc.LearnerProfileId == learner.LearnerProfileId && c.Level == course.Level
+                select lc
+            ).FirstOrDefaultAsync();
 
-            // Tìm level cao nhất mà learner đã hoàn thành tất cả khóa
-            string highestCompletedLevel = learnerLevels
-                .Where(level =>
+            // ❌ Không được học level thấp hơn level hiện tại,
+            // 👉 Trừ khi learner đã từng enroll level đó trước đây.
+            if (courseIndex < learnerIndex && existedLearnerCourse == null)
+            {
+                return Fail(BusinessCode.INVALID_ACTION,
+                    $"Bạn hiện đang ở Level {learner.Level}. Không thể học Level thấp hơn ({course.Level}).");
+            }
+
+            // ✅ Nếu đã enroll rồi → cho phép quay lại học/view mà không tạo mới
+            if (existedLearnerCourse != null)
+            {
+                return new ResponseDTO
                 {
-                    var levelCourses = (from lp in _learningPathCourseRepo.AsQueryable()
-                                        join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
-                                        join lc in _learnerCourseRepo.AsQueryable() on lp.LearnerCourseId equals lc.LearnerCourseId
-                                        where lc.LearnerProfileId == learner.LearnerProfileId
-                                              && c.Level == level
-                                        select lp).ToList();
-
-                    return levelCourses.Any() &&
-                           levelCourses.All(lp => lp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase));
-                })
-                .OrderBy(level => Array.IndexOf(levelOrder, level))
-                .LastOrDefault();
-
-            // Ưu tiên Level thực tế trong hồ sơ học viên
-            if (highestCompletedLevel == null ||
-                Array.IndexOf(levelOrder, highestCompletedLevel) < Array.IndexOf(levelOrder, learner.Level))
-            {
-                highestCompletedLevel = learner.Level;
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                    Message = $"Bạn đã đăng ký Level {course.Level} trước đó. Có thể quay lại học hoặc xem lại nội dung.",
+                    Data = new
+                    {
+                        LearnerCourseId = existedLearnerCourse.LearnerCourseId,
+                        Level = course.Level
+                    }
+                };
             }
 
 
-
-            int highestIndex = Array.IndexOf(levelOrder, highestCompletedLevel);
-
-            // ❌ Không cho học thấp hơn level đã đạt
-            if (courseIndex < highestIndex)
-                return Fail(BusinessCode.INVALID_ACTION,
-                    $"Bạn đã vượt qua Level {highestCompletedLevel}. Không thể học lại Level {course.Level}.");
-
-            // ❌ Không cho học level cao hơn nếu chưa hoàn thành level hiện tại
-            if (courseIndex > highestIndex)
+            // ✅ Không cho học level cao hơn nếu chưa hoàn thành level hiện tại
+            if (courseIndex > learnerIndex)
             {
-                return Fail(BusinessCode.INVALID_ACTION,
-                    $"Bạn cần hoàn thành toàn bộ khóa học Level {highestCompletedLevel} trước khi học Level {course.Level}.");
+                var currentLevelPassed = await (
+                    from lp in _learningPathCourseRepo.AsQueryable()
+                    join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
+                    join lc in _learnerCourseRepo.AsQueryable() on lp.LearnerCourseId equals lc.LearnerCourseId
+                    where lc.LearnerProfileId == learner.LearnerProfileId && c.Level == learner.Level
+                    select lp.Status
+                ).ToListAsync();
+
+                bool hasPassedCurrentLevel = currentLevelPassed.Any(s =>
+                    s.Equals("Completed", StringComparison.OrdinalIgnoreCase));
+
+                if (!hasPassedCurrentLevel)
+                {
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Bạn cần hoàn thành Level {learner.Level} trước khi học Level {course.Level}.");
+                }
             }
-
-
 
             // ✅ Chỉ cho phép enroll khóa đầu tiên (OrderIndex = 1)
             if (course.OrderIndex != 1)
                 return Fail(BusinessCode.INVALID_ACTION,
                     $"Chỉ có thể đăng ký khóa học đầu tiên (OrderIndex = 1) trong Level {course.Level}.");
-
-            // ✅ Check nếu đã enroll khóa đầu tiên của level này
-            var existedLearnerCourse = await (
-                from lc in _learnerCourseRepo.AsQueryable()
-                join lp in _learningPathCourseRepo.AsQueryable() on lc.LearnerCourseId equals lp.LearnerCourseId
-                join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
-                where lc.LearnerProfileId == learner.LearnerProfileId
-                      && c.Level == course.Level
-                select lc
-            ).FirstOrDefaultAsync();
-
-            if (existedLearnerCourse != null)
-                return Fail(BusinessCode.INVALID_ACTION,
-                    $"Bạn đã đăng ký Level {course.Level} rồi. Hãy tiếp tục học trong lộ trình hiện tại.");
 
             // ✅ Tạo LearnerCourse mới cho level này
             var learnerCourse = new LearnerCourse
@@ -149,26 +140,16 @@ namespace AESP.Service.Implementation
             await _learningPathCourseRepo.Insert(newLp);
             await _unitOfWork.SaveChangeAsync();
 
-
-
-            //// 🔹 Auto generate LearningPathChapter khi học viên enroll khóa đầu tiên
-            //try
-            //{
-            //    await _learningPathChapterService.CreateByCourseAsync(newLp.LearningPathCourseId, learnerCourse.LearnerCourseId);
-            //}
-            //catch (Exception ex)
-            //{
-            //    // Không ảnh hưởng enroll chính, chỉ log nếu cần
-            //    Console.WriteLine($"[WARN] Không thể tạo LearningPathChapter tự động: {ex.Message}");
-            //}
-
-
             return new ResponseDTO
             {
                 IsSucess = true,
                 BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
                 Message = $"Đăng ký khóa học đầu tiên của Level {course.Level} thành công! Chúc bạn học tốt.",
-                Data = learnerCourse.LearnerCourseId
+                Data = new
+                {
+                    LearnerCourseId = learnerCourse.LearnerCourseId,
+                    Level = course.Level
+                }
             };
 
         }
@@ -330,6 +311,130 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.EXCEPTION, $"Không thể lấy danh sách khóa học: {ex.Message}");
             }
         }
+
+
+
+
+
+
+        // ============================================================
+        // 🔹 HỌC LẠI EXERCISE ĐỂ CẢI THIỆN ĐIỂM
+        // ============================================================
+        public async Task<ResponseDTO> RelearnAndUpdateScoreAsync(Guid learnerProfileId, Guid exerciseId, double? newScore = null)
+        {
+            try
+            {
+                // 1️⃣ Tìm LearnerCourse của học viên
+                var learnerCourse = await _learnerCourseRepo.AsQueryable()
+                    .FirstOrDefaultAsync(lc => lc.LearnerProfileId == learnerProfileId);
+
+                if (learnerCourse == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học của học viên.");
+
+                // 2️⃣ Tìm bài tập trong LearningPathExercise
+                var exercise = await _unitOfWork.GetDbContext()
+       .Set<LearningPathExercise>()
+       .Include(e => e.LearningPathChapter)
+           .ThenInclude(ch => ch.LearningPathCourse)
+               .ThenInclude(lc => lc.LearnerCourse)
+       .FirstOrDefaultAsync(e =>
+           e.ExerciseId == exerciseId &&
+           e.LearningPathChapter.LearningPathCourse.LearnerCourse.LearnerProfileId == learnerProfileId);
+
+                if (exercise == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài tập trong lộ trình học.");
+
+                // 3️⃣ Nếu chưa truyền điểm mới → chỉ bắt đầu học lại
+                if (!newScore.HasValue)
+                {
+                    exercise.Status = "Relearning";
+                    await _unitOfWork.GetDbContext().SaveChangesAsync();
+
+                    return new ResponseDTO
+                    {
+                        IsSucess = true,
+                        BusinessCode = BusinessCode.UPDATE_SUCESSFULLY,
+                        Message = "Bắt đầu học lại bài tập để cải thiện điểm.",
+                        Data = new
+                        {
+                            exercise.LearningPathExerciseId,
+                            exercise.ExerciseId,
+                            exercise.Status,
+                            exercise.ScoreAchieved,
+                            IsRelearn = true
+                        }
+                    };
+                }
+
+                // 4️⃣ Nếu có điểm mới → chỉ cập nhật điểm, không reset
+                exercise.ScoreAchieved = newScore.Value;
+                exercise.Status = "Completed_Relearn";
+                await _unitOfWork.GetDbContext().SaveChangesAsync();
+
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.UPDATE_SUCESSFULLY,
+                    Message = $"Cập nhật điểm học lại thành công. Điểm hiện tại: {newScore}.",
+                    Data = new
+                    {
+                        exercise.LearningPathExerciseId,
+                        exercise.ExerciseId,
+                        exercise.ScoreAchieved,
+                        exercise.Status,
+                        IsRelearn = true
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, "Lỗi khi xử lý học lại: " + ex.Message);
+            }
+        }
+
+
+
+        public async Task<ResponseDTO> GetMyLevelsAsync(Guid learnerProfileId)
+        {
+            try
+            {
+                string[] levelOrder = { "A1", "A2", "B1", "B2", "C1", "C2" };
+
+                // 🟢 Lấy danh sách các Level mà learner đã enroll
+                var enrolledLevels = await (
+                    from lc in _learnerCourseRepo.AsQueryable()
+                    join lp in _learningPathCourseRepo.AsQueryable() on lc.LearnerCourseId equals lp.LearnerCourseId
+                    join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
+                    where lc.LearnerProfileId == learnerProfileId
+                    select new { c.Level, lc.LearnerCourseId }
+                ).Distinct().ToListAsync();
+
+                // 🟢 Trả toàn bộ Level hệ thống (A1 → C2), có hoặc không có learnerCourseId
+                var result = levelOrder.Select(level =>
+                {
+                    var match = enrolledLevels.FirstOrDefault(x => x.Level == level);
+                    return new
+                    {
+                        Level = level,
+                        LearnerCourseId = match?.LearnerCourseId
+                    };
+                }).ToList();
+
+                return new ResponseDTO
+                {
+                    IsSucess = true,
+                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                    Message = "Lấy danh sách Level của học viên thành công.",
+                    Data = new { Levels = result }
+                };
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, "Lỗi khi lấy danh sách Level: " + ex.Message);
+            }
+        }
+
+
 
 
         // ============================================================
