@@ -140,6 +140,61 @@ namespace AESP.API.Controllers.LearnerController
 
 
 
+        [HttpPost("relearn-exercise")]
+        public async Task<IActionResult> RelearnExercise([FromBody] RelearnExerciseRequestDTO dto)
+        {
+            try
+            {
+                // Lấy LearnerProfileId từ token
+                var learnerProfileIdClaim = User.Claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
+                if (learnerProfileIdClaim == null)
+                    return Unauthorized(new { message = "Token không chứa LearnerProfileId." });
+
+                Guid learnerProfileId = Guid.Parse(learnerProfileIdClaim.Value);
+
+                // Gọi service xử lý
+                var result = await _learnerCourseService.RelearnAndUpdateScoreAsync(learnerProfileId, dto.ExerciseId, dto.NewScore);
+
+                return HandleResult(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
+            }
+        }
+
+
+
+
+
+        [HttpGet("myLevels")]
+        public async Task<IActionResult> GetMyLevels()
+        {
+            try
+            {
+                var learnerProfileIdClaim = User.Claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
+                if (learnerProfileIdClaim == null || !Guid.TryParse(learnerProfileIdClaim.Value, out var learnerProfileId))
+                    return Unauthorized(new { message = "Token không chứa LearnerProfileId." });
+
+                var result = await _learnerCourseService.GetMyLevelsAsync(learnerProfileId);
+                return HandleResult(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
+            }
+        }
+
+
+        // DTO request body
+        public class RelearnExerciseRequestDTO
+        {
+            public Guid ExerciseId { get; set; }
+            public double? NewScore { get; set; } // null = bắt đầu học lại, có giá trị = cập nhật điểm
+        }
+
+
+
 
         // ============================================================
         // 🔹 Helper xử lý Response chung cho controller này
