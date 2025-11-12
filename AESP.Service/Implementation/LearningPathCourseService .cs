@@ -16,6 +16,8 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<Course> _courseRepo;
         private readonly IGenericRepository<LearnerCourse> _learnerCourseRepo;
         private readonly IGenericRepository<LearnerProfile> _learnerProfileRepo;
+        private readonly ILearningPathChapterService _learningPathChapterService;
+
         private readonly IUnitOfWork _unitOfWork;
 
         public LearningPathCourseService(
@@ -23,12 +25,16 @@ namespace AESP.Service.Implementation
             IGenericRepository<Course> courseRepo,
             IGenericRepository<LearnerCourse> learnerCourseRepo,
             IGenericRepository<LearnerProfile> learnerProfileRepo,
+            ILearningPathChapterService learningPathChapterService,
+
             IUnitOfWork unitOfWork)
         {
             _repo = repo;
             _courseRepo = courseRepo;
             _learnerCourseRepo = learnerCourseRepo;
             _learnerProfileRepo = learnerProfileRepo;
+            _learningPathChapterService = learningPathChapterService;
+
             _unitOfWork = unitOfWork;
         }
 
@@ -95,6 +101,7 @@ namespace AESP.Service.Implementation
         {
             try
             {
+                // 1️⃣ VALIDATION
                 if (dto.LearnerCourseId == Guid.Empty || dto.CourseId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Thiếu thông tin khóa học hoặc lộ trình học viên.");
 
@@ -110,14 +117,12 @@ namespace AESP.Service.Implementation
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
 
-
                 // ❌ Không cho phép mở khóa học đầu tiên trong level bằng API CreateAsync
                 if (course.OrderIndex == 1)
                     return Fail(BusinessCode.INVALID_ACTION,
                         $"Khóa học '{course.Title}' là khóa đầu tiên của Level {course.Level}. Vui lòng đăng ký qua tính năng Enroll.");
 
-
-                // --- Kiểm tra Level hợp lệ ---
+                // 2️⃣ KIỂM TRA LEVEL
                 var learnerLevel = learnerCourse.LearnerProfile.Level;
                 string[] levels = { "A1", "A2", "B1", "B2", "C1", "C2" };
                 int learnerIndex = Array.IndexOf(levels, learnerLevel);
@@ -133,12 +138,11 @@ namespace AESP.Service.Implementation
 
                 int orderIndex = course.OrderIndex;
 
-                // --- Kiểm tra trùng khóa học trong cùng LearnerCourse ---
+                // 3️⃣ KIỂM TRA TRÙNG DỮ LIỆU
                 if (await _repo.AsQueryable().AnyAsync(x =>
                     x.LearnerCourseId == dto.LearnerCourseId && x.CourseId == dto.CourseId))
                     return Fail(BusinessCode.DUPLICATE_DATA, "Khóa học này đã có trong lộ trình.");
 
-                // --- Kiểm tra trùng OrderIndex trong cùng Level ---
                 if (await _repo.AsQueryable()
                     .Include(x => x.Course)
                     .AnyAsync(x =>
@@ -148,7 +152,7 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.DUPLICATE_DATA,
                         $"OrderIndex {orderIndex} đã được sử dụng trong level {course.Level} này.");
 
-                // --- Kiểm tra khóa trước đã hoàn thành chưa ---
+                // 4️⃣ KIỂM TRA KHÓA TRƯỚC ĐÃ HOÀN THÀNH CHƯA
                 if (orderIndex > 1)
                 {
                     var prev = await _repo.AsQueryable().FirstOrDefaultAsync(x =>
@@ -158,7 +162,7 @@ namespace AESP.Service.Implementation
                         return Fail(BusinessCode.INVALID_ACTION, "Bạn cần hoàn thành khóa học trước đó trước khi mở khóa tiếp theo.");
                 }
 
-                // --- Xác định khóa học miễn phí ---
+                // 5️⃣ XÁC ĐỊNH MIỄN PHÍ & XỬ LÝ XU
                 var levelCourses = await _courseRepo.AsQueryable()
                     .Where(c => c.Level == course.Level)
                     .OrderBy(c => c.OrderIndex)
@@ -166,7 +170,6 @@ namespace AESP.Service.Implementation
 
                 bool isFreeCourseOfLevel = (levelCourses.FirstOrDefault()?.CourseId == course.CourseId);
 
-                // --- Xử lý xu người học ---
                 var learnerUser = learnerCourse.LearnerProfile.User;
                 if (!isFreeCourseOfLevel && course.Price > 0)
                 {
@@ -178,16 +181,14 @@ namespace AESP.Service.Implementation
                     _courseRepo.GetDbContext().Set<User>().Update(learnerUser);
                 }
 
-                // ✅ Chuẩn hoá trạng thái khi tạo mới (đồng bộ với Enroll)
-                string normalizedStatus = "Enrolled";   // trước đây là "NotStarted"
-
+                // 6️⃣ TẠO KHÓA HỌC TRONG LỘ TRÌNH
                 var entity = new LearningPathCourse
                 {
                     LearningPathCourseId = Guid.NewGuid(),
                     LearnerCourseId = dto.LearnerCourseId,
                     CourseId = dto.CourseId,
                     OrderIndex = orderIndex,
-                    Status = normalizedStatus,          // -> Enrolled
+                    Status = "Enrolled",
                     Progress = 0,
                     NumberOfChapter = course.NumberOfChapter
                 };
@@ -195,15 +196,25 @@ namespace AESP.Service.Implementation
                 await _repo.Insert(entity);
                 await _unitOfWork.SaveChangeAsync();
 
-                // ✅ Thêm đoạn này duy nhất
+                // 7️⃣ CẬP NHẬT TỔNG SỐ KHÓA HỌC TRONG LEVEL
                 var totalCoursesInLevel = await _courseRepo.AsQueryable()
                     .CountAsync(c => c.Level == course.Level);
 
                 learnerCourse.NumberOfCourse = totalCoursesInLevel;
-                _learnerCourseRepo.Update(learnerCourse);
+                await _learnerCourseRepo.Update(learnerCourse);
                 await _unitOfWork.SaveChangeAsync();
-                // ✅ Hết phần thêm
 
+                //// 8️⃣ 🔹 TỰ ĐỘNG SINH LearningPathChapter (và sau này auto tạo LearningPathExercise)
+                //try
+                //{
+                //    await _learningPathChapterService.CreateByCourseAsync(entity.LearningPathCourseId, dto.LearnerCourseId);
+                //}
+                //catch (Exception ex)
+                //{
+                //    Console.WriteLine($"[WARN] Không thể tạo LearningPathChapter tự động: {ex.Message}");
+                //}
+
+                // 9️⃣ TRẢ VỀ KẾT QUẢ
                 string message = isFreeCourseOfLevel
                     ? "Mở khóa học miễn phí đầu tiên trong level thành công."
                     : "Mở khóa học thành công. Đã trừ xu tương ứng.";
@@ -214,7 +225,7 @@ namespace AESP.Service.Implementation
                     entity.LearnerCourseId,
                     entity.CourseId,
                     entity.OrderIndex,
-                    entity.Status, // luôn đúng casing
+                    entity.Status,
                     RemainingCoins = learnerUser.CoinBalance
                 });
             }

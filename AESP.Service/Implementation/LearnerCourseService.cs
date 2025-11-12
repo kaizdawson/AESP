@@ -1,6 +1,7 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
+using AESP.Repository.Implementation;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.EntityFrameworkCore;
@@ -19,20 +20,25 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<Course> _courseRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IGenericRepository<LearningPathCourse> _learningPathCourseRepo;
+        private readonly ILearningPathChapterService _learningPathChapterService;
+
 
         public LearnerCourseService(
-            IGenericRepository<LearnerCourse> learnerCourseRepo,
-            IGenericRepository<LearnerProfile> learnerProfileRepo,
-            IGenericRepository<Course> courseRepo,
-            IGenericRepository<LearningPathCourse> learningPathCourseRepo,
-            IUnitOfWork unitOfWork)
+       IGenericRepository<LearnerCourse> learnerCourseRepo,
+       IGenericRepository<LearnerProfile> learnerProfileRepo,
+       IGenericRepository<Course> courseRepo,
+       IGenericRepository<LearningPathCourse> learningPathCourseRepo,
+       ILearningPathChapterService learningPathChapterService,   // ✅ đúng interface
+       IUnitOfWork unitOfWork)
         {
             _learnerCourseRepo = learnerCourseRepo;
             _learnerProfileRepo = learnerProfileRepo;
             _courseRepo = courseRepo;
             _learningPathCourseRepo = learningPathCourseRepo;
+            _learningPathChapterService = learningPathChapterService; // ✅ đúng kiểu
             _unitOfWork = unitOfWork;
         }
+
 
 
         public async Task<ResponseDTO> EnrollAsync(Guid learnerProfileId, Guid courseId)
@@ -142,6 +148,20 @@ namespace AESP.Service.Implementation
 
             await _learningPathCourseRepo.Insert(newLp);
             await _unitOfWork.SaveChangeAsync();
+
+
+
+            //// 🔹 Auto generate LearningPathChapter khi học viên enroll khóa đầu tiên
+            //try
+            //{
+            //    await _learningPathChapterService.CreateByCourseAsync(newLp.LearningPathCourseId, learnerCourse.LearnerCourseId);
+            //}
+            //catch (Exception ex)
+            //{
+            //    // Không ảnh hưởng enroll chính, chỉ log nếu cần
+            //    Console.WriteLine($"[WARN] Không thể tạo LearningPathChapter tự động: {ex.Message}");
+            //}
+
 
             return Success(BusinessCode.INSERT_SUCESSFULLY,
                 $"Đăng ký khóa học đầu tiên của Level {course.Level} thành công! Chúc bạn học tốt.");
