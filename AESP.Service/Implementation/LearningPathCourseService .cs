@@ -216,8 +216,8 @@ namespace AESP.Service.Implementation
 
                 // 9️⃣ TRẢ VỀ KẾT QUẢ
                 string message = isFreeCourseOfLevel
-                    ? "Mở khóa học miễn phí đầu tiên trong level thành công."
-                    : "Mở khóa học thành công. Đã trừ xu tương ứng.";
+                    ? "Mở khóa học miễn phí đầu tiên trong level thành công. Chúc bạn học tốt."
+                    : "Mở khóa học thành công. Đã trừ xu tương ứng. Chúc bạn học tốt. ";
 
                 return Success(BusinessCode.INSERT_SUCESSFULLY, message, new
                 {
