@@ -163,8 +163,13 @@ namespace AESP.Service.Implementation
             //}
 
 
-            return Success(BusinessCode.INSERT_SUCESSFULLY,
-                $"Đăng ký khóa học đầu tiên của Level {course.Level} thành công! Chúc bạn học tốt.");
+            return new ResponseDTO
+            {
+                IsSucess = true,
+                BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
+                Message = $"Đăng ký khóa học đầu tiên của Level {course.Level} thành công! Chúc bạn học tốt.",
+                Data = learnerCourse.LearnerCourseId
+            };
 
         }
 
