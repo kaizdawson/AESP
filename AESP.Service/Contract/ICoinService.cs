@@ -17,6 +17,8 @@ namespace AESP.Service.Contract
         Task CancelTransactionByOrderCodeAsync(string orderCode);
         Task<string> GetTransactionStatusAsync(string orderCode);
 
+        Task<int> PayCoinAsync(Guid userId, int payCoin);
+
 
     }
 }

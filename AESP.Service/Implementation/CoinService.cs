@@ -157,6 +157,27 @@ namespace AESP.Service.Implementation
 
 
 
+        public async Task<int> PayCoinAsync(Guid userId, int payCoin)
+        {
+            if (payCoin <= 0)
+                throw new Exception("Số tiền phải lớn hơn 0.");
+
+            var user = await _userRepository.GetById(userId);
+            if (user == null)
+                throw new Exception("Không tìm thấy người dùng.");
+
+            if (user.CoinBalance < payCoin)
+                return 0;   
+
+            user.CoinBalance -= payCoin;
+
+            await _userRepository.Update(user);
+            await _unitOfWork.SaveChangeAsync();
+
+            _logger.LogInformation("💸 User {UserId} đã thanh toán {PayCoin} coin", userId, payCoin);
+
+            return 1; 
+        }
 
 
     }
