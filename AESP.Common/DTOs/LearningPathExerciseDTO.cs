@@ -13,7 +13,6 @@ namespace AESP.Common.DTOs
         public double ScoreAchieved { get; set; }
         public string Status { get; set; }
 
-        // 👇 Cắm cờ ở đây, không ảnh hưởng DB
-        public bool IsRelearn { get; set; }
+      
     }
 }

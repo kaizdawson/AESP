@@ -29,6 +29,10 @@ namespace AESP.Repository.Models
         [MaxLength(50)]
         public string Status { get; set; } = "Active";
 
+        // 🆕 Thêm mô tả khóa học
+        [MaxLength(2000)]
+        public string? Description { get; set; }
+
         public virtual ICollection<Chapter> Chapters { get; set; }
 
         public virtual ICollection<LearningPathCourse> LearningPathCourses { get; set; }
