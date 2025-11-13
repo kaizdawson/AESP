@@ -122,6 +122,32 @@ namespace AESP.API.Controllers.CoinController
             }
         }
 
+        [HttpPost("withdraw")]
+        public async Task<IActionResult> WithdrawCoin([FromBody] WithdrawRequest request)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim))
+                return Unauthorized("Access token không hợp lệ hoặc thiếu UserId.");
+
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return BadRequest("UserId trong token không hợp lệ.");
+
+            try
+            {
+                var result = await _coinService.WithdrawCoinAsync(
+                    userId,
+                    request.Coin,
+                    request.BankName,
+                    request.AccountNumber
+                );
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
     }
 }

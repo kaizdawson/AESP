@@ -19,6 +19,7 @@ namespace AESP.Service.Contract
 
         Task<int> PayCoinAsync(Guid userId, int payCoin);
 
+        Task<object> WithdrawCoinAsync(Guid userId, int coin, string bankName, string accountNumber);
 
     }
 }
