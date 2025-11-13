@@ -139,21 +139,48 @@ namespace AESP.API.Controllers.LearnerController
 
 
 
-
         [HttpPost("relearn-exercise")]
         public async Task<IActionResult> RelearnExercise([FromBody] RelearnExerciseRequestDTO dto)
         {
             try
             {
-                // Lấy LearnerProfileId từ token
+                Guid learnerProfileId;
+
+                // 1️⃣ Lấy LearnerProfileId từ token
                 var learnerProfileIdClaim = User.Claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
-                if (learnerProfileIdClaim == null)
-                    return Unauthorized(new { message = "Token không chứa LearnerProfileId." });
+                if (learnerProfileIdClaim != null && Guid.TryParse(learnerProfileIdClaim.Value, out var parsedLearnerId))
+                {
+                    learnerProfileId = parsedLearnerId;
+                }
+                else
+                {
+                    // 2️⃣ Fallback: lấy UserId
+                    var userIdClaim = User.Claims.FirstOrDefault(c =>
+                        c.Type == JwtRegisteredClaimNames.Sub ||
+                        c.Type == ClaimTypes.NameIdentifier ||
+                        c.Type.EndsWith("/nameidentifier"));
 
-                Guid learnerProfileId = Guid.Parse(learnerProfileIdClaim.Value);
+                    if (userIdClaim == null)
+                        return Unauthorized(new { message = "Token không chứa UserId hoặc LearnerProfileId." });
 
-                // Gọi service xử lý
-                var result = await _learnerCourseService.RelearnAndUpdateScoreAsync(learnerProfileId, dto.ExerciseId, dto.NewScore);
+                    Guid userId = Guid.Parse(userIdClaim.Value);
+
+                    // 3️⃣ Tìm LearnerProfile
+                    var learnerProfile = await _learnerProfileRepo.AsQueryable()
+                        .FirstOrDefaultAsync(lp => lp.UserId == userId);
+
+                    if (learnerProfile == null)
+                        return Unauthorized(new { message = "Không tìm thấy hồ sơ học viên (LearnerProfile)." });
+
+                    learnerProfileId = learnerProfile.LearnerProfileId;
+                }
+
+                // 4️⃣ Gọi service
+                var result = await _learnerCourseService.RelearnAndUpdateScoreAsync(
+                    learnerProfileId,
+                    dto.ExerciseId,
+                    dto.NewScore
+                );
 
                 return HandleResult(result);
             }
@@ -162,6 +189,8 @@ namespace AESP.API.Controllers.LearnerController
                 return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
             }
         }
+
+
 
 
 
@@ -172,10 +201,39 @@ namespace AESP.API.Controllers.LearnerController
         {
             try
             {
-                var learnerProfileIdClaim = User.Claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
-                if (learnerProfileIdClaim == null || !Guid.TryParse(learnerProfileIdClaim.Value, out var learnerProfileId))
-                    return Unauthorized(new { message = "Token không chứa LearnerProfileId." });
+                Guid learnerProfileId;
 
+                // 1️⃣ Lấy LearnerProfileId từ token (nếu có)
+                var learnerProfileIdClaim = User.Claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
+                if (learnerProfileIdClaim != null && Guid.TryParse(learnerProfileIdClaim.Value, out var parsedLearnerId))
+                {
+                    learnerProfileId = parsedLearnerId;
+                }
+                else
+                {
+                    // 2️⃣ Fallback lấy UserId từ token
+                    var userIdClaim = User.Claims.FirstOrDefault(c =>
+                        c.Type == JwtRegisteredClaimNames.Sub ||
+                        c.Type == ClaimTypes.NameIdentifier ||
+                        c.Type.EndsWith("/nameidentifier")
+                    );
+
+                    if (userIdClaim == null)
+                        return Unauthorized(new { message = "Token không chứa UserId hoặc LearnerProfileId." });
+
+                    Guid userId = Guid.Parse(userIdClaim.Value);
+
+                    // 3️⃣ Tìm LearnerProfile theo UserId
+                    var learnerProfile = await _learnerProfileRepo.AsQueryable()
+                        .FirstOrDefaultAsync(lp => lp.UserId == userId);
+
+                    if (learnerProfile == null)
+                        return Unauthorized(new { message = "Không tìm thấy hồ sơ học viên (LearnerProfile)." });
+
+                    learnerProfileId = learnerProfile.LearnerProfileId;
+                }
+
+                // 4️⃣ Gọi service
                 var result = await _learnerCourseService.GetMyLevelsAsync(learnerProfileId);
                 return HandleResult(result);
             }
@@ -184,7 +242,6 @@ namespace AESP.API.Controllers.LearnerController
                 return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
             }
         }
-
 
         // DTO request body
         public class RelearnExerciseRequestDTO

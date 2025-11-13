@@ -74,10 +74,13 @@ namespace AESP.API.Controllers.ManagerController
                 NumberOfChapter = dto.NumberOfChapter,
                 OrderIndex = dto.OrderIndex,
                 Level = dto.Level,
-
                 Price = dto.Price,
-                Chapters = new List<CreateCourseChapterForCourseDTO>() // tạo course rỗng
+                Duration = dto.Duration,
+                Status = dto.Status,
+                Description = dto.Description,   // 🆕 thêm dòng này
+                Chapters = new List<CreateCourseChapterForCourseDTO>()
             };
+
 
             var result = await _courseService.CreateFullCourseAsync(fullDto);
             return StatusFromResult(result);

@@ -114,6 +114,8 @@ namespace AESP.Common.DTOs
         public decimal Price { get; set; }
         public int Duration { get; set; } = 30;
         public string Status { get; set; } = "Active";
+        public string Description { get; set; }
+
         public List<CreateCourseChapterForCourseDTO>? Chapters { get; set; }
 
     }
@@ -129,6 +131,8 @@ namespace AESP.Common.DTOs
         public int Duration { get; set; }
         public string Status { get; set; } = string.Empty;
         public bool IsFree { get; set; }
+
+        public string Description { get; set; }
         public List<ReadCourseChapterForCourseDTO>? Chapters { get; set; }
 
     }
@@ -158,6 +162,7 @@ namespace AESP.Common.DTOs
         public int Duration { get; set; } = 30;
         public string Status { get; set; } = "Active";
 
+        public string Description { get; set; }
 
 
         // chỉ chứa mảng Chapter — không có Exercise/Question
@@ -181,6 +186,7 @@ namespace AESP.Common.DTOs
         public decimal? Price { get; set; }
         public int? Duration { get; set; }
         public string? Status { get; set; }
+        public string? Description { get; set; }
 
 
     }
