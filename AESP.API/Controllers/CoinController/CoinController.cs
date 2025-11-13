@@ -97,6 +97,30 @@ namespace AESP.API.Controllers.CoinController
         }
 
 
+        [HttpPost("pay")]
+        public async Task<IActionResult> PayCoin([FromBody] PayCoinRequest request)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim))
+                return Unauthorized("Access token không hợp lệ hoặc thiếu UserId.");
+
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return BadRequest("UserId trong token không hợp lệ.");
+
+            try
+            {
+                var result = await _coinService.PayCoinAsync(userId, request.PayCoin);
+
+                if (result == 1)
+                    return Ok(new { result = 1, message = "Thanh toán thành công." });
+
+                return BadRequest(new { result = 0, message = "Số dư trong ví của bạn không đủ." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
 
     }
