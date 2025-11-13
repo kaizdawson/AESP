@@ -179,6 +179,54 @@ namespace AESP.Service.Implementation
             return 1; 
         }
 
+        public async Task<object> WithdrawCoinAsync(Guid userId, int coin, string bankName, string accountNumber)
+        {
+            if (coin <= 0)
+                throw new Exception("Số coin phải > 0.");
+
+            var user = await _userRepository.GetById(userId)
+                ?? throw new Exception("Không tìm thấy người dùng.");
+
+            if (user.CoinBalance < coin)
+                throw new Exception("Số dư coin không đủ để rút.");
+
+            var amountMoney = coin * 1000;
+
+
+            var orderCode = new Random().Next(100000, 999999).ToString();
+
+            var transaction = new Transaction
+            {
+                TransactionId = Guid.NewGuid(),
+                UserId = userId,
+                Type = "Withdrawal",
+                Status = "Pending",
+                AmountCoin = coin,
+                AmountMoney = amountMoney,
+                CreatedTransaction = DateTime.Now,
+                BankName = bankName,
+                AccountNumber = accountNumber,
+                Description = $"Rút {coin} coin tương ứng {amountMoney} vnđ",
+                OrderCode = orderCode
+            };
+
+            user.CoinBalance -= coin;
+
+            await _transactionRepository.Insert(transaction);
+            await _userRepository.Update(user);
+            await _unitOfWork.SaveChangeAsync();
+
+            _logger.LogInformation("🔻 User {UserId} tạo yêu cầu rút {Coin} coin - OrderCode {OrderCode}",
+                userId, coin, orderCode);
+
+            return new
+            {
+                orderCode,
+                status = "Pending",
+                coin,
+                amountMoney
+            };
+        }
 
     }
 }
