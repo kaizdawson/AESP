@@ -80,6 +80,8 @@ namespace AESP.Service.Implementation
                         Price = c.Price,
                         Duration = c.Duration,
                         Status = c.Status,
+                        Description = c.Description,
+
                         IsFree = isFree,
                         Chapters = c.Chapters?.Select(ch => new ReadCourseChapterForCourseDTO
                         {
@@ -160,6 +162,7 @@ namespace AESP.Service.Implementation
                     Price = course.Price,
                     Duration = course.Duration,
                     Status = course.Status,
+                    Description = course.Description,
                     IsFree = isFree,
                     Chapters = course.Chapters.Select(ch => new ReadCourseChapterForCourseDTO
                     {
@@ -380,7 +383,9 @@ namespace AESP.Service.Implementation
                     Level = request.Level.ToString(),
                     Price = request.Price,
                     Duration = request.Duration,
-                    Status = string.IsNullOrEmpty(request.Status) ? "Active" : request.Status.Trim()
+                    Status = string.IsNullOrEmpty(request.Status) ? "Active" : request.Status.Trim(),
+                    // 🆕 thêm mới
+                    Description = request.Description
                 };
 
                 await _courseRepository.Insert(course);
@@ -402,6 +407,8 @@ namespace AESP.Service.Implementation
                         course.Price,
                         course.Duration,
                         course.Status,
+                        course.Description,
+
                         Chapters = new List<object>()
                     }
                 };
@@ -435,6 +442,8 @@ namespace AESP.Service.Implementation
                 // ✅ Validate Duration nếu có truyền
                 if (request.Duration.HasValue && (request.Duration.Value <= 0 || request.Duration.Value > 365))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Thời lượng học phải từ 1 đến 365 ngày.");
+                if (!string.IsNullOrWhiteSpace(request.Description))
+                    course.Description = request.Description.Trim();
 
                 // ===== CẬP NHẬT =====
                 course.Title = request.Title.Trim();
@@ -470,6 +479,8 @@ namespace AESP.Service.Implementation
                         course.Price,
                         course.Duration,
                         course.Status,
+                        course.Description,
+
                         Chapters = new List<object>()
                     }
                 };

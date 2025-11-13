@@ -260,6 +260,7 @@ namespace AESP.Service.Implementation
                     OrderIndex = c.OrderIndex,
                     Level = c.Level,
                     Price = c.Price,
+                    Description = c.Description,
                     IsFree = c.OrderIndex == 1, // có thể điều chỉnh logic free tại đây
                     Chapters = c.Chapters?.Select(ch => new ReadCourseChapterForCourseDTO
                     {
@@ -324,7 +325,7 @@ namespace AESP.Service.Implementation
         {
             try
             {
-                // 1️⃣ Tìm LearnerCourse của học viên
+                // 1️⃣ Tìm LearnerCourse
                 var learnerCourse = await _learnerCourseRepo.AsQueryable()
                     .FirstOrDefaultAsync(lc => lc.LearnerProfileId == learnerProfileId);
 
@@ -333,56 +334,39 @@ namespace AESP.Service.Implementation
 
                 // 2️⃣ Tìm bài tập trong LearningPathExercise
                 var exercise = await _unitOfWork.GetDbContext()
-       .Set<LearningPathExercise>()
-       .Include(e => e.LearningPathChapter)
-           .ThenInclude(ch => ch.LearningPathCourse)
-               .ThenInclude(lc => lc.LearnerCourse)
-       .FirstOrDefaultAsync(e =>
-           e.ExerciseId == exerciseId &&
-           e.LearningPathChapter.LearningPathCourse.LearnerCourse.LearnerProfileId == learnerProfileId);
+                    .Set<LearningPathExercise>()
+                    .Include(e => e.LearningPathChapter)
+                        .ThenInclude(ch => ch.LearningPathCourse)
+                            .ThenInclude(lc => lc.LearnerCourse)
+                    .FirstOrDefaultAsync(e =>
+                        e.ExerciseId == exerciseId &&
+                        e.LearningPathChapter.LearningPathCourse.LearnerCourse.LearnerProfileId == learnerProfileId);
 
                 if (exercise == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài tập trong lộ trình học.");
 
-                // 3️⃣ Nếu chưa truyền điểm mới → chỉ bắt đầu học lại
-                if (!newScore.HasValue)
-                {
-                    exercise.Status = "Relearning";
-                    await _unitOfWork.GetDbContext().SaveChangesAsync();
+                // 3️⃣ Mỗi lần học lại → tăng số lần
+                exercise.RelearnCount++;
 
-                    return new ResponseDTO
-                    {
-                        IsSucess = true,
-                        BusinessCode = BusinessCode.UPDATE_SUCESSFULLY,
-                        Message = "Bắt đầu học lại bài tập để cải thiện điểm.",
-                        Data = new
-                        {
-                            exercise.LearningPathExerciseId,
-                            exercise.ExerciseId,
-                            exercise.Status,
-                            exercise.ScoreAchieved,
-                            IsRelearn = true
-                        }
-                    };
+                // 4️⃣ Nếu có điểm mới → cập nhật
+                if (newScore.HasValue)
+                {
+                    exercise.ScoreAchieved = newScore.Value;
                 }
 
-                // 4️⃣ Nếu có điểm mới → chỉ cập nhật điểm, không reset
-                exercise.ScoreAchieved = newScore.Value;
-                exercise.Status = "Completed_Relearn";
                 await _unitOfWork.GetDbContext().SaveChangesAsync();
 
                 return new ResponseDTO
                 {
                     IsSucess = true,
                     BusinessCode = BusinessCode.UPDATE_SUCESSFULLY,
-                    Message = $"Cập nhật điểm học lại thành công. Điểm hiện tại: {newScore}.",
+                    Message = "Cập nhật học lại thành công.",
                     Data = new
                     {
                         exercise.LearningPathExerciseId,
                         exercise.ExerciseId,
                         exercise.ScoreAchieved,
-                        exercise.Status,
-                        IsRelearn = true
+                        exercise.RelearnCount
                     }
                 };
             }
