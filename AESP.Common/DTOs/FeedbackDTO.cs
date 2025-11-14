@@ -19,8 +19,9 @@ namespace AESP.Common.DTOs
         [Required(ErrorMessage = "Người gửi feedback (UserId) là bắt buộc.")]
         public Guid UserId { get; set; }
 
-        [Required(ErrorMessage = "Reviewer (TargetId) là bắt buộc.")]
-        public Guid TargetId { get; set; }
-     
+        // Feedback dành cho Review nào
+        [Required(ErrorMessage = "ReviewId là bắt buộc.")]
+        public Guid ReviewId { get; set; }
+
     }
 }

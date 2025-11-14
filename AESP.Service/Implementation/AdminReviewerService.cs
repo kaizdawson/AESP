@@ -409,19 +409,23 @@ Trân trọng,
 
                 // 🔹 Lấy feedback từ bảng Feedback (Learner -> Reviewer)
                 var feedbacks = await db.Feedbacks
-                    .Include(f => f.User)
-                    .Where(f => f.TargetId == reviewerProfileId && f.Type == "ReviewerFeedback")
-                    .OrderByDescending(f => f.CreatedAt)
-                    .Select(f => new
-                    {
-                        LearnerName = f.User.FullName,
-                        LearnerEmail = f.User.Email,
-                        LearnerPhone = f.User.PhoneNumber,
-                        Rating = f.Rating,
-                        Comment = string.IsNullOrEmpty(f.Content) ? "(Không có nhận xét)" : f.Content,
-                        Date = f.CreatedAt
-                    })
-                    .ToListAsync();
+     .Include(f => f.User)
+     .Include(f => f.Review)
+     .Where(f =>
+         f.Review.ReviewerProfileId == reviewerProfileId &&
+         f.Type == "ReviewerFeedback")
+     .OrderByDescending(f => f.CreatedAt)
+     .Select(f => new
+     {
+         LearnerName = f.User.FullName,
+         LearnerEmail = f.User.Email,
+         LearnerPhone = f.User.PhoneNumber,
+         Rating = f.Rating,
+         Comment = string.IsNullOrEmpty(f.Content) ? "(Không có nhận xét)" : f.Content,
+         Date = f.CreatedAt
+     })
+     .ToListAsync();
+
 
                 // 🔹 Trả kết quả
                 dto.IsSucess = true;
