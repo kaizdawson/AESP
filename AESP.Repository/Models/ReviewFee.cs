@@ -11,8 +11,13 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid ReviewFeeId { get; set; }
-        public double Price { get; set; }
-        public virtual ICollection<Purchase> Purchases { get; set; }
 
+        // Số lượng bài review trong gói
+        public int NumberOfReview { get; set; }
+
+        // Navigation
+        public virtual ICollection<ReviewFeeDetail> ReviewFeeDetails { get; set; } = new List<ReviewFeeDetail>();
+
+        public virtual ICollection<Purchase> Purchases { get; set; } = new List<Purchase>();
     }
 }
