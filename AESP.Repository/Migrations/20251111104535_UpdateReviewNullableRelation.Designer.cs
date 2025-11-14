@@ -4,6 +4,7 @@ using AESP.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AESP.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251111104535_UpdateReviewNullableRelation")]
+    partial class UpdateReviewNullableRelation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -31,23 +34,36 @@ namespace AESP.Repository.Migrations
                     b.Property<int>("AllowedMinutes")
                         .HasColumnType("int");
 
-                    b.Property<int>("AmountCoin")
-                        .HasColumnType("int");
+                    b.Property<decimal>("AmountCoin")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RoomId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("AIConversationChargeId");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("AIConversationCharge");
                 });
@@ -242,10 +258,6 @@ namespace AESP.Repository.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
                     b.Property<int>("Duration")
                         .HasColumnType("int");
 
@@ -295,9 +307,6 @@ namespace AESP.Repository.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("IsTest")
-                        .HasColumnType("bit");
-
                     b.Property<int>("NumberOfQuestion")
                         .HasColumnType("int");
 
@@ -331,12 +340,15 @@ namespace AESP.Repository.Migrations
                     b.Property<int>("Rating")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("ReviewId")
+                    b.Property<Guid?>("ReviewId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -577,9 +589,6 @@ namespace AESP.Repository.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("OrderIndex")
-                        .HasColumnType("int");
-
-                    b.Property<int>("RelearnCount")
                         .HasColumnType("int");
 
                     b.Property<double>("ScoreAchieved")
@@ -1324,7 +1333,7 @@ namespace AESP.Repository.Migrations
             modelBuilder.Entity("AESP.Repository.Models.CoinTransaction", b =>
                 {
                     b.HasOne("AESP.Repository.Models.AIConversationCharge", "AIConversationCharge")
-                        .WithMany()
+                        .WithMany("CoinTransactions")
                         .HasForeignKey("AIConversationChargeId")
                         .OnDelete(DeleteBehavior.Restrict);
 
@@ -1373,19 +1382,16 @@ namespace AESP.Repository.Migrations
 
             modelBuilder.Entity("AESP.Repository.Models.Feedback", b =>
                 {
-                    b.HasOne("AESP.Repository.Models.Review", "Review")
+                    b.HasOne("AESP.Repository.Models.Review", null)
                         .WithMany("Feedbacks")
                         .HasForeignKey("ReviewId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("AESP.Repository.Models.User", "User")
                         .WithMany("Feedbacks")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Review");
 
                     b.Navigation("User");
                 });
@@ -1699,6 +1705,11 @@ namespace AESP.Repository.Migrations
                     b.Navigation("Review");
 
                     b.Navigation("ReviewerProfile");
+                });
+
+            modelBuilder.Entity("AESP.Repository.Models.AIConversationCharge", b =>
+                {
+                    b.Navigation("CoinTransactions");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.Assessment", b =>
