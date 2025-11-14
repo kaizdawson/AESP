@@ -12,21 +12,22 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid ReviewId { get; set; }
-        public Guid LearnerAnswerId { get; set; }
+        public Guid? LearnerAnswerId { get; set; }
         public Guid ReviewerProfileId { get; set; }
-        public Guid RecordId { get; set; }
+        public Guid? RecordId { get; set; }
 
-        [ForeignKey("LearnerAnswerId")]
-        public virtual LearnerAnswer LearnerAnswer { get; set; }
-        [ForeignKey("ReviewerProfileId")]
+        [ForeignKey(nameof(LearnerAnswerId))]
+        public virtual LearnerAnswer? LearnerAnswer { get; set; }
+        [ForeignKey(nameof(ReviewerProfileId))]
         public virtual ReviewerProfile ReviewerProfile { get; set; }
-        [ForeignKey("RecordId")]
+        [ForeignKey(nameof(RecordId))]
+        public virtual Record? Record { get; set; }
 
         public string Comment { get; set; } = string.Empty;
         public double Score { get; set; }
         public string Status { get; set; } = string.Empty;
 
-        public virtual Record Record { get; set; }
+        
 
 
 

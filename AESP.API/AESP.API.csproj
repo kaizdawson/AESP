@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AESP.Realtime\AESP.Realtime.csproj" />
     <ProjectReference Include="..\AESP.Service\AESP.Service.csproj" />
   </ItemGroup>
 
