@@ -42,7 +42,10 @@ namespace AESP.Service.Implementation
 
                 var db = _unitOfWork.GetDbContext();
 
-                var query = db.Set<LearnerAnswer>()
+                // ============================
+                // 1) GET LEARNER ANSWERS
+                // ============================
+                var pendingAnswersQuery = db.Set<LearnerAnswer>()
                     .Include(la => la.Question)
                     .Include(la => la.LearnerProfile)
                         .ThenInclude(lp => lp.User)
@@ -52,35 +55,65 @@ namespace AESP.Service.Implementation
                         la.NumberofReview > 0 &&
                         !db.Set<Review>().Any(r =>
                             r.LearnerAnswerId == la.LearnerAnswerId &&
-                            r.ReviewerProfileId == reviewerProfileId));
-
-                var totalItems = await query.CountAsync();
-
-                var items = await query
-                    .OrderByDescending(la => la.SubmittedAt)
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
+                            r.ReviewerProfileId == reviewerProfileId))
                     .Select(la => new
                     {
-                        la.LearnerAnswerId,
-                        la.LearnerProfileId,
-                        la.QuestionId,
-                        la.SubmittedAt,
-                        la.AudioRecordingUrl,
-                        la.TranscribedText,
-                        la.ScoreForVoice,
-                        la.ExplainTheWrongForVoiceAI,
-                        la.IsNeededReviewed,
-                        la.Status,
-                        la.NumberofReview,
-                        QuestionText = la.Question.Text,
-                        LearnerFullName = la.LearnerProfile.User.FullName
-                    })
+                        Type = "LearnerAnswer",
+                        Id = la.LearnerAnswerId,
+                        SubmittedAt = la.SubmittedAt,
+                        Content = la.TranscribedText,
+                        AudioUrl = la.AudioRecordingUrl,
+                        NumberOfReview = la.NumberofReview,
+                        LearnerFullName = la.LearnerProfile.User.FullName,
+                        QuestionText = la.Question.Text
+                    });
+
+                // ============================
+                // 2) GET RECORDS
+                // ============================
+                var pendingRecordsQuery = db.Set<Record>()
+                    .Include(r => r.LearnerRecord)
+                        .ThenInclude(lr => lr.LearnerProfile)
+                            .ThenInclude(lp => lp.User)
+                    .AsNoTracking()
+                    .Where(r =>
+                        r.IsNeedReviewed == true &&
+                        r.NumberOfReview > 0 &&
+                        !db.Set<Review>().Any(rv =>
+                            rv.RecordId == r.RecordId &&
+                            rv.ReviewerProfileId == reviewerProfileId))
+                    .Select(r => new
+                    {
+                        Type = "Record",
+                        Id = r.RecordId,
+                        SubmittedAt = r.CreatedAt,
+                        Content = r.Content,
+                        AudioUrl = r.AudioRecordingURL,
+                        NumberOfReview = r.NumberOfReview,
+                        LearnerFullName = r.LearnerRecord.LearnerProfile.User.FullName,
+                        QuestionText = (string?)null  // Record không có Question
+                    });
+
+                // ============================
+                // 3) GỘP 2 QUERY
+                // ============================
+                var combinedQuery = pendingAnswersQuery
+                    .Union(pendingRecordsQuery);
+
+                var totalItems = await combinedQuery.CountAsync();
+
+                var items = await combinedQuery
+                    .OrderByDescending(x => x.SubmittedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .ToListAsync();
 
+                // ============================
+                // TRẢ VỀ RESPONSE
+                // ============================
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy danh sách câu trả lời cần review thành công.";
+                dto.Message = "Lấy danh sách item cần review thành công.";
                 dto.Data = new
                 {
                     PageNumber = pageNumber,
@@ -118,15 +151,18 @@ namespace AESP.Service.Implementation
                 var query = db.Set<Review>()
                     .Include(r => r.LearnerAnswer)
                         .ThenInclude(la => la.Question)
-                    .Include(r => r.ReviewerProfile)
+                    .Include(r => r.LearnerAnswer)
+                        .ThenInclude(la => la.LearnerProfile)
+                            .ThenInclude(lp => lp.User)
                     .Include(r => r.Record)
+                        .ThenInclude(rec => rec.LearnerRecord)
+                            .ThenInclude(lr => lr.LearnerProfile)
+                                .ThenInclude(lp => lp.User)
                     .AsNoTracking()
                     .Where(r => r.ReviewerProfileId == reviewerProfileId);
 
-                // 🔹 Tổng số lượng review
                 var totalItems = await query.CountAsync();
 
-                // 🔹 Phân trang và chọn trường
                 var items = await query
                     .OrderByDescending(r => r.ReviewId)
                     .Skip((pageNumber - 1) * pageSize)
@@ -134,24 +170,35 @@ namespace AESP.Service.Implementation
                     .Select(r => new
                     {
                         r.ReviewId,
-                        r.LearnerAnswerId,
-                        r.RecordId,
                         r.Score,
                         r.Comment,
                         r.Status,
+
+                        // Nếu là LearnerAnswer
+                        LearnerAnswerId = r.LearnerAnswerId,
+                        RecordId = r.RecordId,
+
                         CreatedAt = r.LearnerAnswer != null
                             ? r.LearnerAnswer.SubmittedAt
                             : (r.Record != null ? r.Record.CreatedAt : DateTime.UtcNow),
+
+                        // Câu hỏi của Answer hoặc Content của Record
                         QuestionContent = r.LearnerAnswer != null
                             ? r.LearnerAnswer.Question.Text
                             : (r.Record != null ? r.Record.Content : null),
+
+                        // Tên học viên
                         LearnerFullName = r.LearnerAnswer != null
                             ? r.LearnerAnswer.LearnerProfile.User.FullName
-                            : (r.Record != null ? r.Record.LearnerRecord.LearnerProfile.User.FullName : null)
+                            : (r.Record != null
+                                ? r.Record.LearnerRecord.LearnerProfile.User.FullName
+                                : null),
+
+                        // Loại review: Answer / Record
+                        ReviewType = r.LearnerAnswerId != null ? "LearnerAnswer" : "Record"
                     })
                     .ToListAsync();
 
-                // 🔹 Kết quả trả về đúng format
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy danh sách lịch sử review thành công.";
@@ -306,6 +353,14 @@ namespace AESP.Service.Implementation
                         return dto;
                     }
 
+                    if (record.NumberOfReview <= 0)
+                    {
+                        dto.IsSucess = false;
+                        dto.BusinessCode = BusinessCode.INVALID_ACTION;
+                        dto.Message = "Bản ghi âm này đã được review đủ số lượt.";
+                        return dto;
+                    }
+
                     bool alreadyReviewed = await db.Set<Review>()
                         .AnyAsync(r =>
                             r.RecordId == recordId &&
@@ -321,11 +376,26 @@ namespace AESP.Service.Implementation
 
                     review.RecordId = recordId.Value;
 
-                    // Với Record: hiện tại giả định mỗi bản ghi chỉ cần 1 review
-                    record.Status = "Reviewed";
-                    db.Set<Record>().Update(record);
+                    // Multi-review cho Record
+                    record.NumberOfReview -= 1;
+                    if (record.NumberOfReview < 0)
+                        record.NumberOfReview = 0;
 
-                    remainingReviews = 0;
+                    if (record.NumberOfReview > 0)
+                    {
+                        record.IsNeedReviewed = true;
+                        if (string.IsNullOrEmpty(record.Status))
+                            record.Status = "InReview";
+                    }
+                    else
+                    {
+                        record.IsNeedReviewed = false;
+                        record.Status = "Reviewed";
+                    }
+
+                    remainingReviews = record.NumberOfReview;
+
+                    db.Set<Record>().Update(record);
                 }
 
                 // ---------------- LƯU REVIEW ----------------
