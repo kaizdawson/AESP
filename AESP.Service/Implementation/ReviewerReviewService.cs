@@ -147,7 +147,7 @@ namespace AESP.Service.Implementation
                             : (r.Record != null ? r.Record.Content : null),
                         LearnerFullName = r.LearnerAnswer != null
                             ? r.LearnerAnswer.LearnerProfile.User.FullName
-                            : (r.Record != null ? r.Record.LearnerRecordCategory.LearnerProfile.User.FullName : null)
+                            : (r.Record != null ? r.Record.LearnerRecord.LearnerProfile.User.FullName : null)
                     })
                     .ToListAsync();
 
@@ -294,7 +294,7 @@ namespace AESP.Service.Implementation
                 if (recordId != null && recordId != Guid.Empty)
                 {
                     var record = await db.Set<Record>()
-                        .Include(r => r.LearnerRecordCategory)
+                        .Include(r => r.LearnerRecord)
                             .ThenInclude(cat => cat.LearnerProfile)
                         .FirstOrDefaultAsync(x => x.RecordId == recordId);
 
