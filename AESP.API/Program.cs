@@ -114,6 +114,8 @@ builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection(
 
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IServicePackageService, ServicePackageService>();
+builder.Services.AddScoped<IAIConversationChargeService, AIConversationChargeService>();
+
 
 
 builder.Services.AddHttpClient<PayOSService>();
