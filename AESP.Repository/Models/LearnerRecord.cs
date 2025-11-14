@@ -8,22 +8,23 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class LearnerRecordCategory
+    public class LearnerRecord
     {
         [Key]
-        public Guid LearnerRecordCategoryId { get; set; }
+        public Guid LearnerRecordId { get; set; }
 
-        [ForeignKey("LearnerProfile")]
+        [ForeignKey(nameof(LearnerProfile))]
         public Guid LearnerId { get; set; }
 
         [Required]
         public string Name { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
         public string Status { get; set; } = string.Empty;
 
-        public  LearnerProfile LearnerProfile { get; set; }
-
-        public virtual ICollection<Record> Records { get; set; }
+        // Navigation
+        public virtual LearnerProfile LearnerProfile { get; set; }
+        public virtual ICollection<Record> Records { get; set; } = new List<Record>();
     }
 }
