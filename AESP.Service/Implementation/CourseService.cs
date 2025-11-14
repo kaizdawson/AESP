@@ -48,7 +48,7 @@ namespace AESP.Service.Implementation
                 if (!string.IsNullOrEmpty(level))
                     query = query.Where(x => x.Level == level);
                 if (!string.IsNullOrEmpty(keyword))
-                    query = query.Where(x => x.Title.Contains(keyword));
+                    query = query.Where(x => x.Status.Contains(keyword));
 
                 query = query
                     .Include(x => x.Chapters)
@@ -337,6 +337,11 @@ namespace AESP.Service.Implementation
                 if (string.IsNullOrWhiteSpace(request.Title))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được để trống.");
 
+
+                if (string.IsNullOrWhiteSpace(request.Description))
+                    return Fail(BusinessCode.VALIDATION_FAILED, "Mô tả khóa học (Description) không được để trống.");
+
+
                 if (request.NumberOfChapter <= 0)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng chương phải lớn hơn 0.");
 
@@ -442,8 +447,14 @@ namespace AESP.Service.Implementation
                 // ✅ Validate Duration nếu có truyền
                 if (request.Duration.HasValue && (request.Duration.Value <= 0 || request.Duration.Value > 365))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Thời lượng học phải từ 1 đến 365 ngày.");
-                if (!string.IsNullOrWhiteSpace(request.Description))
+
+                if (request.Description != null) // FE có truyền Description
+                {
+                    if (string.IsNullOrWhiteSpace(request.Description))
+                        return Fail(BusinessCode.VALIDATION_FAILED, "Description không được để trống.");
+
                     course.Description = request.Description.Trim();
+                }
 
                 // ===== CẬP NHẬT =====
                 course.Title = request.Title.Trim();
@@ -589,7 +600,9 @@ namespace AESP.Service.Implementation
                     c.Level,
                     c.Price,
                     c.Duration,
-                    c.Status
+                    c.Status,
+                    c.Description
+
                 }).ToList();
 
                 return new ResponseDTO
