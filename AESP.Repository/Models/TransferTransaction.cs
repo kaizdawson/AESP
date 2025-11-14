@@ -34,6 +34,6 @@ namespace AESP.Repository.Models
         public virtual Review? Review { get; set; }
 
 
-        public virtual ICollection<CoinTransaction> CoinTransactions { get; set; } = new List<CoinTransaction>();
+
     }
 }
