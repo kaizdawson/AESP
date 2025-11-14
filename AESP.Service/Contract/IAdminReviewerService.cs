@@ -16,5 +16,7 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetReviewerDetailAsync(Guid reviewerProfileId);
         Task<ResponseDTO> BanReviewerAsync(Guid userId, string reason);
         Task<ResponseDTO> UpdateReviewerLevelAsync(Guid reviewerProfileId, string newLevel);
+        Task<ResponseDTO> GetUnapprovedCertificatesAsync(Guid reviewerProfileId);
+        Task<ResponseDTO> GetAllPendingCertificatesAsync(int pageNumber, int pageSize);
     }
 }

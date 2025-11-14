@@ -1,5 +1,9 @@
 ﻿using AESP.API.Helpers;
+
 using AESP.Common.DTOs;
+using AESP.Realtime.Hubs;
+using AESP.Realtime.Interfaces;
+using AESP.Realtime.Services;
 using AESP.Repository.Contract;
 using AESP.Repository.DB;
 using AESP.Repository.Implementation;
@@ -104,17 +108,15 @@ builder.Services.AddScoped<ILearnerCourseService, LearnerCourseService>();
 builder.Services.AddScoped<ILearningPathCourseService, LearningPathCourseService>();
 builder.Services.AddScoped<IAvatarService, AvatarService>();
 builder.Services.AddScoped<IQuestionMediaService, QuestionMediaService>();
-builder.Services.AddScoped<ILearnerQuestionService, LearnerQuestionService>();
-builder.Services.AddScoped<ILearningPathChapterService, LearningPathChapterService>();
-builder.Services.AddScoped<ILearningPathExerciseService, LearningPathExerciseService>();
-builder.Services.AddScoped<ILearnerAnswerService, LearnerAnswerService>();
-
-
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IServicePackageService, ServicePackageService>();
 builder.Services.AddScoped<IAIConversationChargeService, AIConversationChargeService>();
+
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IReviewerReviewService, ReviewerReviewService>();
+builder.Services.AddScoped<IRealtimeNotifier, SignalRNotifier>();
 
 
 
@@ -244,5 +246,6 @@ app.UseAuthorization();
 
 app.UseMiddleware<UpdateLastActiveMiddleware>();
 app.MapControllers();
+app.MapHub<ReviewerHub>("/hubs/reviewer");
 
 app.Run();
