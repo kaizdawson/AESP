@@ -19,11 +19,11 @@ namespace AESP.Repository.Models
         public string Type { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         [ForeignKey("Review")]
-        public Guid ReviewId { get; set; }
+        public Guid? ReviewId { get; set; }
 
         [ForeignKey("UserId")]
         public virtual User User { get; set; }
-        public virtual Review Review { get; set; }
+        public virtual Review? Review { get; set; }
 
     }
 }

@@ -43,7 +43,7 @@ namespace AESP.Repository.DB
         public DbSet<ProgressAnalytics> ProgressAnalytics { get; set; }
 
         public DbSet<Record> Records { get; set; }
-        public DbSet<LearnerRecordCategory> LearnerRecordCategories { get; set; }
+        public DbSet<LearnerRecord> LearnerRecordCategories { get; set; }
 
         public DbSet<Review> Reviews { get; set; }
         public DbSet<Feedback> Feedbacks { get; set; }
