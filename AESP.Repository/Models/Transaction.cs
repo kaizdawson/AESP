@@ -56,6 +56,6 @@ namespace AESP.Repository.Models
         public DateTime CreatedTransaction { get; set; } = DateTime.UtcNow;
 
      
-        public virtual ICollection<CoinTransaction> CoinTransactions { get; set; } = new List<CoinTransaction>();
+
     }
 }

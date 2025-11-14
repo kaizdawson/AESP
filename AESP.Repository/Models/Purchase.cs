@@ -17,8 +17,6 @@ namespace AESP.Repository.Models
         [ForeignKey(nameof(User))]
         public Guid UserId { get; set; }
 
-        // Loại product: REVIEW_FEE / AI_CONVERSATION / COURSE
-        public string ItemType { get; set; } = string.Empty;
 
         // --- Fields chính ---
         public string Status { get; set; } = "Pending"; // Pending / Completed / Failed
@@ -27,24 +25,26 @@ namespace AESP.Repository.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public int NumberOfReview { get; set; }
 
         // FK đến ReviewFee
-        public Guid? ReviewFeeId { get; set; }
+        public Guid ReviewFeeId { get; set; }
 
         [ForeignKey(nameof(ReviewFeeId))]
         public virtual ReviewFee? ReviewFee { get; set; }
 
         // FK đến AIConversationCharge
-        public Guid? AIConversationChargeId { get; set; }
+        public Guid AIConversationChargeId { get; set; }
 
         [ForeignKey(nameof(AIConversationChargeId))]
         public virtual AIConversationCharge? AIConversationCharge { get; set; }
 
+        public Guid? CourseId { get; set; }
+        [ForeignKey(nameof(CourseId))]
+        public virtual Course Course { get; set; }
         // Navigation
         public virtual User User { get; set; }
 
-        public virtual ICollection<CoinTransaction> CoinTransactions { get; set; } = new List<CoinTransaction>();
+      
 
     }
 }
