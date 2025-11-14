@@ -57,6 +57,7 @@ namespace AESP.Repository.DB
 
         public DbSet<RefreshToken> RefreshTokens { get; set; }
 
+        public DbSet<AIConversationCharge> AIConversationCharge { get; set; }
 
 
 
