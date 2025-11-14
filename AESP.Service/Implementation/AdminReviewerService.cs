@@ -469,6 +469,50 @@ Trân trọng,
             return dto;
         }
 
+        public async Task<ResponseDTO> GetUnapprovedCertificatesAsync(Guid reviewerProfileId)
+        {
+            ResponseDTO dto = new ResponseDTO();
+
+            try
+            {
+                var profile = await _reviewerProfileRepository.GetById(reviewerProfileId);
+                if (profile == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy hồ sơ reviewer.";
+                    return dto;
+                }
+
+                // Lấy Certificate chưa được duyệt (Pending)
+                var certs = await _certificateRepository.GetAllDataByExpression(
+                    x => x.ReviewerProfileId == reviewerProfileId && x.Status.Trim().ToLower() == "pending",
+                    0, 0, null, false
+                );
+
+                var result = certs.Items.Select(c => new
+                {
+                    c.CertificateId,
+                    c.Name,
+                    c.Url,
+                    c.Status
+                }).ToList();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách chứng chỉ chờ duyệt thành công.";
+                dto.Data = result;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy chứng chỉ chờ duyệt: " + ex.Message;
+            }
+
+            return dto;
+        }
+
         public async Task<ResponseDTO> RejectReviewerByCertificateAsync(Guid certificateId)
         {
             ResponseDTO dto = new ResponseDTO();
@@ -589,6 +633,57 @@ Trân trọng,
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
                 dto.Message = "Lỗi khi cập nhật cấp độ reviewer: " + ex.Message;
+            }
+
+            return dto;
+        }
+        public async Task<ResponseDTO> GetAllPendingCertificatesAsync(int pageNumber, int pageSize)
+        {
+            ResponseDTO dto = new ResponseDTO();
+            try
+            {
+                var db = _certificateRepository.GetDbContext();
+
+                var query = db.Certificates
+                    .Include(c => c.ReviewerProfile)
+                        .ThenInclude(r => r.User)
+                    .Where(c => c.Status.Trim().ToLower() == "pending");
+
+                var totalItems = await query.CountAsync();
+
+                var certs = await query
+                    .OrderByDescending(c => c.ReviewerProfile.CreatedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách certificate pending thành công.";
+
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    Items = certs.Select(c => new
+                    {
+                        c.CertificateId,
+                        c.Name,
+                        c.Url,
+                        c.Status,
+                        ReviewerProfileId = c.ReviewerProfileId,
+                        ReviewerName = c.ReviewerProfile.User.FullName,
+                        ReviewerEmail = c.ReviewerProfile.User.Email,
+                        ReviewerPhone = c.ReviewerProfile.User.PhoneNumber
+                    })
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy danh sách certificate pending: " + ex.Message;
             }
 
             return dto;
