@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AESP.Common\AESP.Common.csproj" />
+    <ProjectReference Include="..\AESP.Realtime\AESP.Realtime.csproj" />
     <ProjectReference Include="..\AESP.Repository\AESP.Repository.csproj" />
   </ItemGroup>
 
