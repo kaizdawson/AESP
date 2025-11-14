@@ -89,7 +89,7 @@ namespace AESP.Service.Implementation
                         f.Content,
                         f.Status,
                         f.CreatedAt,
-                        f.TargetId
+                        f.ReviewId
                     })
                     .ToListAsync();
 
@@ -147,7 +147,7 @@ namespace AESP.Service.Implementation
                     feedback.Content,
                     feedback.Status,
                     feedback.CreatedAt,
-                    feedback.TargetId
+                    feedback.ReviewId
                 };
             }
             catch (Exception ex)
