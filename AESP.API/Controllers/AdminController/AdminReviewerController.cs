@@ -1,5 +1,6 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Service.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -70,6 +71,20 @@ namespace AESP.API.Controllers.AdminController
         public async Task<IActionResult> UpdateReviewerLevel(Guid reviewerProfileId, [FromBody] UpdateReviewerLevelDto dto)
         {
             var result = await _adminReviewerService.UpdateReviewerLevelAsync(reviewerProfileId, dto.Level);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
+        [HttpGet("{reviewerProfileId}/pending-certificates")]
+        public async Task<IActionResult> GetReviewerPendingCert(Guid reviewerProfileId)
+        {
+            var result = await _adminReviewerService.GetUnapprovedCertificatesAsync(reviewerProfileId);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
+        [HttpGet("certificate/pending")]
+        public async Task<IActionResult> GetPendingCertificates(
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
+        {
+            var result = await _adminReviewerService.GetAllPendingCertificatesAsync(pageNumber, pageSize);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
