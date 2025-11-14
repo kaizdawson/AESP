@@ -21,7 +21,8 @@ namespace AESP.Repository.Models
         public string Description { get; set; } = string.Empty;
         public int OrderIndex { get; set; }
         public int NumberOfQuestion { get; set; }
-
+        // ⬇️ Thêm mới — Final Test marker
+        public bool IsTest { get; set; } = false;
         public virtual Chapter Chapter { get; set; }
 
         public virtual ICollection<Question> Questions { get; set; }

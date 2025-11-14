@@ -18,9 +18,12 @@ namespace AESP.Repository.Models
         public DateTime CreatedAt { get; set; }
         public string Type { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
-        public Guid TargetId { get; set; }
+        [ForeignKey("Review")]
+        public Guid ReviewId { get; set; }
 
         [ForeignKey("UserId")]
         public virtual User User { get; set; }
+        public virtual Review Review { get; set; }
+
     }
 }
