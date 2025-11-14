@@ -244,7 +244,7 @@ namespace AESP.Service.Implementation
                             .ThenInclude(ex => ex.Questions)
                                 .ThenInclude(q => q.QuestionMedias) 
                     .Where(c => c.Level.ToUpper() == level.ToUpper()
-                             && (string.IsNullOrEmpty(keyword) || c.Title.Contains(keyword)))
+                             && (string.IsNullOrEmpty(keyword) || c.Status.Contains(keyword)))
                     .OrderBy(c => c.OrderIndex)
                     .ToListAsync();
 
@@ -261,6 +261,8 @@ namespace AESP.Service.Implementation
                     Level = c.Level,
                     Price = c.Price,
                     Description = c.Description,
+                    Status = c.Status,
+
                     IsFree = c.OrderIndex == 1, // có thể điều chỉnh logic free tại đây
                     Chapters = c.Chapters?.Select(ch => new ReadCourseChapterForCourseDTO
                     {
