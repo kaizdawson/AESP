@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AESP.Repository", "AESP.Rep
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AESP.Common", "AESP.Common\AESP.Common.csproj", "{62F76CB1-3C6D-4F89-952A-5F186FA496BB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AESP.Realtime", "AESP.Realtime\AESP.Realtime.csproj", "{E2D9A5B8-621B-4E8F-AED4-E88E59591435}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,8 +35,15 @@ Global
 		{62F76CB1-3C6D-4F89-952A-5F186FA496BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{62F76CB1-3C6D-4F89-952A-5F186FA496BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{62F76CB1-3C6D-4F89-952A-5F186FA496BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E2D9A5B8-621B-4E8F-AED4-E88E59591435}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2D9A5B8-621B-4E8F-AED4-E88E59591435}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E2D9A5B8-621B-4E8F-AED4-E88E59591435}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E2D9A5B8-621B-4E8F-AED4-E88E59591435}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BB2BF309-8196-4B75-A3CE-E3A4C7E7DCB8}
 	EndGlobalSection
 EndGlobal
