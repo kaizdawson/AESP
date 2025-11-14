@@ -31,14 +31,20 @@ namespace AESP.Repository.Migrations
                     b.Property<int>("AllowedMinutes")
                         .HasColumnType("int");
 
-                    b.Property<int>("AmountCoin")
-                        .HasColumnType("int");
+                    b.Property<decimal>("AmountCoin")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -331,7 +337,7 @@ namespace AESP.Repository.Migrations
                     b.Property<int>("Rating")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("ReviewId")
+                    b.Property<Guid?>("ReviewId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Status")
@@ -466,9 +472,9 @@ namespace AESP.Repository.Migrations
                     b.ToTable("LearnerProfiles");
                 });
 
-            modelBuilder.Entity("AESP.Repository.Models.LearnerRecordCategory", b =>
+            modelBuilder.Entity("AESP.Repository.Models.LearnerRecord", b =>
                 {
-                    b.Property<Guid>("LearnerRecordCategoryId")
+                    b.Property<Guid>("LearnerRecordId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
@@ -486,7 +492,7 @@ namespace AESP.Repository.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.HasKey("LearnerRecordCategoryId");
+                    b.HasKey("LearnerRecordId");
 
                     b.HasIndex("LearnerId");
 
@@ -735,14 +741,14 @@ namespace AESP.Repository.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("AIConversationChargeId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<decimal>("AmountCoin")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ItemId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ItemType")
                         .IsRequired()
@@ -765,6 +771,8 @@ namespace AESP.Repository.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("PurchaseId");
+
+                    b.HasIndex("AIConversationChargeId");
 
                     b.HasIndex("LearnerProfileId");
 
@@ -885,8 +893,14 @@ namespace AESP.Repository.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("LearnerRecordCategoryId")
+                    b.Property<bool>("IsNeedReviewed")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("LearnerRecordId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("NumberOfReview")
+                        .HasColumnType("int");
 
                     b.Property<double>("Score")
                         .HasColumnType("float");
@@ -897,7 +911,7 @@ namespace AESP.Repository.Migrations
 
                     b.HasKey("RecordId");
 
-                    b.HasIndex("LearnerRecordCategoryId");
+                    b.HasIndex("LearnerRecordId");
 
                     b.ToTable("Records");
                 });
@@ -983,12 +997,40 @@ namespace AESP.Repository.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<double>("Price")
-                        .HasColumnType("float");
+                    b.Property<int>("NumberOfReview")
+                        .HasColumnType("int");
 
                     b.HasKey("ReviewFeeId");
 
                     b.ToTable("ReviewFees");
+                });
+
+            modelBuilder.Entity("AESP.Repository.Models.ReviewFeeDetail", b =>
+                {
+                    b.Property<Guid>("ReviewFeeDetailId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AppliedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("PayReviewer")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PricePerReviewFee")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PriceSystem")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ReviewFeeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("ReviewFeeDetailId");
+
+                    b.HasIndex("ReviewFeeId");
+
+                    b.ToTable("ReviewFeeDetail");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.ReviewerProfile", b =>
@@ -1240,7 +1282,7 @@ namespace AESP.Repository.Migrations
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 11, 11, 10, 45, 34, 707, DateTimeKind.Utc).AddTicks(7355),
+                            CreatedAt = new DateTime(2025, 11, 14, 15, 46, 52, 444, DateTimeKind.Utc).AddTicks(9259),
                             Email = "admin@aesp.com",
                             FirebaseUid = "",
                             FullName = "Super Admin",
@@ -1249,19 +1291,8 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0909000000",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 11, 11, 10, 45, 34, 707, DateTimeKind.Utc).AddTicks(7358)
+                            UpdatedAt = new DateTime(2025, 11, 14, 15, 46, 52, 444, DateTimeKind.Utc).AddTicks(9261)
                         });
-                });
-
-            modelBuilder.Entity("AESP.Repository.Models.AIConversationCharge", b =>
-                {
-                    b.HasOne("AESP.Repository.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.Assessment", b =>
@@ -1376,8 +1407,7 @@ namespace AESP.Repository.Migrations
                     b.HasOne("AESP.Repository.Models.Review", "Review")
                         .WithMany("Feedbacks")
                         .HasForeignKey("ReviewId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("AESP.Repository.Models.User", "User")
                         .WithMany("Feedbacks")
@@ -1439,7 +1469,7 @@ namespace AESP.Repository.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("AESP.Repository.Models.LearnerRecordCategory", b =>
+            modelBuilder.Entity("AESP.Repository.Models.LearnerRecord", b =>
                 {
                     b.HasOne("AESP.Repository.Models.LearnerProfile", "LearnerProfile")
                         .WithMany("LearnerRecordCategories")
@@ -1558,12 +1588,17 @@ namespace AESP.Repository.Migrations
 
             modelBuilder.Entity("AESP.Repository.Models.Purchase", b =>
                 {
+                    b.HasOne("AESP.Repository.Models.AIConversationCharge", "AIConversationCharge")
+                        .WithMany("Purchases")
+                        .HasForeignKey("AIConversationChargeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AESP.Repository.Models.LearnerProfile", null)
                         .WithMany("Purchases")
                         .HasForeignKey("LearnerProfileId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("AESP.Repository.Models.ReviewFee", null)
+                    b.HasOne("AESP.Repository.Models.ReviewFee", "ReviewFee")
                         .WithMany("Purchases")
                         .HasForeignKey("ReviewFeeId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -1573,6 +1608,10 @@ namespace AESP.Repository.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("AIConversationCharge");
+
+                    b.Navigation("ReviewFee");
 
                     b.Navigation("User");
                 });
@@ -1601,13 +1640,13 @@ namespace AESP.Repository.Migrations
 
             modelBuilder.Entity("AESP.Repository.Models.Record", b =>
                 {
-                    b.HasOne("AESP.Repository.Models.LearnerRecordCategory", "LearnerRecordCategory")
+                    b.HasOne("AESP.Repository.Models.LearnerRecord", "LearnerRecord")
                         .WithMany("Records")
-                        .HasForeignKey("LearnerRecordCategoryId")
+                        .HasForeignKey("LearnerRecordId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("LearnerRecordCategory");
+                    b.Navigation("LearnerRecord");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.RefreshToken", b =>
@@ -1644,6 +1683,17 @@ namespace AESP.Repository.Migrations
                     b.Navigation("Record");
 
                     b.Navigation("ReviewerProfile");
+                });
+
+            modelBuilder.Entity("AESP.Repository.Models.ReviewFeeDetail", b =>
+                {
+                    b.HasOne("AESP.Repository.Models.ReviewFee", "ReviewFee")
+                        .WithMany("ReviewFeeDetails")
+                        .HasForeignKey("ReviewFeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ReviewFee");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.ReviewerProfile", b =>
@@ -1701,6 +1751,11 @@ namespace AESP.Repository.Migrations
                     b.Navigation("ReviewerProfile");
                 });
 
+            modelBuilder.Entity("AESP.Repository.Models.AIConversationCharge", b =>
+                {
+                    b.Navigation("Purchases");
+                });
+
             modelBuilder.Entity("AESP.Repository.Models.Assessment", b =>
                 {
                     b.Navigation("AssessmentDetails");
@@ -1749,7 +1804,7 @@ namespace AESP.Repository.Migrations
                     b.Navigation("Purchases");
                 });
 
-            modelBuilder.Entity("AESP.Repository.Models.LearnerRecordCategory", b =>
+            modelBuilder.Entity("AESP.Repository.Models.LearnerRecord", b =>
                 {
                     b.Navigation("Records");
                 });
@@ -1798,6 +1853,8 @@ namespace AESP.Repository.Migrations
             modelBuilder.Entity("AESP.Repository.Models.ReviewFee", b =>
                 {
                     b.Navigation("Purchases");
+
+                    b.Navigation("ReviewFeeDetails");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.ReviewerProfile", b =>

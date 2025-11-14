@@ -8,10 +8,18 @@ namespace AESP.Repository.Models
         [Key]
         public Guid AIConversationChargeId { get; set; } = Guid.NewGuid();
 
-        public int AmountCoin { get; set; }
+        public decimal AmountCoin { get; set; }
 
         public int AllowedMinutes { get; set; }
 
+        public DateTime? StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+
         public string Status { get; set; } = "Active";
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Purchase sẽ tham chiếu đến bảng này
+        public virtual ICollection<Purchase> Purchases { get; set; } = new List<Purchase>();
     }
 }

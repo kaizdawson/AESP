@@ -39,7 +39,7 @@ namespace AESP.Service.Implementation
                     .Select(x => new AIConversationChargeDto
                     {
                         AIConversationChargeId = x.AIConversationChargeId,
-                        AmountCoin = x.AmountCoin,
+                     //   AmountCoin = x.AmountCoin,
                         AllowedMinutes = x.AllowedMinutes,
                         Status = x.Status,
                         CreatedAt = x.CreatedAt,

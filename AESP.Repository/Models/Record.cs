@@ -13,8 +13,8 @@ namespace AESP.Repository.Models
         [Key]
         public Guid RecordId { get; set; }
 
-        [ForeignKey("LearnerRecordCategory")]
-        public Guid LearnerRecordCategoryId { get; set; }
+        [ForeignKey(nameof(LearnerRecord))]
+        public Guid LearnerRecordId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string AudioRecordingURL { get; set; } = string.Empty;
@@ -22,9 +22,12 @@ namespace AESP.Repository.Models
         public string Status { get; set; } = string.Empty;
         public string AIFeedback { get; set; } = string.Empty;
         public double Score { get; set; }
+        public int NumberOfReview { get; set; }
 
-        public virtual LearnerRecordCategory LearnerRecordCategory { get; set; }
+        public bool IsNeedReviewed { get; set; }
 
-        public virtual ICollection<Review> Reviews { get; set; }
+        public virtual LearnerRecord LearnerRecord { get; set; }
+
+        public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
     }
 }
