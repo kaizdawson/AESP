@@ -1,10 +1,13 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Repository.DB;
+using AESP.Repository.Models;
 using AESP.Service.Contract;
 using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 
 namespace AESP.API.Controllers.ReviewerController
 {
@@ -14,10 +17,14 @@ namespace AESP.API.Controllers.ReviewerController
     public class ReviewerReviewController : ControllerBase
     {
         private readonly IReviewerReviewService _reviewService;
+        private readonly IReviewerProfileService _reviewerProfileService;
 
-        public ReviewerReviewController(IReviewerReviewService reviewService)
+        public ReviewerReviewController(
+            IReviewerReviewService reviewService,
+            IReviewerProfileService reviewerProfileService)
         {
             _reviewService = reviewService;
+            _reviewerProfileService = reviewerProfileService;
         }
         [HttpPost("submit")]
         public async Task<IActionResult> SubmitReview([FromBody] SubmitReviewDTO dto)
@@ -45,25 +52,55 @@ namespace AESP.API.Controllers.ReviewerController
         }
         [HttpGet("history")]
         public async Task<IActionResult> GetReviewHistory(
-    [FromQuery][Required] Guid reviewerProfileId,
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 10)
         {
-            var result = await _reviewService.GetReviewHistoryAsync(reviewerProfileId, pageNumber, pageSize);
+            var reviewerProfileId = GetReviewerProfileIdFromToken(User);
+            if (reviewerProfileId == null)
+                return Unauthorized(new { message = "Không xác định được reviewer từ token." });
+
+            var result = await _reviewService.GetReviewHistoryAsync(
+                reviewerProfileId.Value, pageNumber, pageSize);
+
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
         [HttpGet("pending")]
         public async Task<IActionResult> GetPendingReviews(
-            [FromQuery][Required] Guid reviewerProfileId,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
         {
-            var result = await _reviewService.GetPendingReviewsAsync(reviewerProfileId, pageNumber, pageSize);
+            var reviewerProfileId = GetReviewerProfileIdFromToken(User);
+            if (reviewerProfileId == null)
+                return Unauthorized(new { message = "Không xác định được reviewer từ token." });
+
+            var result = await _reviewService.GetPendingReviewsAsync(
+                reviewerProfileId.Value, pageNumber, pageSize);
+
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 
+        private Guid? GetReviewerProfileIdFromToken(ClaimsPrincipal user)
+        {
+            var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
+                              user.FindFirst("sub")?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim))
+                return null;
+
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return null;
+
+            var db = HttpContext.RequestServices.GetService<AppDbContext>();
+            // nếu service KHÔNG expose DbContext thì sửa bên dưới
+            var reviewer = db.Set<ReviewerProfile>()
+                             .FirstOrDefault(r => r.UserId == userId);
+
+            return reviewer?.ReviewerProfileId;
+        }
+
+
     }
 
-   
+
 }
 
