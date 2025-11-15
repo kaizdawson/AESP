@@ -18,6 +18,8 @@ namespace AESP.Common.DTOs
         public double Progress { get; set; }
         public int NumberOfChapter { get; set; }
         public int OrderIndex { get; set; }
+        public string? Description { get; set; }
+
     }
 
     public class UpdateLearningPathCourseDTO

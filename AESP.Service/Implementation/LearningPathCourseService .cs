@@ -56,6 +56,7 @@ namespace AESP.Service.Implementation
                     LearnerCourseId = x.LearnerCourseId,
                     CourseId = x.CourseId,
                     CourseTitle = x.Course.Title,
+                    Description = x.Course.Description,
                     Status = x.Status,
                     Progress = x.Progress,
                     NumberOfChapter = x.NumberOfChapter,
@@ -85,6 +86,8 @@ namespace AESP.Service.Implementation
                 LearnerCourseId = entity.LearnerCourseId,
                 CourseId = entity.CourseId,
                 CourseTitle = entity.Course.Title,
+                Description = entity.Course.Description,
+
                 Status = entity.Status,
                 Progress = entity.Progress,
                 NumberOfChapter = entity.NumberOfChapter,
