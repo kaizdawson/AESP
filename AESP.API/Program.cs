@@ -108,6 +108,8 @@ builder.Services.AddScoped<ILearnerCourseService, LearnerCourseService>();
 builder.Services.AddScoped<ILearningPathCourseService, LearningPathCourseService>();
 builder.Services.AddScoped<IAvatarService, AvatarService>();
 builder.Services.AddScoped<IQuestionMediaService, QuestionMediaService>();
+builder.Services.AddScoped<ILearnerQuestionService, LearnerQuestionService>();
+
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
