@@ -41,9 +41,12 @@ namespace AESP.Service.Implementation
                 var db = _feedbackRepository.GetDbContext();
 
                 var query = db.Feedbacks
-                    .Include(f => f.User)
-                    .OrderByDescending(f => f.CreatedAt)
-                    .AsQueryable();
+                 .Include(f => f.User)
+                 .Include(f => f.Review) // thêm dòng này
+                 .ThenInclude(r => r.ReviewerProfile) // thêm dòng này
+                 .ThenInclude(rp => rp.User) // thêm dòng này
+                 .OrderByDescending(f => f.CreatedAt)
+                 .AsQueryable();
 
                 // 🔍 Lọc theo từ khóa
                 if (!string.IsNullOrWhiteSpace(keyword))
@@ -89,7 +92,8 @@ namespace AESP.Service.Implementation
                         f.Content,
                         f.Status,
                         f.CreatedAt,
-                        f.ReviewId
+                        f.ReviewId,
+                        ReviewerName = f.Review != null ? f.Review.ReviewerProfile.User.FullName : null
                     })
                     .ToListAsync();
 
