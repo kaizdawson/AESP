@@ -28,7 +28,7 @@ namespace AESP.Service.Implementation
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<ResponseDTO> AddFeedbackAsync(FeedbackDTO dto)
+        public async Task<ResponseDTO> AddFeedbackAsync(FeedbackDTO dto, Guid userId)
         {
             var response = new ResponseDTO();
             try
@@ -38,76 +38,56 @@ namespace AESP.Service.Implementation
                 // 1️⃣ Kiểm tra Review tồn tại
                 var review = await db.Reviews
                     .Include(r => r.ReviewerProfile)
-                    .ThenInclude(rp => rp.User)
+                    .Include(r => r.LearnerAnswer)
+                        .ThenInclude(a => a.LearnerProfile)
+                    .Include(r => r.Record)
+                        .ThenInclude(rc => rc.LearnerRecord)
+                        .ThenInclude(lr => lr.LearnerProfile)
                     .FirstOrDefaultAsync(r => r.ReviewId == dto.ReviewId);
 
                 if (review == null)
                 {
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        Message = "Không tìm thấy bản chấm (Review).",
-                        BusinessCode = BusinessCode.DATA_NOT_FOUND
-                    };
+                    response.IsSucess = false;
+                    response.Message = "Không tìm thấy bản chấm (Review).";
+                    response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    return response;
                 }
 
-                // 2️⃣ Reviewer của review này
-                var reviewer = review.ReviewerProfile;
+                // 2️⃣ Kiểm tra Review này có thuộc Learner đang đăng nhập không
+                Guid? learnerUserId = null;
 
-                if (reviewer == null)
+                if (review.LearnerAnswer != null)
+                    learnerUserId = review.LearnerAnswer.LearnerProfile.UserId;
+
+                if (review.Record != null)
+                    learnerUserId = review.Record.LearnerRecord.LearnerProfile.UserId;
+
+                if (learnerUserId == null || learnerUserId.Value != userId)
                 {
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        Message = "Không tìm thấy Reviewer của bài review này.",
-                        BusinessCode = BusinessCode.DATA_NOT_FOUND
-                    };
+                    response.IsSucess = false;
+                    response.Message = "Bạn không thể feedback bản chấm không thuộc về bạn.";
+                    response.BusinessCode = BusinessCode.ACCESS_DENIED;
+                    return response;
                 }
 
-                // 3️⃣ Kiểm tra User gửi feedback
-                var user = await db.Users.FirstOrDefaultAsync(u => u.UserId == dto.UserId);
-                if (user == null)
-                {
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        Message = "Người gửi feedback không tồn tại.",
-                        BusinessCode = BusinessCode.DATA_NOT_FOUND
-                    };
-                }
-
-                if (user.Role != "LEARNER")
-                {
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        Message = "Chỉ Learner mới có thể gửi feedback.",
-                        BusinessCode = BusinessCode.ACCESS_DENIED
-                    };
-                }
-
-                // 4️⃣ Validate Feedback
+                // 3️⃣ Validate Content
                 if (string.IsNullOrWhiteSpace(dto.Content))
                 {
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        Message = "Nội dung feedback không được để trống.",
-                        BusinessCode = BusinessCode.INVALID_DATA
-                    };
+                    response.IsSucess = false;
+                    response.Message = "Nội dung feedback không được để trống.";
+                    response.BusinessCode = BusinessCode.INVALID_DATA;
+                    return response;
                 }
 
                 if (dto.Rating < 1 || dto.Rating > 5)
                 {
-                    return new ResponseDTO
-                    {
-                        IsSucess = false,
-                        Message = "Rating phải nằm trong khoảng 1 đến 5.",
-                        BusinessCode = BusinessCode.INVALID_DATA
-                    };
+                    response.IsSucess = false;
+                    response.Message = "Rating phải nằm trong khoảng 1 đến 5.";
+                    response.BusinessCode = BusinessCode.INVALID_DATA;
+                    return response;
                 }
 
-                // 5️⃣ Tạo Feedback
+                // 4️⃣ Tạo Feedback
                 var feedback = new Feedback
                 {
                     FeedbackId = Guid.NewGuid(),
@@ -115,7 +95,7 @@ namespace AESP.Service.Implementation
                     Rating = dto.Rating,
                     CreatedAt = DateTime.UtcNow,
                     Status = "Active",
-                    UserId = dto.UserId,
+                    UserId = userId,
                     ReviewId = dto.ReviewId,
                     Type = "ReviewerFeedback"
                 };
@@ -123,24 +103,20 @@ namespace AESP.Service.Implementation
                 await _feedbackRepository.Insert(feedback);
                 await _unitOfWork.SaveChangeAsync();
 
-                // 6️⃣ Cập nhật rating reviewer
-                await RecalculateReviewerRatingAsync(reviewer.ReviewerProfileId);
+                // 5️⃣ Cập nhật rating reviewer
+                await RecalculateReviewerRatingAsync(review.ReviewerProfileId);
 
-                return new ResponseDTO
-                {
-                    IsSucess = true,
-                    Message = "Gửi feedback thành công và cập nhật điểm đánh giá reviewer.",
-                    BusinessCode = BusinessCode.CREATED_SUCCESSFULLY
-                };
+                response.IsSucess = true;
+                response.Message = "Gửi feedback thành công.";
+                response.BusinessCode = BusinessCode.CREATED_SUCCESSFULLY;
+                return response;
             }
             catch (Exception ex)
             {
-                return new ResponseDTO
-                {
-                    IsSucess = false,
-                    Message = "Lỗi khi thêm feedback: " + ex.Message,
-                    BusinessCode = BusinessCode.EXCEPTION
-                };
+                response.IsSucess = false;
+                response.BusinessCode = BusinessCode.EXCEPTION;
+                response.Message = ex.InnerException?.Message ?? ex.Message;
+                return response;
             }
         }
 
