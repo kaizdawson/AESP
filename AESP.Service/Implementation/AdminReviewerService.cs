@@ -322,56 +322,56 @@ Trân trọng,
 
             try
             {
-                var dbContext = _reviewerProfileRepository.GetDbContext();
+                var db = _reviewerProfileRepository.GetDbContext();
 
-                // ✅ Bỏ lỗi khi có space hoặc khác hoa thường
-                var query = dbContext.ReviewerProfiles
-                    .Include(x => x.User)
-                    .Include(x => x.Certificates)
-                    .Where(x => x.Status.Trim().ToLower() == "pending");
+                var query = db.ReviewerProfiles
+                    .Include(r => r.User)
+                    .Include(r => r.Certificates)
+                    .Where(r =>
+                        // Reviewer phải Pending hoặc Active
+                        (r.Status.Trim().ToLower() == "pending" ||
+                         r.Status.Trim().ToLower() == "active")
+                        &&
+                        // Có ít nhất 1 certificate Pending
+                        r.Certificates.Any(c => c.Status.Trim().ToLower() == "pending")
+                    );
+
+                var totalItems = await query.CountAsync();
 
                 var reviewers = await query
+                    .OrderByDescending(r => r.User.CreatedAt)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
 
-                if (reviewers == null || !reviewers.Any())
-                {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-                    dto.Message = "Không có reviewer nào đang chờ duyệt.";
-                    dto.Data = new
-                    {
-                        PageNumber = pageNumber,
-                        PageSize = pageSize,
-                        Items = new List<object>()
-                    };
-                    return dto;
-                }
-
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy danh sách reviewer đang chờ duyệt thành công.";
+                dto.Message = "Lấy danh sách reviewer có certificate pending thành công.";
                 dto.Data = new
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
-                    Items = reviewers.Select(x => new
+                    TotalItems = totalItems,
+                    Items = reviewers.Select(r => new
                     {
-                        x.ReviewerProfileId,
-                        UserId = x.User.UserId,
-                        FullName = x.User.FullName,
-                        Email = x.User.Email,
-                        Phone = x.User.PhoneNumber,
-                        x.Experience,
-                        x.Status,
-                        HasCertificate = x.Certificates.Any(),
-                        Certificates = x.Certificates.Select(c => new
-                        {
-                            c.CertificateId,
-                            c.Name,
-                            c.Url
-                        })
+                        r.ReviewerProfileId,
+                        UserId = r.User.UserId,
+                        FullName = r.User.FullName,
+                        Email = r.User.Email,
+                        Phone = r.User.PhoneNumber,
+                        ReviewerStatus = r.Status,
+
+                        // ✔ CHỈ show certificate PENDING
+                        Certificates = r.Certificates
+                            .Where(c => c.Status.Trim().ToLower() == "pending")
+                            .Select(c => new
+                            {
+                                c.CertificateId,
+                                c.Name,
+                                c.Url,
+                                c.Status
+                            })
+                            .ToList()
                     })
                 };
             }

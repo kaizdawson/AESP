@@ -16,8 +16,7 @@ namespace AESP.Common.DTOs
         [Range(1, 5, ErrorMessage = "Rating phải nằm trong khoảng 1 đến 5.")]
         public int Rating { get; set; }
 
-        [Required(ErrorMessage = "Người gửi feedback (UserId) là bắt buộc.")]
-        public Guid UserId { get; set; }
+        
 
         // Feedback dành cho Review nào
         [Required(ErrorMessage = "ReviewId là bắt buộc.")]
