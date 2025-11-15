@@ -53,11 +53,13 @@ namespace AESP.Service.Implementation
 
                 // 🔹 Kiểm tra quyền truy cập (learner đã enroll course này chưa?)
                 bool hasAccess = await _learningPathCourseRepo.AsQueryable()
-                    .Include(lp => lp.LearnerCourse)
-                    .AnyAsync(lp =>
-                        lp.LearnerCourse.LearnerProfileId == learnerProfileId &&
-                        lp.CourseId == courseId &&
-                        (lp.Status == "Enrolled" || lp.Status == "InProgress" || lp.Status == "Completed"));
+     .Include(lp => lp.LearnerCourse)
+     .AnyAsync(lp =>
+         lp.LearnerCourse != null &&                                            // 🔥 thêm vào
+         lp.LearnerCourse.LearnerProfileId == learnerProfileId &&
+         lp.CourseId == courseId &&
+         (lp.Status == "Enrolled" || lp.Status == "InProgress" || lp.Status == "Completed"));
+
 
                 if (!hasAccess)
                     return Fail(BusinessCode.ACCESS_DENIED, "Bạn chưa được phép truy cập bài tập này.");
