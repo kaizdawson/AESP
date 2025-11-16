@@ -1,9 +1,13 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
+using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -11,29 +15,62 @@ using Microsoft.AspNetCore.Mvc;
 public class LearnerQuestionController : ControllerBase
 {
     private readonly ILearnerQuestionService _service;
+    private readonly IGenericRepository<LearnerProfile> _learnerProfileRepo;
 
-    public LearnerQuestionController(ILearnerQuestionService service)
+    public LearnerQuestionController(ILearnerQuestionService service, IGenericRepository<LearnerProfile> learnerProfileRepo)
     {
         _service = service;
+        _learnerProfileRepo = learnerProfileRepo;
     }
 
     [HttpGet("exercise/{exerciseId}")]
     public async Task<IActionResult> GetQuestionsByExerciseId(Guid exerciseId)
     {
-        // ✅ Lấy LearnerProfileId trực tiếp từ Claims
-        var learnerProfileIdClaim = User.FindFirst("LearnerProfileId")?.Value;
-        if (learnerProfileIdClaim == null)
-            return Unauthorized(new { message = "Không tìm thấy LearnerProfileId trong token." });
+        try
+        {
+            Guid learnerProfileId;
 
-        if (!Guid.TryParse(learnerProfileIdClaim, out Guid learnerProfileId))
-            return BadRequest(new { message = "LearnerProfileId trong token không hợp lệ." });
+            
+            var learnerProfileIdClaim = User.Claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
+            if (learnerProfileIdClaim != null && Guid.TryParse(learnerProfileIdClaim.Value, out var parsedLearnerId))
+            {
+                learnerProfileId = parsedLearnerId;
+            }
+            else
+            {
+                var userIdClaim = User.Claims.FirstOrDefault(c =>
+                    c.Type == JwtRegisteredClaimNames.Sub ||
+                    c.Type == ClaimTypes.NameIdentifier ||
+                    c.Type.EndsWith("/nameidentifier"));
 
-        // ✅ Gọi service
-        var result = await _service.GetQuestionsByExerciseIdForLearnerAsync(learnerProfileId, exerciseId);
+                if (userIdClaim == null)
+                    return Unauthorized(new { message = "Token không chứa UserId hoặc LearnerProfileId." });
 
-        // ✅ Dùng helper anh đưa (chuẩn hóa HTTP code)
-        return StatusFromResult(result);
+                Guid userId = Guid.Parse(userIdClaim.Value);
+
+                var learnerProfile = await _learnerProfileRepo.AsQueryable()
+                    .FirstOrDefaultAsync(lp => lp.UserId == userId);
+
+                if (learnerProfile == null)
+                    return Unauthorized(new { message = "Không tìm thấy hồ sơ học viên (LearnerProfile)." });
+
+                learnerProfileId = learnerProfile.LearnerProfileId;
+            }
+
+            var result = await _service.GetQuestionsByExerciseIdForLearnerAsync(
+                learnerProfileId,
+                exerciseId
+            );
+
+            return StatusFromResult(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
+        }
     }
+
+
 
     // ✅ Helper: ánh xạ BusinessCode -> StatusCode
     private IActionResult StatusFromResult(ResponseDTO result)
