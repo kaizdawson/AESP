@@ -13,5 +13,6 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetByIdAsync(Guid id);
         Task<ResponseDTO> CreateAsync(CreateLearningPathCourseDTO dto);
         Task<ResponseDTO> UpdateAsync(Guid id, UpdateLearningPathCourseDTO dto);
+        Task<ResponseDTO> GetFullLearningPathCourseAsync(Guid? learningPathCourseId, Guid? courseId, string? status);
     }
 }

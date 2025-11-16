@@ -41,6 +41,123 @@ namespace AESP.Service.Implementation
 
 
 
+        //public async Task<ResponseDTO> EnrollAsync(Guid learnerProfileId, Guid courseId)
+        //{
+        //    var learner = await _learnerProfileRepo.GetById(learnerProfileId);
+        //    if (learner == null)
+        //        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
+
+        //    var course = await _courseRepo.GetById(courseId);
+        //    if (course == null)
+        //        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
+
+        //    string[] levelOrder = { "A1", "A2", "B1", "B2", "C1", "C2" };
+        //    int courseIndex = Array.IndexOf(levelOrder, course.Level);
+        //    int learnerIndex = Array.IndexOf(levelOrder, learner.Level);
+
+        //    // ✅ Kiểm tra learner đã từng enroll level này chưa
+        //    var existedLearnerCourse = await (
+        //        from lc in _learnerCourseRepo.AsQueryable()
+        //        join lp in _learningPathCourseRepo.AsQueryable() on lc.LearnerCourseId equals lp.LearnerCourseId
+        //        join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
+        //        where lc.LearnerProfileId == learner.LearnerProfileId && c.Level == course.Level
+        //        select lc
+        //    ).FirstOrDefaultAsync();
+
+        //    // ❌ Không được học level thấp hơn level hiện tại,
+        //    // 👉 Trừ khi learner đã từng enroll level đó trước đây.
+        //    if (courseIndex < learnerIndex && existedLearnerCourse == null)
+        //    {
+        //        return Fail(BusinessCode.INVALID_ACTION,
+        //            $"Bạn hiện đang ở Level {learner.Level}. Không thể học Level thấp hơn ({course.Level}).");
+        //    }
+
+        //    // ✅ Nếu đã enroll rồi → cho phép quay lại học/view mà không tạo mới
+        //    if (existedLearnerCourse != null)
+        //    {
+        //        return new ResponseDTO
+        //        {
+        //            IsSucess = true,
+        //            BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+        //            Message = $"Bạn đã đăng ký Level {course.Level} trước đó. Có thể quay lại học hoặc xem lại nội dung.",
+        //            Data = new
+        //            {
+        //                LearnerCourseId = existedLearnerCourse.LearnerCourseId,
+        //                Level = course.Level
+        //            }
+        //        };
+        //    }
+
+
+        //    // ✅ Không cho học level cao hơn nếu chưa hoàn thành level hiện tại
+        //    if (courseIndex > learnerIndex)
+        //    {
+        //        var currentLevelPassed = await (
+        //            from lp in _learningPathCourseRepo.AsQueryable()
+        //            join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
+        //            join lc in _learnerCourseRepo.AsQueryable() on lp.LearnerCourseId equals lc.LearnerCourseId
+        //            where lc.LearnerProfileId == learner.LearnerProfileId && c.Level == learner.Level
+        //            select lp.Status
+        //        ).ToListAsync();
+
+        //        bool hasPassedCurrentLevel = currentLevelPassed.Any(s =>
+        //            s.Equals("Completed", StringComparison.OrdinalIgnoreCase));
+
+        //        if (!hasPassedCurrentLevel)
+        //        {
+        //            return Fail(BusinessCode.INVALID_ACTION,
+        //                $"Bạn cần hoàn thành Level {learner.Level} trước khi học Level {course.Level}.");
+        //        }
+        //    }
+
+        //    // ✅ Chỉ cho phép enroll khóa đầu tiên (OrderIndex = 1)
+        //    if (course.OrderIndex != 1)
+        //        return Fail(BusinessCode.INVALID_ACTION,
+        //            $"Chỉ có thể đăng ký khóa học đầu tiên (OrderIndex = 1) trong Level {course.Level}.");
+
+        //    // ✅ Tạo LearnerCourse mới cho level này
+        //    var learnerCourse = new LearnerCourse
+        //    {
+        //        LearnerCourseId = Guid.NewGuid(),
+        //        LearnerProfileId = learner.LearnerProfileId,
+        //        GeneratedDate = DateTime.UtcNow,
+        //        NumberOfCourse = course.OrderIndex
+        //    };
+        //    await _learnerCourseRepo.Insert(learnerCourse);
+
+        //    // ✅ Tạo LearningPathCourse đầu tiên cho level này
+        //    var newLp = new LearningPathCourse
+        //    {
+        //        LearningPathCourseId = Guid.NewGuid(),
+        //        LearnerCourseId = learnerCourse.LearnerCourseId,
+        //        CourseId = course.CourseId,
+        //        OrderIndex = course.OrderIndex,
+        //        NumberOfChapter = course.NumberOfChapter,
+        //        Status = "Enrolled",
+        //        Progress = 0
+        //    };
+
+        //    await _learningPathCourseRepo.Insert(newLp);
+        //    await _unitOfWork.SaveChangeAsync();
+
+        //    return new ResponseDTO
+        //    {
+        //        IsSucess = true,
+        //        BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
+        //        Message = $"Đăng ký khóa học đầu tiên của Level {course.Level} thành công! Chúc bạn học tốt.",
+        //        Data = new
+        //        {
+        //            LearnerCourseId = learnerCourse.LearnerCourseId,
+        //            Level = course.Level
+        //        }
+        //    };
+
+        //}
+
+
+
+
+
         public async Task<ResponseDTO> EnrollAsync(Guid learnerProfileId, Guid courseId)
         {
             var learner = await _learnerProfileRepo.GetById(learnerProfileId);
@@ -55,103 +172,110 @@ namespace AESP.Service.Implementation
             int courseIndex = Array.IndexOf(levelOrder, course.Level);
             int learnerIndex = Array.IndexOf(levelOrder, learner.Level);
 
-            // ✅ Kiểm tra learner đã từng enroll level này chưa
+            // ============================================================
+            // 1️⃣ CHECK ĐÃ ENROLL LEVEL NÀY CHƯA
+            // ============================================================
             var existedLearnerCourse = await (
                 from lc in _learnerCourseRepo.AsQueryable()
-                join lp in _learningPathCourseRepo.AsQueryable() on lc.LearnerCourseId equals lp.LearnerCourseId
+                join lp in _learningPathCourseRepo.AsQueryable()
+                    on lc.LearnerCourseId equals lp.LearnerCourseId
                 join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
                 where lc.LearnerProfileId == learner.LearnerProfileId && c.Level == course.Level
-                select lc
+                select new { lc, lp }
             ).FirstOrDefaultAsync();
 
-            // ❌ Không được học level thấp hơn level hiện tại,
-            // 👉 Trừ khi learner đã từng enroll level đó trước đây.
-            if (courseIndex < learnerIndex && existedLearnerCourse == null)
-            {
-                return Fail(BusinessCode.INVALID_ACTION,
-                    $"Bạn hiện đang ở Level {learner.Level}. Không thể học Level thấp hơn ({course.Level}).");
-            }
-
-            // ✅ Nếu đã enroll rồi → cho phép quay lại học/view mà không tạo mới
             if (existedLearnerCourse != null)
             {
-                return new ResponseDTO
-                {
-                    IsSucess = true,
-                    BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
-                    Message = $"Bạn đã đăng ký Level {course.Level} trước đó. Có thể quay lại học hoặc xem lại nội dung.",
-                    Data = new
+                return Success(BusinessCode.GET_DATA_SUCCESSFULLY,
+                    $"Bạn đã đăng ký Level {course.Level} trước đó.",
+                    new
                     {
-                        LearnerCourseId = existedLearnerCourse.LearnerCourseId,
-                        Level = course.Level
-                    }
-                };
+                        Level = course.Level,
+                        LearningPathCourseId = existedLearnerCourse.lp.LearningPathCourseId,
+                        CourseId = course.CourseId,
+                        Status = existedLearnerCourse.lp.Status
+                    });
             }
 
+            // ============================================================
+            // 2️⃣ VALIDATE LEVEL
+            // ============================================================
+            if (courseIndex < learnerIndex)
+                return Fail(BusinessCode.INVALID_ACTION,
+                    $"Bạn đang ở Level {learner.Level}, không thể học Level thấp hơn ({course.Level}).");
 
-            // ✅ Không cho học level cao hơn nếu chưa hoàn thành level hiện tại
             if (courseIndex > learnerIndex)
             {
-                var currentLevelPassed = await (
+                var completed = await (
                     from lp in _learningPathCourseRepo.AsQueryable()
                     join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
                     join lc in _learnerCourseRepo.AsQueryable() on lp.LearnerCourseId equals lc.LearnerCourseId
                     where lc.LearnerProfileId == learner.LearnerProfileId && c.Level == learner.Level
                     select lp.Status
-                ).ToListAsync();
+                ).AnyAsync(s => s == "Completed");
 
-                bool hasPassedCurrentLevel = currentLevelPassed.Any(s =>
-                    s.Equals("Completed", StringComparison.OrdinalIgnoreCase));
-
-                if (!hasPassedCurrentLevel)
-                {
+                if (!completed)
                     return Fail(BusinessCode.INVALID_ACTION,
-                        $"Bạn cần hoàn thành Level {learner.Level} trước khi học Level {course.Level}.");
-                }
+                        $"Bạn phải hoàn thành Level {learner.Level} trước.");
             }
 
-            // ✅ Chỉ cho phép enroll khóa đầu tiên (OrderIndex = 1)
+            // ============================================================
+            // 3️⃣ CHỈ CHO ĐK KHÓA ĐẦU TIÊN (ORDERINDEX = 1)
+            // ============================================================
             if (course.OrderIndex != 1)
                 return Fail(BusinessCode.INVALID_ACTION,
-                    $"Chỉ có thể đăng ký khóa học đầu tiên (OrderIndex = 1) trong Level {course.Level}.");
+                    "Chỉ được đăng ký khóa đầu tiên (OrderIndex = 1) của Level.");
 
-            // ✅ Tạo LearnerCourse mới cho level này
+            // ============================================================
+            // 4️⃣ TẠO LEARNERCOURSE
+            // ============================================================
             var learnerCourse = new LearnerCourse
             {
                 LearnerCourseId = Guid.NewGuid(),
                 LearnerProfileId = learner.LearnerProfileId,
                 GeneratedDate = DateTime.UtcNow,
-                NumberOfCourse = course.OrderIndex
+                NumberOfCourse = 1
             };
             await _learnerCourseRepo.Insert(learnerCourse);
 
-            // ✅ Tạo LearningPathCourse đầu tiên cho level này
-            var newLp = new LearningPathCourse
+            // ============================================================
+            // 5️⃣ TẠO LEARNINGPATHCOURSE
+            // ============================================================
+            var lpCourse = new LearningPathCourse
             {
                 LearningPathCourseId = Guid.NewGuid(),
                 LearnerCourseId = learnerCourse.LearnerCourseId,
                 CourseId = course.CourseId,
-                OrderIndex = course.OrderIndex,
+                OrderIndex = 1,
                 NumberOfChapter = course.NumberOfChapter,
-                Status = "Enrolled",
+                Status = "InProgress",
                 Progress = 0
             };
+            await _learningPathCourseRepo.Insert(lpCourse);
 
-            await _learningPathCourseRepo.Insert(newLp);
+            // Lưu trước khi tạo chapter/exercise
             await _unitOfWork.SaveChangeAsync();
 
-            return new ResponseDTO
-            {
-                IsSucess = true,
-                BusinessCode = BusinessCode.INSERT_SUCESSFULLY,
-                Message = $"Đăng ký khóa học đầu tiên của Level {course.Level} thành công! Chúc bạn học tốt.",
-                Data = new
-                {
-                    LearnerCourseId = learnerCourse.LearnerCourseId,
-                    Level = course.Level
-                }
-            };
+            // ============================================================
+            // 6️⃣ GỌI SERVICE TẠO LEARNINGPATHCHAPTER + LEARNINGPATHEXERCISE
+            // ============================================================
+            await _learningPathChapterService.CreateByCourseAsync(
+                lpCourse.LearningPathCourseId,
+                learnerCourse.LearnerCourseId
+            );
 
+            // ============================================================
+            // 7️⃣ RESPONSE – TRẢ VỀ 4 FIELD NHƯ YÊU CẦU
+            // ============================================================
+            return Success(BusinessCode.INSERT_SUCESSFULLY,
+                "Đăng ký khóa học đầu tiên của Level {course.Level} thành công! Chúc bạn học tốt.",
+                new
+                {
+                    Level = course.Level,
+                    LearningPathCourseId = lpCourse.LearningPathCourseId,
+                    CourseId = course.CourseId,
+                    Status = "InProgress"
+                });
         }
 
 
@@ -159,70 +283,70 @@ namespace AESP.Service.Implementation
         // ============================================================
         // 🔹 UNENROLL COURSE
         // ============================================================
-        public async Task<ResponseDTO> UnenrollAsync(Guid learnerId, Guid courseId)
-        {
-            var learner = await _learnerProfileRepo.GetByExpression(x => x.UserId == learnerId);
-            if (learner == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
+        //public async Task<ResponseDTO> UnenrollAsync(Guid learnerId, Guid courseId)
+        //{
+        //    var learner = await _learnerProfileRepo.GetByExpression(x => x.UserId == learnerId);
+        //    if (learner == null)
+        //        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
 
-            var learnerCourse = await _learnerCourseRepo.GetFirstByExpression(x => x.LearnerProfileId == learner.LearnerProfileId);
-            if (learnerCourse == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học.");
+        //    var learnerCourse = await _learnerCourseRepo.GetFirstByExpression(x => x.LearnerProfileId == learner.LearnerProfileId);
+        //    if (learnerCourse == null)
+        //        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học.");
 
-            var record = await _learningPathCourseRepo.GetFirstByExpression(x =>
-                x.LearnerCourseId == learnerCourse.LearnerCourseId &&
-                x.CourseId == courseId);
+        //    var record = await _learningPathCourseRepo.GetFirstByExpression(x =>
+        //        x.LearnerCourseId == learnerCourse.LearnerCourseId &&
+        //        x.CourseId == courseId);
 
-            if (record == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Bạn chưa đăng ký khóa học này.");
+        //    if (record == null)
+        //        return Fail(BusinessCode.DATA_NOT_FOUND, "Bạn chưa đăng ký khóa học này.");
 
-            record.Status = "Cancelled";
-            await _learningPathCourseRepo.Update(record);
-            await _unitOfWork.SaveChangeAsync();
+        //    record.Status = "Cancelled";
+        //    await _learningPathCourseRepo.Update(record);
+        //    await _unitOfWork.SaveChangeAsync();
 
-            return Success(BusinessCode.DELETE_SUCESSFULLY, "Hủy đăng ký khóa học thành công.");
-        }
+        //    return Success(BusinessCode.DELETE_SUCESSFULLY, "Hủy đăng ký khóa học thành công.");
+        //}
 
         // ============================================================
         // 🔹 UPDATE PROGRESS
         // ============================================================
-        public async Task<ResponseDTO> UpdateProgressAsync(Guid learnerId, Guid courseId, double progress)
-        {
-            var learner = await _learnerProfileRepo.GetByExpression(x => x.UserId == learnerId);
-            if (learner == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
+        //public async Task<ResponseDTO> UpdateProgressAsync(Guid learnerId, Guid courseId, double progress)
+        //{
+        //    var learner = await _learnerProfileRepo.GetByExpression(x => x.UserId == learnerId);
+        //    if (learner == null)
+        //        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
 
-            var learnerCourse = await _learnerCourseRepo.GetFirstByExpression(x => x.LearnerProfileId == learner.LearnerProfileId);
-            if (learnerCourse == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học.");
+        //    var learnerCourse = await _learnerCourseRepo.GetFirstByExpression(x => x.LearnerProfileId == learner.LearnerProfileId);
+        //    if (learnerCourse == null)
+        //        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học.");
 
-            var record = await _learningPathCourseRepo.GetFirstByExpression(x =>
-                x.LearnerCourseId == learnerCourse.LearnerCourseId &&
-                x.CourseId == courseId);
+        //    var record = await _learningPathCourseRepo.GetFirstByExpression(x =>
+        //        x.LearnerCourseId == learnerCourse.LearnerCourseId &&
+        //        x.CourseId == courseId);
 
-            if (record == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Bạn chưa đăng ký khóa học này.");
+        //    if (record == null)
+        //        return Fail(BusinessCode.DATA_NOT_FOUND, "Bạn chưa đăng ký khóa học này.");
 
-            record.Progress = progress;
-            if (progress >= 100)
-            {
-                record.Status = "Completed";
+        //    record.Progress = progress;
+        //    if (progress >= 100)
+        //    {
+        //        record.Status = "Completed";
 
-                // tự nâng Level học viên
-                string[] order = { "A1", "A2", "B1", "B2", "C1", "C2" };
-                int index = Array.IndexOf(order, learner.Level);
-                if (index >= 0 && index < order.Length - 1)
-                {
-                    learner.Level = order[index + 1];
-                    await _learnerProfileRepo.Update(learner);
-                }
-            }
+        //        // tự nâng Level học viên
+        //        string[] order = { "A1", "A2", "B1", "B2", "C1", "C2" };
+        //        int index = Array.IndexOf(order, learner.Level);
+        //        if (index >= 0 && index < order.Length - 1)
+        //        {
+        //            learner.Level = order[index + 1];
+        //            await _learnerProfileRepo.Update(learner);
+        //        }
+        //    }
 
-            await _learningPathCourseRepo.Update(record);
-            await _unitOfWork.SaveChangeAsync();
+        //    await _learningPathCourseRepo.Update(record);
+        //    await _unitOfWork.SaveChangeAsync();
 
-            return Success(BusinessCode.UPDATE_SUCESSFULLY, "Cập nhật tiến độ học thành công.");
-        }
+        //    return Success(BusinessCode.UPDATE_SUCESSFULLY, "Cập nhật tiến độ học thành công.");
+        //}
 
 
 
@@ -386,23 +510,36 @@ namespace AESP.Service.Implementation
             {
                 string[] levelOrder = { "A1", "A2", "B1", "B2", "C1", "C2" };
 
-                // 🟢 Lấy danh sách các Level mà learner đã enroll
-                var enrolledLevels = await (
+                // 🟢 Lấy danh sách level mà learner đã enroll
+                var enrolled = await (
                     from lc in _learnerCourseRepo.AsQueryable()
-                    join lp in _learningPathCourseRepo.AsQueryable() on lc.LearnerCourseId equals lp.LearnerCourseId
-                    join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
+                    join lp in _learningPathCourseRepo.AsQueryable()
+                        on lc.LearnerCourseId equals lp.LearnerCourseId
+                    join c in _courseRepo.AsQueryable()
+                        on lp.CourseId equals c.CourseId
                     where lc.LearnerProfileId == learnerProfileId
-                    select new { c.Level, lc.LearnerCourseId }
-                ).Distinct().ToListAsync();
+                    select new
+                    {
+                        Level = c.Level,
+                        LearnerCourseId = lc.LearnerCourseId,
+                        LearningPathCourseId = lp.LearningPathCourseId,
+                        CourseId = c.CourseId,
+                        Status = lp.Status
+                    }
+                ).ToListAsync();
 
-                // 🟢 Trả toàn bộ Level hệ thống (A1 → C2), có hoặc không có learnerCourseId
+                // 🟢 Trả toàn bộ Level hệ thống (A1 → C2)
                 var result = levelOrder.Select(level =>
                 {
-                    var match = enrolledLevels.FirstOrDefault(x => x.Level == level);
+                    var match = enrolled.FirstOrDefault(x => x.Level == level);
+
                     return new
                     {
                         Level = level,
-                        LearnerCourseId = match?.LearnerCourseId
+                        LearnerCourseId = match?.LearnerCourseId,
+                        LearningPathCourseId = match?.LearningPathCourseId,
+                        CourseId = match?.CourseId,
+                        Status = match?.Status
                     };
                 }).ToList();
 
@@ -427,8 +564,9 @@ namespace AESP.Service.Implementation
         // Helper methods
         // ============================================================
 
-        private ResponseDTO Success(BusinessCode code, string msg)
-            => new() { IsSucess = true, BusinessCode = code, Message = msg };
+        private ResponseDTO Success(BusinessCode code, string msg, object data)
+     => new() { IsSucess = true, BusinessCode = code, Message = msg, Data = data };
+
 
         private ResponseDTO Fail(BusinessCode code, string msg)
             => new() { IsSucess = false, BusinessCode = code, Message = msg };
