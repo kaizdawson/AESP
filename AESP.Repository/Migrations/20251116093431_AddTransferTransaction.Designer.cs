@@ -4,6 +4,7 @@ using AESP.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AESP.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251116093431_AddTransferTransaction")]
+    partial class AddTransferTransaction
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -953,13 +956,13 @@ namespace AESP.Repository.Migrations
                     b.Property<DateTime>("AppliedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal>("PercentOfReviewer")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("PercentOfSystem")
+                    b.Property<decimal>("PayReviewer")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("PricePerReviewFee")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("PriceSystem")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<Guid>("ReviewFeeId")
@@ -1221,7 +1224,7 @@ namespace AESP.Repository.Migrations
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 11, 16, 11, 13, 2, 948, DateTimeKind.Utc).AddTicks(7164),
+                            CreatedAt = new DateTime(2025, 11, 16, 9, 34, 30, 308, DateTimeKind.Utc).AddTicks(4441),
                             Email = "admin@aesp.com",
                             FirebaseUid = "",
                             FullName = "Super Admin",
@@ -1230,7 +1233,7 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0909000000",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 11, 16, 11, 13, 2, 948, DateTimeKind.Utc).AddTicks(7167)
+                            UpdatedAt = new DateTime(2025, 11, 16, 9, 34, 30, 308, DateTimeKind.Utc).AddTicks(4444)
                         });
                 });
 
