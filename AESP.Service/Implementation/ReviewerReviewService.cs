@@ -107,22 +107,6 @@ namespace AESP.Service.Implementation
                     .OrderByDescending(x => x.SubmittedAt)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
-                    .Select(la => new
-                    {
-                        la.LearnerAnswerId,
-                        la.LearnerProfileId,
-                        la.QuestionId,
-                        la.SubmittedAt,
-                        la.AudioRecordingUrl,
-                        la.TranscribedText,
-                        la.ScoreForVoice,
-                        la.ExplainTheWrongForVoiceAI,
-                        la.IsNeededReviewed,
-                        la.Status,
-                        la.NumberofReview,
-                        QuestionText = la.Question.Text,
-                        LearnerFullName = la.LearnerProfile.User.FullName
-                    })
                     .ToListAsync();
 
                 // ============================
@@ -178,10 +162,8 @@ namespace AESP.Service.Implementation
                     .AsNoTracking()
                     .Where(r => r.ReviewerProfileId == reviewerProfileId);
 
-                // 🔹 Tổng số lượng review
                 var totalItems = await query.CountAsync();
 
-                // 🔹 Phân trang và chọn trường
                 var items = await query
                     .OrderByDescending(r => r.ReviewId)
                     .Skip((pageNumber - 1) * pageSize)
@@ -189,8 +171,6 @@ namespace AESP.Service.Implementation
                     .Select(r => new
                     {
                         r.ReviewId,
-                        r.LearnerAnswerId,
-                        r.RecordId,
                         r.Score,
                         r.Comment,
                         r.Status,
@@ -220,7 +200,6 @@ namespace AESP.Service.Implementation
                     })
                     .ToListAsync();
 
-                // 🔹 Kết quả trả về đúng format
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy danh sách lịch sử review thành công.";
@@ -412,14 +391,12 @@ namespace AESP.Service.Implementation
                     else
                     {
                         record.IsNeedReviewed = false;
-                    record.Status = "Reviewed";
+                        record.Status = "Reviewed";
                     }
 
                     remainingReviews = record.NumberOfReview;
 
                     db.Set<Record>().Update(record);
-
-                    remainingReviews = 0;
                 }
 
                 // ---------------- LƯU REVIEW ----------------
@@ -458,12 +435,7 @@ namespace AESP.Service.Implementation
             return dto;
 
         }
-       
+
 
     }
 }
-       
-    
-
-   
-

@@ -52,7 +52,6 @@ namespace AESP.API.Controllers.ReviewerController
         }
         [HttpGet("history")]
         public async Task<IActionResult> GetReviewHistory(
-    [FromQuery][Required] Guid reviewerProfileId,
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 10)
         {
@@ -67,9 +66,8 @@ namespace AESP.API.Controllers.ReviewerController
         }
         [HttpGet("pending")]
         public async Task<IActionResult> GetPendingReviews(
-            [FromQuery][Required] Guid reviewerProfileId,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
         {
             var reviewerProfileId = GetReviewerProfileIdFromToken(User);
             if (reviewerProfileId == null)
@@ -103,6 +101,5 @@ namespace AESP.API.Controllers.ReviewerController
 
     }
 
-   
-}
 
+}
