@@ -67,6 +67,37 @@ namespace AESP.API.Controllers.LearnerController
             return StatusFromResult(result);
         }
 
+        // ============================================================
+        // 🔹 GET FULL LEARNING PATH COURSE + CHAPTER + EXERCISE
+        // ============================================================
+        [HttpGet("full")]
+        public async Task<IActionResult> GetFullLearningPathCourse(
+       [FromQuery] Guid? learningPathCourseId,
+       [FromQuery] Guid? courseId,
+       [FromQuery] string? status)
+        {
+            // ❗ Chỉ cần 1 param là đủ
+            if ((!learningPathCourseId.HasValue || learningPathCourseId == Guid.Empty)
+                && (!courseId.HasValue || courseId == Guid.Empty)
+                && string.IsNullOrWhiteSpace(status))
+            {
+                return BadRequest(new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.INVALID_INPUT,
+                    Message = "Cần truyền ít nhất 1 param: learningPathCourseId hoặc courseId hoặc status."
+                });
+            }
+
+            var result = await _service.GetFullLearningPathCourseAsync(
+                learningPathCourseId,
+                courseId,
+                status
+            );
+
+            return StatusFromResult(result);
+        }
+
        
      
        

@@ -10,5 +10,6 @@ namespace AESP.Service.Contract
     public interface ILearnerAnswerService
     {
         Task<ResponseDTO> SubmitAnswerAsync(Guid learnerProfileId, Guid questionId, SubmitLearnerAnswerDTO dto);
+
     }
 }

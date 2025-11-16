@@ -7,6 +7,7 @@ using AESP.Realtime.Services;
 using AESP.Repository.Contract;
 using AESP.Repository.DB;
 using AESP.Repository.Implementation;
+using AESP.Repository.Models;
 using AESP.Repository.Repositories;
 using AESP.Service.Contract;
 using AESP.Service.Implementation;
@@ -108,6 +109,12 @@ builder.Services.AddScoped<ILearnerCourseService, LearnerCourseService>();
 builder.Services.AddScoped<ILearningPathCourseService, LearningPathCourseService>();
 builder.Services.AddScoped<IAvatarService, AvatarService>();
 builder.Services.AddScoped<IQuestionMediaService, QuestionMediaService>();
+builder.Services.AddScoped<ILearnerQuestionService, LearnerQuestionService>();
+builder.Services.AddScoped<ILearnerAnswerService, LearnerAnswerService>();
+builder.Services.AddScoped<ILearningPathExerciseService, LearningPathExerciseService>();
+builder.Services.AddScoped<ILearnerReviewRequestService, LearnerReviewRequestService>();
+
+
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
