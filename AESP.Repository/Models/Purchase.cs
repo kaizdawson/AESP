@@ -27,13 +27,13 @@ namespace AESP.Repository.Models
 
 
         // FK đến ReviewFee
-        public Guid ReviewFeeId { get; set; }
+        public Guid? ReviewFeeId { get; set; }
 
         [ForeignKey(nameof(ReviewFeeId))]
         public virtual ReviewFee? ReviewFee { get; set; }
 
         // FK đến AIConversationCharge
-        public Guid AIConversationChargeId { get; set; }
+        public Guid? AIConversationChargeId { get; set; }
 
         [ForeignKey(nameof(AIConversationChargeId))]
         public virtual AIConversationCharge? AIConversationCharge { get; set; }

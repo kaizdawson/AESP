@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class LearningPathCourse
+    public class LearningPathCourse : BaseEntity
     {
         [Key]
         public Guid LearningPathCourseId { get; set; }
