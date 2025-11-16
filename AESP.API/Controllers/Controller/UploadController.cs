@@ -44,5 +44,23 @@ namespace AESP.API.Controllers.Controller
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
+        [HttpPost("audio")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadAudio([FromForm] UploadFileDto dto)
+        {
+            try
+            {
+                var (isSuccess, url, message) = await _cloudinaryService.UploadFileAsync(dto.File, "AESP/audios");
+
+                if (!isSuccess)
+                    return BadRequest(new { success = false, message });
+
+                return Ok(new { success = true, url });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
     }
 }

@@ -16,9 +16,9 @@ namespace AESP.Repository.Models
 
         public DateTime AppliedDate { get; set; }
 
-        public decimal PriceSystem { get; set; }
+        public decimal PercentOfSystem { get; set; }
 
-        public decimal PayReviewer { get; set; }
+        public decimal PercentOfReviewer { get; set; }
 
         // FK 
         [ForeignKey(nameof(ReviewFee))]

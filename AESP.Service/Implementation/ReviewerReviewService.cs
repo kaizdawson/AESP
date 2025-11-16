@@ -2,6 +2,7 @@
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Realtime.Interfaces;
 using AESP.Repository.Contract;
+using AESP.Repository.DB;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.AspNetCore.SignalR;
@@ -224,10 +225,12 @@ namespace AESP.Service.Implementation
         public async Task<ResponseDTO> SubmitReviewAsync(Guid reviewerProfileId, Guid? learnerAnswerId, Guid? recordId, double score, string comment)
         {
             var dto = new ResponseDTO();
+            var db = (AppDbContext)_unitOfWork.GetDbContext();
+            await using var transaction = await db.Database.BeginTransactionAsync();
 
             try
             {
-                var db = _unitOfWork.GetDbContext();
+                
 
                 // ================= VALIDATION =================
                 if ((learnerAnswerId == null || learnerAnswerId == Guid.Empty) &&
@@ -279,6 +282,7 @@ namespace AESP.Service.Implementation
                 if (learnerAnswerId != null && learnerAnswerId != Guid.Empty)
                 {
                     var learnerAnswer = await db.Set<LearnerAnswer>()
+                        .Include(x => x.LearnerProfile)
                         .FirstOrDefaultAsync(x => x.LearnerAnswerId == learnerAnswerId);
 
                     if (learnerAnswer == null)
@@ -289,7 +293,6 @@ namespace AESP.Service.Implementation
                         return dto;
                     }
 
-                    // Đã hết lượt review mà vẫn cố review tiếp
                     if (learnerAnswer.NumberofReview <= 0)
                     {
                         dto.IsSucess = false;
@@ -298,7 +301,6 @@ namespace AESP.Service.Implementation
                         return dto;
                     }
 
-                    // Check trùng reviewer
                     bool alreadyReviewed = await db.Set<Review>()
                         .AnyAsync(r =>
                             r.LearnerAnswerId == learnerAnswerId &&
@@ -314,12 +316,10 @@ namespace AESP.Service.Implementation
 
                     review.LearnerAnswerId = learnerAnswerId.Value;
 
-                    // Trừ lượt review
                     learnerAnswer.NumberofReview -= 1;
                     if (learnerAnswer.NumberofReview < 0)
                         learnerAnswer.NumberofReview = 0;
 
-                    // Nếu còn lượt → vẫn còn trong queue
                     if (learnerAnswer.NumberofReview > 0)
                     {
                         learnerAnswer.IsNeededReviewed = true;
@@ -328,7 +328,6 @@ namespace AESP.Service.Implementation
                     }
                     else
                     {
-                        // Hết lượt → không còn trong queue
                         learnerAnswer.IsNeededReviewed = false;
                         learnerAnswer.Status = "Reviewed";
                     }
@@ -336,7 +335,16 @@ namespace AESP.Service.Implementation
                     remainingReviews = learnerAnswer.NumberofReview;
 
                     db.Set<LearnerAnswer>().Update(learnerAnswer);
+
+                    // ✅ Trả coin cho reviewer (LearnerAnswer)
+                    await PayReviewerAsync(
+                                   db,
+                                   reviewerProfileId,
+                                   learnerAnswer.LearnerProfileId,
+                                   review.ReviewId,
+                                   "Thanh toán coin cho reviewer sau khi review LearnerAnswer.");
                 }
+
 
                 // ---------------- CASE 2: REVIEW RECORD ----------------
                 if (recordId != null && recordId != Guid.Empty)
@@ -397,11 +405,21 @@ namespace AESP.Service.Implementation
                     remainingReviews = record.NumberOfReview;
 
                     db.Set<Record>().Update(record);
+
+                    // ✅ Trả coin cho reviewer (Record)
+                    await PayReviewerAsync(
+                        db,
+                        reviewerProfileId,
+                        record.LearnerRecord.LearnerProfile.LearnerProfileId,
+                        review.ReviewId,
+                        "Thanh toán coin cho reviewer sau khi review Record.");
                 }
 
                 // ---------------- LƯU REVIEW ----------------
                 await db.Set<Review>().AddAsync(review);
                 await _unitOfWork.SaveChangeAsync();
+                // Commit transaction sau khi mọi thứ OK
+                await transaction.CommitAsync();
 
                 // ---------------- GỬI REALTIME CHO REVIEWER KHÁC ----------------
                 // - learnerAnswerId != null: FE dùng learnerAnswerId + remaining để update / xoá item
@@ -427,6 +445,7 @@ namespace AESP.Service.Implementation
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
                 dto.Message = "Lỗi khi lưu review: " + ex.Message;
@@ -435,7 +454,104 @@ namespace AESP.Service.Implementation
             return dto;
 
         }
-       
+
+        private async Task PayReviewerAsync(
+     AppDbContext db,
+     Guid reviewerProfileId,
+     Guid learnerProfileId,
+     Guid reviewId,
+     string reviewType) // "LearnerAnswer" hoặc "Record"
+        {
+            try
+            {
+                // =============================
+                // 1. Lấy thông tin Reviewer
+                // =============================
+                var reviewerProfile = await db.Set<ReviewerProfile>()
+                    .Include(r => r.User)
+                    .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                if (reviewerProfile == null || reviewerProfile.User == null)
+                    return;
+
+                // =============================
+                // 2. Lấy cấu hình giá mới nhất
+                // =============================
+                var now = DateTime.UtcNow;
+
+                var feeDetail = await db.Set<ReviewFeeDetail>()
+                    .Where(f => f.AppliedDate <= now)
+                    .OrderByDescending(f => f.AppliedDate)
+                    .FirstOrDefaultAsync();
+
+                if (feeDetail == null)
+                {
+                    feeDetail = new ReviewFeeDetail
+                    {
+                        PricePerReviewFee = 1,
+                        PercentOfReviewer = 1,
+                        PercentOfSystem = 0
+                    };
+                }
+
+                // =============================
+                // 3. Tính coin chia cho Reviewer + Hệ thống
+                // =============================
+                var reviewerCoinDec = feeDetail.PricePerReviewFee * feeDetail.PercentOfReviewer;
+                var adminCoinDec = feeDetail.PricePerReviewFee * feeDetail.PercentOfSystem;
+
+                var reviewerCoin = (int)Math.Round(reviewerCoinDec, MidpointRounding.AwayFromZero);
+                var adminCoin = (int)Math.Round(adminCoinDec, MidpointRounding.AwayFromZero);
+
+                if (reviewerCoin <= 0) reviewerCoin = 1;
+
+                // =============================
+                // 4. Cộng coin cho Reviewer
+                // =============================
+                reviewerProfile.User.CoinBalance += reviewerCoin;
+                db.Set<User>().Update(reviewerProfile.User);
+
+
+                // =============================
+                // 5. Cộng coin cho Admin (User có ROLE = ADMIN)
+                // =============================
+                if (adminCoin > 0)
+                {
+                    var adminUser = await db.Set<User>()
+                        .FirstOrDefaultAsync(u => u.Role == "ADMIN");
+
+                    if (adminUser != null)
+                    {
+                        adminUser.CoinBalance += adminCoin;
+                        db.Set<User>().Update(adminUser);
+                    }
+                }
+
+                // =============================
+                // 6. Ghi log TransferTransactions
+                // =============================
+                var comment =
+                    $"Hệ thống thanh toán {reviewerCoin} coin cho Reviewer {reviewerProfile.User.FullName} sau khi review {reviewType}";
+
+                var transaction = new TransferTransaction
+                {
+                    TransferTransactionId = Guid.NewGuid(),
+                    LearnerProfileId = learnerProfileId,
+                    ReviewerProfileId = reviewerProfileId,
+                    ReviewId = reviewId,
+                    AmountCoin = reviewerCoin,
+                    Comment = comment,
+                    Status = "Completed",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await db.Set<TransferTransaction>().AddAsync(transaction);
+            }
+            catch
+            {
+                // Không để lỗi coin làm hỏng flow review
+            }
+        }
 
     }
 }
