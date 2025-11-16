@@ -443,6 +443,106 @@ namespace AESP.Service.Implementation
             });
         }
 
+
+
+
+        public async Task<ResponseDTO> GetFullLearningPathCourseAsync(
+            Guid? learningPathCourseId,
+            Guid? courseId,
+            string? status)
+        {
+            // =============================================
+            // 1️⃣ Xác định learningPathCourseId
+            // =============================================
+            LearningPathCourse lpCourse = null;
+
+            if (learningPathCourseId.HasValue && learningPathCourseId.Value != Guid.Empty)
+            {
+                lpCourse = await _repo.AsQueryable()
+                    .Include(x => x.Course)
+                    .FirstOrDefaultAsync(x => x.LearningPathCourseId == learningPathCourseId.Value);
+            }
+            else if (courseId.HasValue && courseId.Value != Guid.Empty)
+            {
+                lpCourse = await _repo.AsQueryable()
+                    .Include(x => x.Course)
+                    .FirstOrDefaultAsync(x => x.CourseId == courseId.Value);
+            }
+
+            if (lpCourse == null)
+                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy LearningPathCourse.");
+
+            // =============================================
+            // 2️⃣ Lọc theo status nếu truyền
+            // =============================================
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (!lpCourse.Status.Equals(status, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Fail(BusinessCode.DATA_NOT_FOUND,
+                        $"Không tìm thấy LearningPathCourse với status = {status}.");
+                }
+            }
+
+            // =============================================
+            // 3️⃣ Load Chapters + Exercises
+            // =============================================
+            var chapters = await _unitOfWork.GetDbContext().Set<LearningPathChapter>()
+                .Where(x => x.LearningPathCourseId == lpCourse.LearningPathCourseId)
+                .OrderBy(x => x.OrderIndex)
+                .Select(x => new
+                {
+                    x.LearningPathChapterId,
+                    x.ChapterId,
+                    x.OrderIndex,
+                    x.Status,
+                    x.Progress,
+                    x.NumberOfModule,
+                    Exercises = _unitOfWork.GetDbContext().Set<LearningPathExercise>()
+                        .Where(e => e.LearningPathChapterId == x.LearningPathChapterId)
+                        .OrderBy(e => e.OrderIndex)
+                        .Select(e => new
+                        {
+                            e.LearningPathExerciseId,
+                            e.ExerciseId,
+                            e.OrderIndex,
+                            e.Status,
+                            e.ScoreAchieved,
+                            e.NumberOfQuestion
+                        }).ToList()
+                }).ToListAsync();
+
+            // =============================================
+            // 4️⃣ Trả kết quả
+            // =============================================
+            return Success(BusinessCode.GET_DATA_SUCCESSFULLY, "Lấy đầy đủ LearningPathCourse thành công.", new
+            {
+                lpCourse.LearningPathCourseId,
+                lpCourse.LearnerCourseId,
+                lpCourse.CourseId,
+                lpCourse.Status,
+                lpCourse.Progress,
+                lpCourse.NumberOfChapter,
+                lpCourse.OrderIndex,
+                Course = new
+                {
+                    lpCourse.Course.CourseId,
+                    lpCourse.Course.Title,
+                    lpCourse.Course.Description,
+                    lpCourse.Course.Level,
+                    lpCourse.Course.Price
+                },
+                Chapters = chapters
+            });
+        }
+
+
+
+
+
+
+
+
         // ============================================================
         // 🔹 Helper
         // ============================================================
