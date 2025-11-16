@@ -150,7 +150,7 @@ namespace AESP.Service.Implementation
                     LearningPathCourseId = learningPathCourseId,
                     ChapterId = ch.ChapterId,
                     OrderIndex = idx + 1,
-                    Status = "Enrolled",
+                    Status = "InProgress",
                     Progress = 0,
                     NumberOfModule = ch.NumberOfExercise
                 }).ToList();
@@ -175,7 +175,7 @@ namespace AESP.Service.Implementation
                             LearningPathChapterId = lpChapter.LearningPathChapterId,
                             ExerciseId = ex.ExerciseId,
                             OrderIndex = ex.OrderIndex,
-                            Status = "NotStarted",
+                            Status = "InProgress",
                             ScoreAchieved = 0,
                             NumberOfQuestion = ex.NumberOfQuestion
                         });
