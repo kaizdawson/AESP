@@ -153,7 +153,7 @@ namespace AESP.Service.Implementation
                         x.OrderIndex == orderIndex &&
                         x.Course.Level == course.Level))
                     return Fail(BusinessCode.DUPLICATE_DATA,
-                        $"OrderIndex {orderIndex} đã được sử dụng trong level {course.Level} này.");
+     $"OrderIndex {orderIndex} đã được sử dụng trong level {course.Level} này.");
 
                 // 4️⃣ KIỂM TRA KHÓA TRƯỚC ĐÃ HOÀN THÀNH CHƯA
                 if (orderIndex > 1)
@@ -165,26 +165,6 @@ namespace AESP.Service.Implementation
                         return Fail(BusinessCode.INVALID_ACTION, "Bạn cần hoàn thành khóa học trước đó trước khi mở khóa tiếp theo.");
                 }
 
-                // 5️⃣ XÁC ĐỊNH MIỄN PHÍ & XỬ LÝ XU
-                var levelCourses = await _courseRepo.AsQueryable()
-                    .Where(c => c.Level == course.Level)
-                    .OrderBy(c => c.OrderIndex)
-                    .ToListAsync();
-
-                bool isFreeCourseOfLevel = (levelCourses.FirstOrDefault()?.CourseId == course.CourseId);
-
-                var learnerUser = learnerCourse.LearnerProfile.User;
-                if (!isFreeCourseOfLevel && course.Price > 0)
-                {
-                    int price = (int)Math.Round(course.Price);
-                    if (learnerUser.CoinBalance < price)
-                        return Fail(BusinessCode.INVALID_ACTION, "Không đủ xu để mở khóa học này.");
-
-                    learnerUser.CoinBalance -= price;
-                    _courseRepo.GetDbContext().Set<User>().Update(learnerUser);
-                }
-
-
                 //// 5️⃣ XÁC ĐỊNH MIỄN PHÍ & XỬ LÝ XU
                 //var levelCourses = await _courseRepo.AsQueryable()
                 //    .Where(c => c.Level == course.Level)
@@ -194,31 +174,51 @@ namespace AESP.Service.Implementation
                 //bool isFreeCourseOfLevel = (levelCourses.FirstOrDefault()?.CourseId == course.CourseId);
 
                 //var learnerUser = learnerCourse.LearnerProfile.User;
-
                 //if (!isFreeCourseOfLevel && course.Price > 0)
                 //{
                 //    int price = (int)Math.Round(course.Price);
-
                 //    if (learnerUser.CoinBalance < price)
                 //        return Fail(BusinessCode.INVALID_ACTION, "Không đủ xu để mở khóa học này.");
 
-                //    // trừ xu
                 //    learnerUser.CoinBalance -= price;
                 //    _courseRepo.GetDbContext().Set<User>().Update(learnerUser);
-
-                //    // ⭐ TẠO PURCHASE RECORD
-                //    var purchase = new Purchase
-                //    {
-                //        PurchaseId = Guid.NewGuid(),
-                //        UserId = learnerUser.UserId,
-                //        CourseId = course.CourseId,
-                //        AmountCoin = price,
-                //        Status = "Success",
-                //        CreatedAt = DateTime.UtcNow
-                //    };
-
-                //    await _courseRepo.GetDbContext().Set<Purchase>().AddAsync(purchase);
                 //}
+
+
+                // 5️⃣ XÁC ĐỊNH MIỄN PHÍ & XỬ LÝ XU
+                var levelCourses = await _courseRepo.AsQueryable()
+                    .Where(c => c.Level == course.Level)
+                    .OrderBy(c => c.OrderIndex)
+                    .ToListAsync();
+
+                bool isFreeCourseOfLevel = (levelCourses.FirstOrDefault()?.CourseId == course.CourseId);
+
+                var learnerUser = learnerCourse.LearnerProfile.User;
+
+                if (!isFreeCourseOfLevel && course.Price > 0)
+                {
+                    int price = (int)Math.Round(course.Price);
+
+                    if (learnerUser.CoinBalance < price)
+                        return Fail(BusinessCode.INVALID_ACTION, "Không đủ xu để mở khóa học này.");
+
+                    // trừ xu
+                    learnerUser.CoinBalance -= price;
+                    _courseRepo.GetDbContext().Set<User>().Update(learnerUser);
+
+                    // ⭐ TẠO PURCHASE RECORD
+                    var purchase = new Purchase
+                    {
+                        PurchaseId = Guid.NewGuid(),
+                        UserId = learnerUser.UserId,
+                        CourseId = course.CourseId,
+                        AmountCoin = price,
+                        Status = "Success",
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    await _courseRepo.GetDbContext().Set<Purchase>().AddAsync(purchase);
+                }
 
                 // 6️⃣ TẠO KHÓA HỌC TRONG LỘ TRÌNH
                 var entity = new LearningPathCourse
@@ -242,6 +242,23 @@ namespace AESP.Service.Implementation
                 learnerCourse.NumberOfCourse = totalCoursesInLevel;
                 await _learnerCourseRepo.Update(learnerCourse);
                 await _unitOfWork.SaveChangeAsync();
+
+
+
+                // 8️⃣ TỰ ĐỘNG TẠO LEARNINGPATHCHAPTER + LEARNINGPATHEXERCISE (giống ENROLL)
+                try
+                {
+                    await _learningPathChapterService.CreateByCourseAsync(
+                        entity.LearningPathCourseId,
+                        dto.LearnerCourseId
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[WARN] Auto generate LearningPathChapter/LearningPathExercise failed: {ex.Message}");
+                }
+
+
 
                 //// 8️⃣ 🔹 TỰ ĐỘNG SINH LearningPathChapter (và sau này auto tạo LearningPathExercise)
                 //try
