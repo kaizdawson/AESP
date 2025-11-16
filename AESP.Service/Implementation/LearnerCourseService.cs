@@ -184,17 +184,28 @@ namespace AESP.Service.Implementation
                 select new { lc, lp }
             ).FirstOrDefaultAsync();
 
+            // ❌ Không được học level thấp hơn level hiện tại,
+            // 👉 Trừ khi learner đã từng enroll level đó trước đây.
+            if (courseIndex < learnerIndex && existedLearnerCourse == null)
+            {
+                return Fail(BusinessCode.INVALID_ACTION,
+                    $"Bạn hiện đang ở Level {learner.Level}. Không thể học Level thấp hơn ({course.Level}).");
+            }
+
+            // ✅ Nếu đã enroll rồi → cho phép quay lại học/view mà không tạo mới
             if (existedLearnerCourse != null)
             {
                 return Success(BusinessCode.GET_DATA_SUCCESSFULLY,
                     $"Bạn đã đăng ký Level {course.Level} trước đó.",
                     new
-                    {
+                {
                         Level = course.Level,
                         LearningPathCourseId = existedLearnerCourse.lp.LearningPathCourseId,
                         CourseId = course.CourseId,
                         Status = existedLearnerCourse.lp.Status
                     });
+                    }
+                };
             }
 
             // ============================================================
@@ -204,6 +215,7 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.INVALID_ACTION,
                     $"Bạn đang ở Level {learner.Level}, không thể học Level thấp hơn ({course.Level}).");
 
+            // ✅ Không cho học level cao hơn nếu chưa hoàn thành level hiện tại
             if (courseIndex > learnerIndex)
             {
                 var completed = await (
@@ -217,6 +229,7 @@ namespace AESP.Service.Implementation
                 if (!completed)
                     return Fail(BusinessCode.INVALID_ACTION,
                         $"Bạn phải hoàn thành Level {learner.Level} trước.");
+                }
             }
 
             // ============================================================

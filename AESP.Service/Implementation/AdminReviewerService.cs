@@ -344,6 +344,20 @@ Trân trọng,
                     .Take(pageSize)
                     .ToListAsync();
 
+                if (reviewers == null || !reviewers.Any())
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không có reviewer nào đang chờ duyệt.";
+                    dto.Data = new
+                    {
+                        PageNumber = pageNumber,
+                        PageSize = pageSize,
+                        Items = new List<object>()
+                    };
+                    return dto;
+                }
+
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy danh sách reviewer có certificate pending thành công.";
@@ -365,12 +379,12 @@ Trân trọng,
                         Certificates = r.Certificates
                             .Where(c => c.Status.Trim().ToLower() == "pending")
                             .Select(c => new
-                            {
-                                c.CertificateId,
-                                c.Name,
+                        {
+                            c.CertificateId,
+                            c.Name,
                                 c.Url,
                                 c.Status
-                            })
+                        })
                             .ToList()
                     })
                 };
