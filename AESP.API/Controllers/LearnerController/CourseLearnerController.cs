@@ -121,21 +121,21 @@ namespace AESP.API.Controllers.LearnerController
     
 
 
-        [HttpPut("{courseId}/progress")]
-        public async Task<IActionResult> UpdateProgress(Guid courseId, [FromBody] double progress)
-        {
-            Guid learnerId = Guid.Parse(User.Claims.First(x => x.Type == "sub").Value);
-            var result = await _learnerCourseService.UpdateProgressAsync(learnerId, courseId, progress);
-            return Ok(result);
-        }
+        //[HttpPut("{courseId}/progress")]
+        //public async Task<IActionResult> UpdateProgress(Guid courseId, [FromBody] double progress)
+        //{
+        //    Guid learnerId = Guid.Parse(User.Claims.First(x => x.Type == "sub").Value);
+        //    var result = await _learnerCourseService.UpdateProgressAsync(learnerId, courseId, progress);
+        //    return Ok(result);
+        //}
 
-        [HttpDelete("{courseId}/unenroll")]
-        public async Task<IActionResult> UnenrollCourse(Guid courseId)
-        {
-            Guid learnerId = Guid.Parse(User.Claims.First(x => x.Type == "sub").Value);
-            var result = await _learnerCourseService.UnenrollAsync(learnerId, courseId);
-            return HandleResult(result);
-        }
+        //[HttpDelete("{courseId}/unenroll")]
+        //public async Task<IActionResult> UnenrollCourse(Guid courseId)
+        //{
+        //    Guid learnerId = Guid.Parse(User.Claims.First(x => x.Type == "sub").Value);
+        //    var result = await _learnerCourseService.UnenrollAsync(learnerId, courseId);
+        //    return HandleResult(result);
+        //}
 
 
 

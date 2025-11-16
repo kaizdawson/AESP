@@ -52,8 +52,18 @@ namespace AESP.Service.Implementation
                     x.OrderIndex,
                     x.Status,
                     x.Progress,
+
+
+                    // 🔹 Thêm thông tin từ Chapter
                     ChapterTitle = x.Chapter.Title,
+                    Description = x.Chapter.Description,
+                    NumberOfExercise = x.Chapter.NumberOfExercise,
+
+                    // Giữ field cũ
                     x.NumberOfModule
+
+
+
                 })
                 .ToListAsync();
 
@@ -84,8 +94,10 @@ namespace AESP.Service.Implementation
                 entity.Progress,
                 entity.NumberOfModule,
                 entity.OrderIndex,
+                // 🔹 Dữ liệu từ Chapter
                 ChapterTitle = entity.Chapter.Title,
-                entity.Chapter.Description
+                Description = entity.Chapter.Description,
+                NumberOfExercise = entity.Chapter.NumberOfExercise
             };
 
             return Success(BusinessCode.GET_DATA_SUCCESSFULLY, "Lấy chi tiết chương thành công.", dto);
@@ -138,7 +150,7 @@ namespace AESP.Service.Implementation
                     LearningPathCourseId = learningPathCourseId,
                     ChapterId = ch.ChapterId,
                     OrderIndex = idx + 1,
-                    Status = "Enrolled",
+                    Status = "InProgress",
                     Progress = 0,
                     NumberOfModule = ch.NumberOfExercise
                 }).ToList();
@@ -163,7 +175,7 @@ namespace AESP.Service.Implementation
                             LearningPathChapterId = lpChapter.LearningPathChapterId,
                             ExerciseId = ex.ExerciseId,
                             OrderIndex = ex.OrderIndex,
-                            Status = "NotStarted",
+                            Status = "InProgress",
                             ScoreAchieved = 0,
                             NumberOfQuestion = ex.NumberOfQuestion
                         });

@@ -9,6 +9,6 @@ namespace AESP.Service.Contract
 {
     public interface ILearningPathExerciseService
     {
-        Task<ResponseDTO> CreateByChapterAsync(Guid learningPathChapterId);
+        Task<ResponseDTO> GetByLearningPathChapterIdAsync(Guid learningPathChapterId);
     }
 }

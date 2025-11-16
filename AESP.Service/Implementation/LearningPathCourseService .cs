@@ -56,6 +56,7 @@ namespace AESP.Service.Implementation
                     LearnerCourseId = x.LearnerCourseId,
                     CourseId = x.CourseId,
                     CourseTitle = x.Course.Title,
+                    Description = x.Course.Description,
                     Status = x.Status,
                     Progress = x.Progress,
                     NumberOfChapter = x.NumberOfChapter,
@@ -85,6 +86,8 @@ namespace AESP.Service.Implementation
                 LearnerCourseId = entity.LearnerCourseId,
                 CourseId = entity.CourseId,
                 CourseTitle = entity.Course.Title,
+                Description = entity.Course.Description,
+
                 Status = entity.Status,
                 Progress = entity.Progress,
                 NumberOfChapter = entity.NumberOfChapter,
@@ -181,6 +184,42 @@ namespace AESP.Service.Implementation
                     _courseRepo.GetDbContext().Set<User>().Update(learnerUser);
                 }
 
+
+                //// 5️⃣ XÁC ĐỊNH MIỄN PHÍ & XỬ LÝ XU
+                //var levelCourses = await _courseRepo.AsQueryable()
+                //    .Where(c => c.Level == course.Level)
+                //    .OrderBy(c => c.OrderIndex)
+                //    .ToListAsync();
+
+                //bool isFreeCourseOfLevel = (levelCourses.FirstOrDefault()?.CourseId == course.CourseId);
+
+                //var learnerUser = learnerCourse.LearnerProfile.User;
+
+                //if (!isFreeCourseOfLevel && course.Price > 0)
+                //{
+                //    int price = (int)Math.Round(course.Price);
+
+                //    if (learnerUser.CoinBalance < price)
+                //        return Fail(BusinessCode.INVALID_ACTION, "Không đủ xu để mở khóa học này.");
+
+                //    // trừ xu
+                //    learnerUser.CoinBalance -= price;
+                //    _courseRepo.GetDbContext().Set<User>().Update(learnerUser);
+
+                //    // ⭐ TẠO PURCHASE RECORD
+                //    var purchase = new Purchase
+                //    {
+                //        PurchaseId = Guid.NewGuid(),
+                //        UserId = learnerUser.UserId,
+                //        CourseId = course.CourseId,
+                //        AmountCoin = price,
+                //        Status = "Success",
+                //        CreatedAt = DateTime.UtcNow
+                //    };
+
+                //    await _courseRepo.GetDbContext().Set<Purchase>().AddAsync(purchase);
+                //}
+
                 // 6️⃣ TẠO KHÓA HỌC TRONG LỘ TRÌNH
                 var entity = new LearningPathCourse
                 {
@@ -188,7 +227,7 @@ namespace AESP.Service.Implementation
                     LearnerCourseId = dto.LearnerCourseId,
                     CourseId = dto.CourseId,
                     OrderIndex = orderIndex,
-                    Status = "Enrolled",
+                    Status = "InProgress",
                     Progress = 0,
                     NumberOfChapter = course.NumberOfChapter
                 };
@@ -403,6 +442,131 @@ namespace AESP.Service.Implementation
                 entity.Progress
             });
         }
+
+
+
+
+        public async Task<ResponseDTO> GetFullLearningPathCourseAsync(
+            Guid? learningPathCourseId,
+            Guid? courseId,
+            string? status)
+        {
+            // =============================================
+            // 1️⃣ Xác định learningPathCourseId
+            // =============================================
+            LearningPathCourse lpCourse = null;
+
+            if (learningPathCourseId.HasValue && learningPathCourseId.Value != Guid.Empty)
+            {
+                lpCourse = await _repo.AsQueryable()
+                    .Include(x => x.Course)
+                    .FirstOrDefaultAsync(x => x.LearningPathCourseId == learningPathCourseId.Value);
+            }
+            else if (courseId.HasValue && courseId.Value != Guid.Empty)
+            {
+                lpCourse = await _repo.AsQueryable()
+                    .Include(x => x.Course)
+                    .FirstOrDefaultAsync(x => x.CourseId == courseId.Value);
+            }
+
+            if (lpCourse == null)
+                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy LearningPathCourse.");
+
+            // =============================================
+            // 2️⃣ Lọc theo status nếu truyền
+            // =============================================
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (!lpCourse.Status.Equals(status, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Fail(BusinessCode.DATA_NOT_FOUND,
+                        $"Không tìm thấy LearningPathCourse với status = {status}.");
+                }
+            }
+
+            var db = _unitOfWork.GetDbContext();
+
+            // =============================================
+            // 3️⃣ Load Chapters + Exercises + Title + Description
+            // =============================================
+            var chapters = await db.Set<LearningPathChapter>()
+                .Where(x => x.LearningPathCourseId == lpCourse.LearningPathCourseId)
+                .OrderBy(x => x.OrderIndex)
+                .Select(x => new
+                {
+                    x.LearningPathChapterId,
+                    x.ChapterId,
+                    x.OrderIndex,
+                    x.Status,
+                    x.Progress,
+                    x.NumberOfModule,
+
+                    // ⭐ THÊM TITLE + DESCRIPTION TỪ BẢNG CHAPTER
+                    ChapterTitle = db.Set<Chapter>()
+                        .Where(ch => ch.ChapterId == x.ChapterId)
+                        .Select(ch => ch.Title)
+                        .FirstOrDefault(),
+
+                    ChapterDescription = db.Set<Chapter>()
+                        .Where(ch => ch.ChapterId == x.ChapterId)
+                        .Select(ch => ch.Description)
+                        .FirstOrDefault(),
+
+                    Exercises = db.Set<LearningPathExercise>()
+                        .Where(e => e.LearningPathChapterId == x.LearningPathChapterId)
+                        .OrderBy(e => e.OrderIndex)
+                        .Select(e => new
+                        {
+                            e.LearningPathExerciseId,
+                            e.ExerciseId,
+                            e.OrderIndex,
+                            e.Status,
+                            e.ScoreAchieved,
+                            e.NumberOfQuestion,
+
+                            // ⭐ THÊM TITLE + DESCRIPTION TỪ BẢNG EXERCISE
+                            ExerciseTitle = db.Set<Exercise>()
+                                .Where(ex => ex.ExerciseId == e.ExerciseId)
+                                .Select(ex => ex.Title)
+                                .FirstOrDefault(),
+
+                            ExerciseDescription = db.Set<Exercise>()
+                                .Where(ex => ex.ExerciseId == e.ExerciseId)
+                                .Select(ex => ex.Description)
+                                .FirstOrDefault(),
+                        }).ToList()
+                })
+                .ToListAsync();
+
+            // =============================================
+            // 4️⃣ Trả kết quả
+            // =============================================
+            return Success(BusinessCode.GET_DATA_SUCCESSFULLY, "Lấy đầy đủ LearningPathCourse thành công.", new
+            {
+                lpCourse.LearningPathCourseId,
+                lpCourse.LearnerCourseId,
+                lpCourse.CourseId,
+                lpCourse.Status,
+                lpCourse.Progress,
+                lpCourse.NumberOfChapter,
+                lpCourse.OrderIndex,
+
+                Course = new
+                {
+                    lpCourse.Course.CourseId,
+                    lpCourse.Course.Title,
+                    lpCourse.Course.Description,
+                    lpCourse.Course.Level,
+                    lpCourse.Course.Price
+                },
+
+                Chapters = chapters
+            });
+        }
+
+
+
+
 
         // ============================================================
         // 🔹 Helper
