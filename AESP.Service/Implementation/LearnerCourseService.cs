@@ -268,7 +268,7 @@ namespace AESP.Service.Implementation
             // 7️⃣ RESPONSE – TRẢ VỀ 4 FIELD NHƯ YÊU CẦU
             // ============================================================
             return Success(BusinessCode.INSERT_SUCESSFULLY,
-                "Enroll thành công + sinh Chapter + Exercise.",
+                "Đăng ký khóa học đầu tiên của Level {course.Level} thành công! Chúc bạn học tốt.",
                 new
                 {
                     Level = course.Level,
@@ -510,7 +510,7 @@ namespace AESP.Service.Implementation
             {
                 string[] levelOrder = { "A1", "A2", "B1", "B2", "C1", "C2" };
 
-                // 🟢 Lấy danh sách level mà learner đã enroll
+                // 🟢 Lấy danh sách tất cả course mà learner đã enroll
                 var enrolled = await (
                     from lc in _learnerCourseRepo.AsQueryable()
                     join lp in _learningPathCourseRepo.AsQueryable()
@@ -528,19 +528,19 @@ namespace AESP.Service.Implementation
                     }
                 ).ToListAsync();
 
-                // 🟢 Trả toàn bộ Level hệ thống (A1 → C2)
-                var result = levelOrder.Select(level =>
+                // 🟢 Duyệt toàn bộ level → gom tất cả course trong level đó
+                var result = levelOrder.Select(level => new
                 {
-                    var match = enrolled.FirstOrDefault(x => x.Level == level);
-
-                    return new
-                    {
-                        Level = level,
-                        LearnerCourseId = match?.LearnerCourseId,
-                        LearningPathCourseId = match?.LearningPathCourseId,
-                        CourseId = match?.CourseId,
-                        Status = match?.Status
-                    };
+                    Level = level,
+                    Courses = enrolled
+                        .Where(x => x.Level == level)
+                        .Select(x => new
+                        {
+                            x.LearnerCourseId,
+                            x.LearningPathCourseId,
+                            x.CourseId,
+                            x.Status
+                        }).ToList()
                 }).ToList();
 
                 return new ResponseDTO
