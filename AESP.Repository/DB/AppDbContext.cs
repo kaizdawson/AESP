@@ -60,7 +60,7 @@ namespace AESP.Repository.DB
         public DbSet<AIConversationCharge> AIConversationCharge { get; set; }
         public DbSet<TransferTransaction> TransferTransactions { get; set; }
 
-
+        public DbSet<LearningPathQuestion> LearningPathQuestions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -172,6 +172,7 @@ namespace AESP.Repository.DB
                  .HasOne(r => r.User)
                  .WithMany(u => u.RefreshTokens)
                  .HasForeignKey(r => r.UserId);
+
         }
     }
 }
