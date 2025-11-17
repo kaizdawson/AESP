@@ -109,7 +109,7 @@ namespace AESP.API.Controllers.CoinController
 
             try
             {
-                var result = await _coinService.PayCoinAsync(userId, request.PayCoin);
+                var result = await _coinService.PayCoinAsync(userId, request.AIConversationChargeId);
 
                 if (result == 1)
                     return Ok(new { result = 1, message = "Thanh toán thành công." });
@@ -121,6 +121,7 @@ namespace AESP.API.Controllers.CoinController
                 return BadRequest(new { message = ex.Message });
             }
         }
+
 
         [HttpPost("withdraw")]
         public async Task<IActionResult> WithdrawCoin([FromBody] WithdrawRequest request)
@@ -141,6 +142,58 @@ namespace AESP.API.Controllers.CoinController
                     request.AccountNumber
                 );
 
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+
+        [HttpGet("history/deposit")]
+        public async Task<IActionResult> GetDepositHistory()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized("Token không hợp lệ.");
+
+            try
+            {
+                var result = await _coinService.GetDepositHistoryAsync(userId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+
+        [HttpGet("history/withdraw")]
+        public async Task<IActionResult> GetWithdrawHistory()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdClaim, out var userId))
+                return Unauthorized("Token không hợp lệ.");
+
+            try
+            {
+                var result = await _coinService.GetWithdrawHistoryAsync(userId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpGet("ai-packages")]
+        public async Task<IActionResult> GetActiveAIPackages()
+        {
+            try
+            {
+                var result = await _coinService.GetActiveAIConversationPackagesAsync();
                 return Ok(result);
             }
             catch (Exception ex)
