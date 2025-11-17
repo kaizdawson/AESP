@@ -137,16 +137,16 @@ builder.Services.AddScoped<ILearnerQuestionService, LearnerQuestionService>();
 builder.Services.AddScoped<ILearnerAnswerService, LearnerAnswerService>();
 builder.Services.AddScoped<ILearningPathExerciseService, LearningPathExerciseService>();
 builder.Services.AddScoped<ILearnerReviewRequestService, LearnerReviewRequestService>();
+builder.Services.AddScoped<ILearningPathQuestionService, LearningPathQuestionService>();
 
+
+builder.Services.AddScoped<ILearningPathChapterService, LearningPathChapterService>();
 
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 builder.Services.AddScoped<IServicePackageService, ServicePackageService>();
 builder.Services.AddScoped<IAIConversationChargeService, AIConversationChargeService>();
-builder.Services.AddScoped<ILearnerCourseService, LearnerCourseService>();
-builder.Services.AddScoped<ILearningPathCourseService, LearningPathCourseService>();
-builder.Services.AddScoped<ILearningPathChapterService, LearningPathChapterService>();
 
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IReviewerReviewService, ReviewerReviewService>();

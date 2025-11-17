@@ -30,15 +30,16 @@ namespace AESP.API.Controllers.LearnerController
 
 
 
-        [HttpPost("{questionId}/submit")]
-        public async Task<IActionResult> SubmitAnswer(Guid questionId, [FromBody] SubmitLearnerAnswerDTO dto)
+        [HttpPost("{learningPathQuestionId}/submit")]
+        public async Task<IActionResult> SubmitAnswer(Guid learningPathQuestionId, [FromBody] SubmitLearnerAnswerDTO dto)
         {
             try
             {
                 Guid learnerProfileId;
 
-                var learnerProfileIdClaim = User.Claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
-                if (learnerProfileIdClaim != null && Guid.TryParse(learnerProfileIdClaim.Value, out var parsedLearnerId))
+                var learnerProfileClaim = User.Claims.FirstOrDefault(c => c.Type == "LearnerProfileId");
+
+                if (learnerProfileClaim != null && Guid.TryParse(learnerProfileClaim.Value, out var parsedLearnerId))
                 {
                     learnerProfileId = parsedLearnerId;
                 }
@@ -51,22 +52,26 @@ namespace AESP.API.Controllers.LearnerController
                     );
 
                     if (userIdClaim == null)
-                        return Unauthorized(new { message = "Token không chứa UserId hoặc LearnerProfileId." });
+                        return Unauthorized(new { message = "Token không hợp lệ." });
 
                     if (!Guid.TryParse(userIdClaim.Value, out var userId))
-                        return Unauthorized(new { message = "UserId trong token không hợp lệ." });
+                        return Unauthorized(new { message = "UserId không hợp lệ." });
 
                     var learnerProfile = await _learnerProfileRepo.AsQueryable()
                         .FirstOrDefaultAsync(lp => lp.UserId == userId);
 
                     if (learnerProfile == null)
-                        return Unauthorized(new { message = "Không tìm thấy hồ sơ học viên (LearnerProfile)." });
+                        return Unauthorized(new { message = "Không tìm thấy hồ sơ học viên." });
 
                     learnerProfileId = learnerProfile.LearnerProfileId;
                 }
 
-                // Gọi service – truyền questionId riêng
-                var result = await _learnerAnswerService.SubmitAnswerAsync(learnerProfileId, questionId, dto);
+                // ❗ Gọi service đúng như cũ
+                var result = await _learnerAnswerService.SubmitAnswerAsync(
+                    learnerProfileId,
+                    learningPathQuestionId,
+                    dto
+                );
 
                 return HandleResult(result);
             }
@@ -75,6 +80,7 @@ namespace AESP.API.Controllers.LearnerController
                 return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
             }
         }
+
 
 
 

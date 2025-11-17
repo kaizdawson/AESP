@@ -17,22 +17,32 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<LearningPathCourse> _lpCourseRepo;
         private readonly IGenericRepository<Chapter> _chapterRepo;
         private readonly IGenericRepository<Exercise> _exerciseRepo;
+        private readonly IGenericRepository<Question> _questionRepo;
+
         private readonly IGenericRepository<LearningPathExercise> _learningPathExerciseRepo;
+        private readonly IGenericRepository<LearningPathQuestion> _lpQuestionRepo;
+
         private readonly IUnitOfWork _unitOfWork;
 
         public LearningPathChapterService(
-            IGenericRepository<LearningPathChapter> repo,
-            IGenericRepository<Chapter> chapterRepo,
-            IGenericRepository<LearningPathCourse> lpCourseRepo,
-            IGenericRepository<Exercise> exerciseRepo,
-            IGenericRepository<LearningPathExercise> learningPathExerciseRepo,
-            IUnitOfWork unitOfWork)
+       IGenericRepository<LearningPathChapter> repo,
+       IGenericRepository<Chapter> chapterRepo,
+       IGenericRepository<LearningPathCourse> lpCourseRepo,
+       IGenericRepository<Exercise> exerciseRepo,
+       IGenericRepository<LearningPathExercise> learningPathExerciseRepo,
+       IGenericRepository<LearningPathQuestion> lpQuestionRepo,
+       IGenericRepository<Question> questionRepo,   // 👈 THÊM DÒNG NÀY
+       IUnitOfWork unitOfWork)
         {
             _repo = repo;
             _chapterRepo = chapterRepo;
             _lpCourseRepo = lpCourseRepo;
             _exerciseRepo = exerciseRepo;
             _learningPathExerciseRepo = learningPathExerciseRepo;
+            _lpQuestionRepo = lpQuestionRepo;
+
+            _questionRepo = questionRepo;   // 👈 THÊM DÒNG NÀY
+
             _unitOfWork = unitOfWork;
         }
 
@@ -103,7 +113,7 @@ namespace AESP.Service.Implementation
             return Success(BusinessCode.GET_DATA_SUCCESSFULLY, "Lấy chi tiết chương thành công.", dto);
         }
 
-   
+
         public async Task<ResponseDTO> CreateByCourseAsync(Guid learningPathCourseId, Guid learnerCourseId)
         {
             if (learningPathCourseId == Guid.Empty || learnerCourseId == Guid.Empty)
@@ -112,45 +122,46 @@ namespace AESP.Service.Implementation
             var lpCourse = await _lpCourseRepo.AsQueryable()
                 .Include(x => x.Course)
                 .Include(x => x.LearnerCourse)
-                    .ThenInclude(lc => lc.LearnerProfile)
                 .FirstOrDefaultAsync(x => x.LearningPathCourseId == learningPathCourseId);
 
             if (lpCourse == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trong lộ trình.");
+                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
 
             if (lpCourse.LearnerCourse.LearnerCourseId != learnerCourseId)
-                return Fail(BusinessCode.ACCESS_DENIED, "Bạn không có quyền tạo chương cho khóa học này.");
+                return Fail(BusinessCode.ACCESS_DENIED, "Bạn không có quyền tạo chương.");
 
-            if (lpCourse.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
-                return Fail(BusinessCode.INVALID_ACTION, "Khóa học đã hoàn tất, không thể tạo chương.");
-
-            var course = lpCourse.Course;
+            // ✔ Chapter gốc không có OrderIndex → sắp theo CreatedAt
             var chapters = await _chapterRepo.AsQueryable()
-                .Where(c => c.CourseId == course.CourseId)
-                .OrderBy(c => c.CreatedAt)
+                .Where(c => c.CourseId == lpCourse.Course.CourseId)
+                .OrderBy(c => c.CreatedAt)           // dùng CreatedAt để tạo thứ tự chương
                 .ToListAsync();
 
             if (!chapters.Any())
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Khóa học này chưa có chương.");
+                return Fail(BusinessCode.DATA_NOT_FOUND, "Khóa học chưa có chương.");
 
             var existed = await _repo.AsQueryable()
                 .Where(x => x.LearningPathCourseId == learningPathCourseId)
-                .ToListAsync();
+                .AnyAsync();
 
-            if (existed.Any())
+            if (existed)
                 return Fail(BusinessCode.DUPLICATE_DATA, "Danh sách chương đã tồn tại.");
 
             using var tran = await _unitOfWork.GetDbContext().Database.BeginTransactionAsync();
+
             try
             {
-                // 🔹 1️⃣ Sinh danh sách chương
+                // 1️⃣ Tạo LearningPathChapter (OrderIndex tự sinh)
                 var newChapters = chapters.Select((ch, idx) => new LearningPathChapter
                 {
                     LearningPathChapterId = Guid.NewGuid(),
                     LearningPathCourseId = learningPathCourseId,
                     ChapterId = ch.ChapterId,
-                    OrderIndex = idx + 1,
-                    Status = "InProgress",
+
+                    OrderIndex = idx + 1,  // Tự sinh OrderIndex
+
+                    // 🔥 Chỉ chương đầu tiên mới InProgress
+                    Status = (idx == 0 ? "InProgress" : "NotStarted"),
+
                     Progress = 0,
                     NumberOfModule = ch.NumberOfExercise
                 }).ToList();
@@ -158,45 +169,50 @@ namespace AESP.Service.Implementation
                 await _repo.InsertRange(newChapters);
                 await _unitOfWork.SaveChangeAsync();
 
-                // 🔹 2️⃣ Sinh luôn bài tập trong mỗi chương
-                var exercises = new List<LearningPathExercise>();
+                // 2️⃣ Tạo LearningPathExercise (tất cả NotStarted)
+                var newExercises = new List<LearningPathExercise>();
+
                 foreach (var lpChapter in newChapters)
                 {
-                    var chapterExercises = await _exerciseRepo.AsQueryable()
-                        .Where(ex => ex.ChapterId == lpChapter.ChapterId)
-                        .OrderBy(ex => ex.OrderIndex)
+                    var exercises = await _exerciseRepo.AsQueryable()
+                        .Where(e => e.ChapterId == lpChapter.ChapterId)
+                        .OrderBy(e => e.OrderIndex)
                         .ToListAsync();
 
-                    foreach (var ex in chapterExercises)
+                    foreach (var ex in exercises)
                     {
-                        exercises.Add(new LearningPathExercise
+                        newExercises.Add(new LearningPathExercise
                         {
                             LearningPathExerciseId = Guid.NewGuid(),
                             LearningPathChapterId = lpChapter.LearningPathChapterId,
                             ExerciseId = ex.ExerciseId,
                             OrderIndex = ex.OrderIndex,
-                            Status = "InProgress",
+
+                            Status = "NotStarted",  // FIX: tất cả bài tập ở đầu đều NotStarted
+
                             ScoreAchieved = 0,
                             NumberOfQuestion = ex.NumberOfQuestion
                         });
                     }
                 }
 
-                if (exercises.Any())
-                {
-                    await _learningPathExerciseRepo.InsertRange(exercises);
-                    await _unitOfWork.SaveChangeAsync();
-                }
+                await _learningPathExerciseRepo.InsertRange(newExercises);
+                await _unitOfWork.SaveChangeAsync();
 
                 await tran.CommitAsync();
+
                 return Success(BusinessCode.INSERT_SUCESSFULLY,
-                    $"Tạo {newChapters.Count} chương và {exercises.Count} bài tập thành công.",
-                    new { Chapters = newChapters, Exercises = exercises });
+                    "Tạo Learning Path thành công.",
+                    new
+                    {
+                        Chapters = newChapters,
+                        Exercises = newExercises
+                    });
             }
             catch (Exception ex)
             {
                 await tran.RollbackAsync();
-                return Fail(BusinessCode.EXCEPTION, $"Lỗi khi tạo danh sách chương & bài tập: {ex.Message}");
+                return Fail(BusinessCode.EXCEPTION, ex.Message);
             }
         }
 
