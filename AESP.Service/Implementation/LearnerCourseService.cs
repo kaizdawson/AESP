@@ -279,7 +279,6 @@ namespace AESP.Service.Implementation
         }
 
 
-
         // ============================================================
         // 🔹 UNENROLL COURSE
         // ============================================================
@@ -491,7 +490,7 @@ namespace AESP.Service.Implementation
                 }
 
                 // 4️⃣ Mỗi lần học lại → tăng số lần
-                exercise.RelearnCount++;
+                exercise.NumberOfRetake++;
 
                 // 5️⃣ Nếu có điểm mới → cập nhật
                 if (newScore.HasValue)
@@ -509,7 +508,7 @@ namespace AESP.Service.Implementation
                         exercise.LearningPathExerciseId,
                         exercise.ExerciseId,
                         exercise.ScoreAchieved,
-                        exercise.RelearnCount
+                        exercise.NumberOfRetake
                     });
             }
             catch (Exception ex)

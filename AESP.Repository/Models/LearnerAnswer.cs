@@ -12,14 +12,17 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid LearnerAnswerId { get; set; }
+
         public Guid LearnerProfileId { get; set; }
-        public Guid QuestionId { get; set; }
 
+        public Guid LearningPathQuestionId { get; set; }
 
-        public DateTime SubmittedAt { get; set; }
+        public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
 
         public string AudioRecordingUrl { get; set; } = string.Empty;
+
         public string TranscribedText { get; set; } = string.Empty;
+
         public int ScoreForVoice { get; set; }
 
         public string ExplainTheWrongForVoiceAI { get; set; } = string.Empty;
@@ -29,17 +32,24 @@ namespace AESP.Repository.Models
         public string Status { get; set; } = string.Empty;
 
         public int NumberofReview { get; set; }
+        // ===== RELATION =====
 
-        public Guid LearningPathExerciseId { get; set; }
-        [ForeignKey("LearningPathExerciseId")]
-        public LearningPathExercise LearningPathExercise { get; set; }
+        [ForeignKey(nameof(LearnerProfileId))]
+        public LearnerProfile LearnerProfile { get; set; }
 
-        [ForeignKey("LearnerProfileId")]
-        public  LearnerProfile LearnerProfile { get; set; }
-        [ForeignKey("QuestionId")]
-        public  Question Question { get; set; }
+        // 🆕 Mỗi Answer thuộc 1 LearningPathQuestion
+        [ForeignKey(nameof(LearningPathQuestionId))]
+        public LearningPathQuestion LearningPathQuestion { get; set; }
+
+        // CŨ — BỎ FK QuestionId vì đã chuyển vào LearningPathQuestion
+        public Guid QuestionId { get; set; }
+
+        [ForeignKey(nameof(QuestionId))]
+        public Question Question { get; set; }
+
 
         public virtual ICollection<Review> Reviews { get; set; }
+
         public virtual ICollection<PhonemeResult> PhonemeResults { get; set; }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
+using AESP.Repository.Implementation;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.EntityFrameworkCore;
@@ -16,17 +17,29 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<Exercise> _exerciseRepo;
         private readonly IGenericRepository<Question> _questionRepo;
         private readonly IGenericRepository<LearningPathCourse> _learningPathCourseRepo;
+        private readonly IGenericRepository<LearningPathExercise> _lpExerciseRepo;
+        private readonly IGenericRepository<LearningPathQuestion> _lpQuestionRepo;
+        private readonly IUnitOfWork _unitOfWork;
+
 
         public LearnerQuestionService(
-            IGenericRepository<LearnerProfile> learnerProfileRepo,
-            IGenericRepository<Exercise> exerciseRepo,
-            IGenericRepository<Question> questionRepo,
-            IGenericRepository<LearningPathCourse> learningPathCourseRepo)
+     IGenericRepository<LearnerProfile> learnerProfileRepo,
+     IGenericRepository<Exercise> exerciseRepo,
+     IGenericRepository<Question> questionRepo,
+     IGenericRepository<LearningPathCourse> learningPathCourseRepo,
+     IGenericRepository<LearningPathExercise> lpExerciseRepo,
+     IGenericRepository<LearningPathQuestion> lpQuestionRepo,
+     IUnitOfWork unitOfWork
+ )
         {
             _learnerProfileRepo = learnerProfileRepo;
             _exerciseRepo = exerciseRepo;
             _questionRepo = questionRepo;
             _learningPathCourseRepo = learningPathCourseRepo;
+            _lpExerciseRepo = lpExerciseRepo;
+            _lpQuestionRepo = lpQuestionRepo;
+            _unitOfWork = unitOfWork;
+
         }
 
         public async Task<ResponseDTO> GetQuestionsByExerciseIdForLearnerAsync(Guid learnerProfileId, Guid exerciseId)
@@ -36,14 +49,9 @@ namespace AESP.Service.Implementation
                 if (exerciseId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "ExerciseId không hợp lệ.");
 
-                var learner = await _learnerProfileRepo.GetById(learnerProfileId);
-                if (learner == null)
-                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
-
-                // 🔹 Lấy Exercise + Chapter + Course
+                // 🔹 Lấy exercise gốc
                 var exercise = await _exerciseRepo.AsQueryable()
                     .Include(e => e.Chapter)
-                        .ThenInclude(ch => ch.Course)
                     .FirstOrDefaultAsync(e => e.ExerciseId == exerciseId);
 
                 if (exercise == null)
@@ -51,44 +59,59 @@ namespace AESP.Service.Implementation
 
                 var courseId = exercise.Chapter.CourseId;
 
-                // 🔹 Kiểm tra quyền truy cập (learner đã enroll course này chưa?)
-                bool hasAccess = await _learningPathCourseRepo.AsQueryable()
-     .Include(lp => lp.LearnerCourse)
-     .AnyAsync(lp =>
-         lp.LearnerCourse != null &&                                            // 🔥 thêm vào
-         lp.LearnerCourse.LearnerProfileId == learnerProfileId &&
-         lp.CourseId == courseId &&
-         (lp.Status == "Enrolled" || lp.Status == "InProgress" || lp.Status == "Completed"));
+                // 🔹 Lấy LearningPathCourse đúng learner
+                var lpCourse = await _learningPathCourseRepo.AsQueryable()
+                    .Include(lp => lp.LearnerCourse)
+                    .Include(lp => lp.LearningPathChapters)
+                        .ThenInclude(ch => ch.LearningPathExercises)
+                    .FirstOrDefaultAsync(lp =>
+                        lp.CourseId == courseId &&
+                        lp.LearnerCourse.LearnerProfileId == learnerProfileId
+                    );
 
+                if (lpCourse == null)
+                    return Fail(BusinessCode.ACCESS_DENIED, "Bạn chưa đăng ký khóa học này.");
 
-                if (!hasAccess)
-                    return Fail(BusinessCode.ACCESS_DENIED, "Bạn chưa được phép truy cập bài tập này.");
+                // 🔥 Tìm đúng LearningPathExercise
+                var lpExercise = lpCourse.LearningPathChapters
+                    .SelectMany(ch => ch.LearningPathExercises ?? new List<LearningPathExercise>())
+                    .FirstOrDefault(ex => ex.ExerciseId == exerciseId);
 
-                // 🔹 Lấy danh sách câu hỏi và media
-                var questions = await _questionRepo.AsQueryable()
-                    .Include(q => q.QuestionMedias)
-                    .Where(q => q.ExerciseId == exerciseId)
-                    .OrderBy(q => q.OrderIndex)
+                if (lpExercise == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "LearningPathExercise chưa được sinh.");
+
+                // 🔥 CHẶN truy cập khi chưa InProgress
+                if (lpExercise.Status != "InProgress")
+                    return Fail(BusinessCode.ACCESS_DENIED, "Bạn cần bắt đầu bài tập trước khi xem câu hỏi.");
+
+                // 🔹 Lấy LPQ
+                var lpQuestions = await _lpQuestionRepo.AsQueryable()
+                    .Where(q => q.LearningPathExerciseId == lpExercise.LearningPathExerciseId)
+                    .Include(q => q.Question)
                     .ToListAsync();
 
-                var result = questions.Select(q => new ReadQuestionDTO
-                {
-                    QuestionId = q.QuestionId,
-                    ExerciseId = q.ExerciseId,
-                    Text = q.Text,
-                    Type = q.Type,
-                    OrderIndex = q.OrderIndex,
-                    PhonemeJson = q.PhonemeJson,
-                    Media = q.QuestionMedias.Select(m => new ReadQuestionMediaDTO
+                // ❗ Không tự sinh — nếu không tồn tại thì trả lỗi
+                if (!lpQuestions.Any())
+                    return Fail(BusinessCode.DATA_NOT_FOUND,
+                        "Chưa tạo câu hỏi cho bài tập này. (LPQuestion chưa được sinh)");
+
+                // 🔥 Bảo vệ Question = null
+                lpQuestions = lpQuestions.Where(q => q.Question != null).ToList();
+
+                // 🔹 Map DTO
+                var result = lpQuestions
+                    .OrderBy(q => q.Question.OrderIndex)
+                    .Select(q => new ReadQuestionDTO
                     {
-                        QuestionMediaId = m.QuestionMediaId,
-                        Accent = m.Accent,
-                        AudioURL = m.AudioUrl,
-                        VideoURL = m.VideoUrl,
-                        ImageURL = m.ImageUrl,
-                        Source = m.Source
-                    }).ToList()
-                }).ToList();
+                        QuestionId = q.QuestionId,
+                        ExerciseId = exerciseId,
+                        Text = q.Question.Text,
+                        Type = q.Question.Type,
+                        OrderIndex = q.Question.OrderIndex,
+                        PhonemeJson = q.Question.PhonemeJson,
+                        Media = new List<ReadQuestionMediaDTO>() // vì QuestionMedias đang rỗng
+                    })
+                    .ToList();
 
                 return Success(BusinessCode.GET_DATA_SUCCESSFULLY,
                     "Lấy danh sách câu hỏi thành công.",
@@ -96,7 +119,8 @@ namespace AESP.Service.Implementation
             }
             catch (Exception ex)
             {
-                return Fail(BusinessCode.EXCEPTION, $"Lỗi khi lấy danh sách câu hỏi: {ex.Message}");
+                return Fail(BusinessCode.EXCEPTION,
+                    $"Lỗi khi lấy danh sách câu hỏi: {ex.Message}");
             }
         }
 

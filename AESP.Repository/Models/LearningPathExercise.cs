@@ -23,12 +23,13 @@ namespace AESP.Repository.Models
         public string Status { get; set; } = string.Empty;
         public int NumberOfQuestion { get; set; }
 
-        // 🆕 Thêm số lần học lại
-        public int RelearnCount { get; set; } = 0;
+        public int NumberOfRetake { get; set; } = 0;
 
 
         [ForeignKey("ExerciseId")]
         public  Exercise Exercise { get; set; }
         public  LearningPathChapter LearningPathChapter { get; set; }
+        public virtual ICollection<LearningPathQuestion> LearningPathQuestions { get; set; }
+
     }
 }

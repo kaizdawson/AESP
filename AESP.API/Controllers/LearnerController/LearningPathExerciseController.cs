@@ -1,6 +1,7 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,6 +31,13 @@ namespace AESP.API.Controllers.LearnerController
             return StatusFromResult(result);
         }
 
+
+        [HttpPut("{learningPathExerciseId}/status")]
+        public async Task<IActionResult> UpdateStatus(Guid learningPathExerciseId, [FromQuery] string status)
+        {
+            var result = await _service.UpdateStatusAsync(learningPathExerciseId, status);
+            return StatusFromResult(result);
+        }
 
         // ============================================================
         // 🔹 Helper chuẩn map BusinessCode -> HTTP Code

@@ -7,9 +7,8 @@ using System.Threading.Tasks;
 
 namespace AESP.Service.Contract
 {
-    public interface ILearnerAnswerService
+    public interface ILearningPathQuestionService
     {
-        Task<ResponseDTO> SubmitAnswerAsync(Guid learnerProfileId, Guid learningPathQuestionId, SubmitLearnerAnswerDTO dto);
-
+        Task<ResponseDTO> GetAllNotStartedAsync();
     }
 }
