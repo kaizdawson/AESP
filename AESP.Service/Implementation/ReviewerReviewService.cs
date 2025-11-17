@@ -48,10 +48,11 @@ namespace AESP.Service.Implementation
                 // 1) GET LEARNER ANSWERS
                 // ============================
                 var pendingAnswersQuery = db.Set<LearnerAnswer>()
-                    .Include(la => la.Question)
-                    .Include(la => la.LearnerProfile)
-                        .ThenInclude(lp => lp.User)
-                    .AsNoTracking()
+                     .Include(la => la.LearningPathQuestion)
+                     .ThenInclude(lpq => lpq.Question)
+                     .Include(la => la.LearnerProfile)
+                     .ThenInclude(lp => lp.User)
+                     .AsNoTracking()
                     .Where(la =>
                         la.IsNeededReviewed == true &&
                         la.NumberofReview > 0 &&
@@ -67,7 +68,7 @@ namespace AESP.Service.Implementation
                         AudioUrl = la.AudioRecordingUrl,
                         NumberOfReview = la.NumberofReview,
                         LearnerFullName = la.LearnerProfile.User.FullName,
-                        QuestionText = la.Question.Text
+                        QuestionText = la.LearningPathQuestion.Question.Text
                     });
 
                 // ============================
@@ -151,17 +152,18 @@ namespace AESP.Service.Implementation
                 var db = _unitOfWork.GetDbContext();
 
                 var query = db.Set<Review>()
-                    .Include(r => r.LearnerAnswer)
-                        .ThenInclude(la => la.Question)
-                    .Include(r => r.LearnerAnswer)
-                        .ThenInclude(la => la.LearnerProfile)
-                            .ThenInclude(lp => lp.User)
-                    .Include(r => r.Record)
-                        .ThenInclude(rec => rec.LearnerRecord)
-                            .ThenInclude(lr => lr.LearnerProfile)
-                                .ThenInclude(lp => lp.User)
-                    .AsNoTracking()
-                    .Where(r => r.ReviewerProfileId == reviewerProfileId);
+                 .Include(r => r.LearnerAnswer)
+                 .ThenInclude(la => la.LearningPathQuestion)
+                 .ThenInclude(lpq => lpq.Question)
+                 .Include(r => r.LearnerAnswer)
+                 .ThenInclude(la => la.LearnerProfile)
+                 .ThenInclude(lp => lp.User)
+                 .Include(r => r.Record)
+                 .ThenInclude(rec => rec.LearnerRecord)
+                 .ThenInclude(lr => lr.LearnerProfile)
+                 .ThenInclude(lp => lp.User)
+                 .AsNoTracking()
+                 .Where(r => r.ReviewerProfileId == reviewerProfileId);
 
                 var totalItems = await query.CountAsync();
 
@@ -186,8 +188,8 @@ namespace AESP.Service.Implementation
 
                         // Câu hỏi của Answer hoặc Content của Record
                         QuestionContent = r.LearnerAnswer != null
-                            ? r.LearnerAnswer.Question.Text
-                            : (r.Record != null ? r.Record.Content : null),
+                             ? r.LearnerAnswer.LearningPathQuestion.Question.Text
+                             : (r.Record != null ? r.Record.Content : null),
 
                         // Tên học viên
                         LearnerFullName = r.LearnerAnswer != null
@@ -197,7 +199,13 @@ namespace AESP.Service.Implementation
                                 : null),
 
                         // Loại review: Answer / Record
-                        ReviewType = r.LearnerAnswerId != null ? "LearnerAnswer" : "Record"
+                        ReviewType = r.LearnerAnswerId != null ? "LearnerAnswer" : "Record",
+
+                        ReviewerEarnCoin = db.Set<TransferTransaction>()
+                        .Where(t => t.ReviewId == r.ReviewId &&
+                        t.ReviewerProfileId == r.ReviewerProfileId)
+                         .Select(t => (int?)t.AmountCoin)
+                        .FirstOrDefault() ?? 0
                     })
                     .ToListAsync();
 

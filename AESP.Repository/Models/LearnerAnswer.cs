@@ -41,11 +41,8 @@ namespace AESP.Repository.Models
         [ForeignKey(nameof(LearningPathQuestionId))]
         public LearningPathQuestion LearningPathQuestion { get; set; }
 
-        // CŨ — BỎ FK QuestionId vì đã chuyển vào LearningPathQuestion
-        public Guid QuestionId { get; set; }
+        
 
-        [ForeignKey(nameof(QuestionId))]
-        public Question Question { get; set; }
 
 
         public virtual ICollection<Review> Reviews { get; set; }

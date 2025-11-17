@@ -4,6 +4,7 @@ using AESP.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AESP.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251117190943_RemoveQuestionIdInLearnerAnswer")]
+    partial class RemoveQuestionIdInLearnerAnswer
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -656,6 +659,10 @@ namespace AESP.Repository.Migrations
                     b.Property<DateTime>("DateRecorded")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("HeatmapData")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<Guid>("LearnerProfileId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1257,7 +1264,7 @@ namespace AESP.Repository.Migrations
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 11, 17, 16, 44, 40, 56, DateTimeKind.Utc).AddTicks(4663),
+                            CreatedAt = new DateTime(2025, 11, 17, 19, 9, 42, 337, DateTimeKind.Utc).AddTicks(2317),
                             Email = "admin@aesp.com",
                             FirebaseUid = "",
                             FullName = "Super Admin",
@@ -1266,7 +1273,7 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0909000000",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 11, 17, 16, 44, 40, 56, DateTimeKind.Utc).AddTicks(4665)
+                            UpdatedAt = new DateTime(2025, 11, 17, 19, 9, 42, 337, DateTimeKind.Utc).AddTicks(2322)
                         });
                 });
 

@@ -61,7 +61,7 @@ namespace AESP.Service.Implementation
                     LearnerAnswerId = Guid.NewGuid(),
                     LearnerProfileId = learnerProfileId,
                     LearningPathQuestionId = learningPathQuestionId,
-                    QuestionId = question.QuestionId,
+                  //  QuestionId = question.QuestionId,
                     AudioRecordingUrl = dto.AudioRecordingUrl,
                     TranscribedText = dto.TranscribedText,
                     ScoreForVoice = dto.ScoreForVoice,
