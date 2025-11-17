@@ -579,6 +579,20 @@ namespace AESP.Service.Implementation
                                         .Where(qq => qq.QuestionId == q.QuestionId)
                                         .Select(qq => qq.OrderIndex)
                                         .FirstOrDefault(),
+
+                                    // ⭐⭐ LẤY MEDIA CHO CÂU HỎI
+                                    Media = db.Set<QuestionMedia>()
+            .Where(m => m.QuestionId == q.QuestionId)
+            .Select(m => new
+            {
+                m.QuestionMediaId,
+                m.Accent,
+                m.AudioUrl,
+                m.VideoUrl,
+                m.ImageUrl,
+                m.Source
+            })
+            .ToList()
                                 }).ToList()
                         }).ToList()
                 })
