@@ -64,7 +64,7 @@ namespace AESP.Service.Implementation
                 {
                     dto.IsSucess = false;
                     dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-                    dto.Message = "Không tìm thấy thông tin reviewer.";
+                    dto.Message = "Không tìm thấy thông tin người dùng.";
                     return dto;
                 }
 
@@ -75,7 +75,7 @@ namespace AESP.Service.Implementation
                 await _unitOfWork.SaveChangeAsync();
 
                 // ==============================
-                //  GỬI EMAIL CHO REVIEWER
+                //  GỬI EMAIL CHO USER
                 // ==============================
                 if (!string.IsNullOrEmpty(user.Email))
                 {
@@ -122,16 +122,16 @@ Trân trọng,
 
         public async Task<ResponseDTO> GetPendingWithdrawalsAsync(int pageNumber, int pageSize)
         {
-            ResponseDTO dto = new ResponseDTO();
+            var dto = new ResponseDTO();
 
             try
             {
                 var db = _transactionRepository.GetDbContext();
 
                 var query = db.Transactions
-                    .Include(t => t.User)
-                    .Where(t => t.Type == "Withdrawal" &&
-                                t.Status == "Pending");
+    .Include(t => t.User)
+    .Where(t => t.Type == "Withdrawal" && t.Status == "Pending");
+
 
                 var totalItems = await query.CountAsync();
 
@@ -153,8 +153,8 @@ Trân trọng,
                     {
                         t.TransactionId,
                         t.UserId,
-                        FullName = t.User.FullName,
-                        Email = t.User.Email,
+                        FullName = t.User?.FullName,
+                        Email = t.User?.Email,
                         Coin = t.AmountCoin,
                         AmountMoney = t.AmountMoney,
                         t.BankName,
@@ -174,6 +174,7 @@ Trân trọng,
 
             return dto;
         }
+
 
         public async Task<ResponseDTO> RejectWithdrawalAsync(Guid transactionId, string reason)
         {
@@ -217,7 +218,7 @@ Trân trọng,
                 }
 
                 // trả coin về
-                user.CoinBalance += (int)transaction.AmountCoin;
+                user.CoinBalance += Convert.ToInt32(transaction.AmountCoin);
 
                 transaction.Status = "Rejected";
                 transaction.ReasonReject = reason;
@@ -229,7 +230,7 @@ Trân trọng,
                 await _unitOfWork.SaveChangeAsync();
 
                 // ==============================
-                //  GỬI EMAIL CHO REVIEWER
+                //  GỬI EMAIL CHO USER
                 // ==============================
                 if (!string.IsNullOrEmpty(user.Email))
                 {
