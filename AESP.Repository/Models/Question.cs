@@ -25,7 +25,7 @@ namespace AESP.Repository.Models
 
         public virtual ICollection<QuestionMedia> QuestionMedias { get; set; }
         public virtual ICollection<AssessmentDetail> AssessmentDetails { get; set; }
-        public virtual ICollection<LearnerAnswer> LearnerAnswers { get; set; }
+       // public virtual ICollection<LearnerAnswer> LearnerAnswers { get; set; }
         public virtual ICollection<PhonemeResult> PhonemeResults { get; set; }
 
     }

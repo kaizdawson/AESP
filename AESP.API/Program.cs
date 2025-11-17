@@ -226,7 +226,8 @@ builder.Services.AddCors(options =>
             policy.WithOrigins(
                 "https://fa-25-se-161-ai-english-speaking-pr.vercel.app",
                 "https://localhost:3000",
-                "https://aespwithai.com"
+                "https://aespwithai.com",
+                "http://localhost:3000"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()

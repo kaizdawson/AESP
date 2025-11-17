@@ -323,7 +323,7 @@ namespace AESP.Service.Implementation
                     x => x.QuestionId == id,
                     x => x.QuestionMedias,
                     x => x.AssessmentDetails,
-                    x => x.LearnerAnswers,
+                   // x => x.LearnerAnswers,
                     x => x.PhonemeResults
                 );
 
@@ -341,8 +341,8 @@ namespace AESP.Service.Implementation
                 if (question.AssessmentDetails?.Any() == true)
                     db.AssessmentDetails.RemoveRange(question.AssessmentDetails);
 
-                if (question.LearnerAnswers?.Any() == true)
-                    db.LearnerAnswers.RemoveRange(question.LearnerAnswers);
+                //if (question.LearnerAnswers?.Any() == true)
+                //    db.LearnerAnswers.RemoveRange(question.LearnerAnswers);
 
                 if (question.PhonemeResults?.Any() == true)
                     db.PhonemeResults.RemoveRange(question.PhonemeResults);
