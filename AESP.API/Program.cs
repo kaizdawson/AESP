@@ -51,8 +51,32 @@ builder.Services.AddAuthentication(options =>
         ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha512 }
     };
 
+    // Configure JWT for SignalR
     options.Events = new JwtBearerEvents
     {
+        OnMessageReceived = context =>
+        {
+            // SignalR sends token via query string or access_token parameter
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+
+            // If this is a SignalR hub request and token is in query string
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+            // Also check for token in Authorization header (standard way)
+            else if (context.Request.Headers.ContainsKey("Authorization"))
+            {
+                var authHeader = context.Request.Headers["Authorization"].ToString();
+                if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Token = authHeader.Substring("Bearer ".Length).Trim();
+                }
+            }
+
+            return Task.CompletedTask;
+        },
         OnChallenge = context =>
         {
             context.HandleResponse();
