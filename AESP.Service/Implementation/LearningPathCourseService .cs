@@ -464,9 +464,9 @@ namespace AESP.Service.Implementation
 
 
         public async Task<ResponseDTO> GetFullLearningPathCourseAsync(
-            Guid? learningPathCourseId,
-            Guid? courseId,
-            string? status)
+     Guid? learningPathCourseId,
+     Guid? courseId,
+     string? status)
         {
             // =============================================
             // 1️⃣ Xác định learningPathCourseId
@@ -504,7 +504,7 @@ namespace AESP.Service.Implementation
             var db = _unitOfWork.GetDbContext();
 
             // =============================================
-            // 3️⃣ Load Chapters + Exercises + Title + Description
+            // 3️⃣ Load Chapters + Exercises + Questions (nested)
             // =============================================
             var chapters = await db.Set<LearningPathChapter>()
                 .Where(x => x.LearningPathCourseId == lpCourse.LearningPathCourseId)
@@ -518,7 +518,7 @@ namespace AESP.Service.Implementation
                     x.Progress,
                     x.NumberOfModule,
 
-                    // ⭐ THÊM TITLE + DESCRIPTION TỪ BẢNG CHAPTER
+                    // ⭐ Title + Description từ bảng Chapter
                     ChapterTitle = db.Set<Chapter>()
                         .Where(ch => ch.ChapterId == x.ChapterId)
                         .Select(ch => ch.Title)
@@ -529,6 +529,7 @@ namespace AESP.Service.Implementation
                         .Select(ch => ch.Description)
                         .FirstOrDefault(),
 
+                    // ⭐ Exercises
                     Exercises = db.Set<LearningPathExercise>()
                         .Where(e => e.LearningPathChapterId == x.LearningPathChapterId)
                         .OrderBy(e => e.OrderIndex)
@@ -541,7 +542,6 @@ namespace AESP.Service.Implementation
                             e.ScoreAchieved,
                             e.NumberOfQuestion,
 
-                            // ⭐ THÊM TITLE + DESCRIPTION TỪ BẢNG EXERCISE
                             ExerciseTitle = db.Set<Exercise>()
                                 .Where(ex => ex.ExerciseId == e.ExerciseId)
                                 .Select(ex => ex.Title)
@@ -551,6 +551,49 @@ namespace AESP.Service.Implementation
                                 .Where(ex => ex.ExerciseId == e.ExerciseId)
                                 .Select(ex => ex.Description)
                                 .FirstOrDefault(),
+
+                            // ⭐⭐ LearningPathQuestions (nếu exercise đã START)
+                            Questions = db.Set<LearningPathQuestion>()
+                                .Where(q => q.LearningPathExerciseId == e.LearningPathExerciseId)
+                                .OrderBy(q => q.Question.OrderIndex)
+                                .Select(q => new
+                                {
+                                    q.LearningPathQuestionId,
+                                    q.QuestionId,
+                                    q.Status,
+                                    q.Score,
+                                    q.NumberOfRetake,
+
+                                    // Lấy từ bảng Question
+                                    Text = db.Set<Question>()
+                                        .Where(qq => qq.QuestionId == q.QuestionId)
+                                        .Select(qq => qq.Text)
+                                        .FirstOrDefault(),
+
+                                    Type = db.Set<Question>()
+                                        .Where(qq => qq.QuestionId == q.QuestionId)
+                                        .Select(qq => qq.Type)
+                                        .FirstOrDefault(),
+
+                                    OrderIndex = db.Set<Question>()
+                                        .Where(qq => qq.QuestionId == q.QuestionId)
+                                        .Select(qq => qq.OrderIndex)
+                                        .FirstOrDefault(),
+
+                                    // ⭐⭐ LẤY MEDIA CHO CÂU HỎI
+                                    Media = db.Set<QuestionMedia>()
+            .Where(m => m.QuestionId == q.QuestionId)
+            .Select(m => new
+            {
+                m.QuestionMediaId,
+                m.Accent,
+                m.AudioUrl,
+                m.VideoUrl,
+                m.ImageUrl,
+                m.Source
+            })
+            .ToList()
+                                }).ToList()
                         }).ToList()
                 })
                 .ToListAsync();
@@ -580,6 +623,7 @@ namespace AESP.Service.Implementation
                 Chapters = chapters
             });
         }
+
 
 
 
