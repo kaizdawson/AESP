@@ -1,4 +1,5 @@
 ﻿using AESP.Service.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -38,6 +39,12 @@ namespace AESP.API.Controllers.AdminController
         {
             var res = await _service.RejectFeedbackAsync(id, reason);
             return StatusCode(res.IsSucess ? 200 : 400, res);
+        }
+        [HttpPut("approve/{feedbackId}")]
+        public async Task<IActionResult> ApproveFeedback(Guid feedbackId)
+        {
+            var result = await _service.ApproveFeedbackAsync(feedbackId);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
 }

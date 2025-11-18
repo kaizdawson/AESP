@@ -16,5 +16,6 @@ namespace AESP.Service.Contract
            int pageSize = 10);
         Task<ResponseDTO> GetFeedbackDetailAsync(Guid feedbackId);
         Task<ResponseDTO> RejectFeedbackAsync(Guid feedbackId, string reason);
+        Task<ResponseDTO> ApproveFeedbackAsync(Guid feedbackId);
     }
 }

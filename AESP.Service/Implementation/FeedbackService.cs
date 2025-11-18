@@ -35,7 +35,7 @@ namespace AESP.Service.Implementation
             {
                 var db = _reviewerProfileRepository.GetDbContext();
 
-                // 1️⃣ Kiểm tra Review tồn tại
+                // 1️ Kiểm tra Review tồn tại
                 var review = await db.Reviews
                     .Include(r => r.ReviewerProfile)
                     .Include(r => r.LearnerAnswer)
@@ -53,7 +53,7 @@ namespace AESP.Service.Implementation
                     return response;
                 }
 
-                // 2️⃣ Kiểm tra Review này có thuộc Learner đang đăng nhập không
+                // 2️ Kiểm tra Review này có thuộc Learner đang đăng nhập không
                 Guid? learnerUserId = null;
 
                 if (review.LearnerAnswer != null)
@@ -70,7 +70,7 @@ namespace AESP.Service.Implementation
                     return response;
                 }
 
-                // 3️⃣ Validate Content
+                // 3️ Validate Content
                 if (string.IsNullOrWhiteSpace(dto.Content))
                 {
                     response.IsSucess = false;
@@ -94,7 +94,7 @@ namespace AESP.Service.Implementation
                     Content = dto.Content.Trim(),
                     Rating = dto.Rating,
                     CreatedAt = DateTime.UtcNow,
-                    Status = "Active",
+                    Status = "Pending",
                     UserId = userId,
                     ReviewId = dto.ReviewId,
                     Type = "ReviewerFeedback"
@@ -103,8 +103,8 @@ namespace AESP.Service.Implementation
                 await _feedbackRepository.Insert(feedback);
                 await _unitOfWork.SaveChangeAsync();
 
-                // 5️⃣ Cập nhật rating reviewer
-                await RecalculateReviewerRatingAsync(review.ReviewerProfileId);
+                // 5️ Cập nhật rating reviewer
+               // await RecalculateReviewerRatingAsync(review.ReviewerProfileId);
 
                 response.IsSucess = true;
                 response.Message = "Gửi feedback thành công.";
@@ -120,35 +120,6 @@ namespace AESP.Service.Implementation
             }
         }
 
-        private async Task RecalculateReviewerRatingAsync(Guid reviewerProfileId)
-        {
-            var db = _reviewerProfileRepository.GetDbContext();
-
-            // 1️⃣ Lấy tất cả feedback thuộc những review mà reviewer này chấm
-            var feedbacks = await db.Feedbacks
-                .Include(f => f.Review)
-                .Where(f =>
-                    f.Review.ReviewerProfileId == reviewerProfileId &&
-                    f.Type == "ReviewerFeedback" &&
-                    f.Status == "Active")
-                .ToListAsync();
-
-            if (feedbacks.Count == 0)
-                return;
-
-            // 2️⃣ Tính điểm trung bình
-            double avgRating = Math.Round(feedbacks.Average(f => f.Rating), 1);
-
-            // 3️⃣ Update rating của reviewer
-            var reviewer = await db.ReviewerProfiles
-                .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
-
-            if (reviewer != null)
-            {
-                reviewer.Rating = avgRating;
-                db.ReviewerProfiles.Update(reviewer);
-                await db.SaveChangesAsync();
-            }
-        }
+      
     }
 }
