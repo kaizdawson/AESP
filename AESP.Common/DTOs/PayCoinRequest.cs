@@ -8,6 +8,6 @@ namespace AESP.Common.DTOs
 {
     public class PayCoinRequest
     {
-        public int PayCoin { get; set; }
+        public Guid AIConversationChargeId { get; set; }
     }
 }

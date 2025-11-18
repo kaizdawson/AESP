@@ -17,9 +17,14 @@ namespace AESP.Service.Contract
         Task CancelTransactionByOrderCodeAsync(string orderCode);
         Task<string> GetTransactionStatusAsync(string orderCode);
 
-        Task<int> PayCoinAsync(Guid userId, int payCoin);
+        Task<int> PayCoinAsync(Guid userId, Guid aiChargeId);
 
         Task<object> WithdrawCoinAsync(Guid userId, int coin, string bankName, string accountNumber);
+
+        Task<IEnumerable<object>> GetDepositHistoryAsync(Guid userId);
+        Task<IEnumerable<object>> GetWithdrawHistoryAsync(Guid userId);
+
+        Task<IEnumerable<object>> GetActiveAIConversationPackagesAsync();
 
     }
 }

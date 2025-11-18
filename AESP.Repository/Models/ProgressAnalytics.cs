@@ -19,7 +19,6 @@ namespace AESP.Repository.Models
         
         public double ConfidenceLevel { get; set; }
         public int StreakDays { get; set; }
-        public string HeatmapData { get; set; }
 
 
         public Guid LearnerProfileId { get; set; }

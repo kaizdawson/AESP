@@ -17,6 +17,9 @@ namespace AESP.Service.Implementation
         private readonly ILogger<CoinService> _logger;
         private readonly IGenericRepository<Transaction> _transactionRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IGenericRepository<AIConversationCharge> _aiConversationChargeRepository;
+        private readonly IGenericRepository<Purchase> _purchaseRepository;
+
 
         public CoinService(
             IGenericRepository<User> userRepository,
@@ -24,7 +27,9 @@ namespace AESP.Service.Implementation
             IGenericRepository<Transaction> transactionRepository,
             PayOSService payOSService,
             ILogger<CoinService> logger,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IGenericRepository<AIConversationCharge> aiConversationChargeRepository,
+    IGenericRepository<Purchase> purchaseRepository)
         {
             _userRepository = userRepository;
             _packageRepository = packageRepository;
@@ -32,6 +37,8 @@ namespace AESP.Service.Implementation
             _payOSService = payOSService;
             _logger = logger;
             _unitOfWork = unitOfWork;
+            _aiConversationChargeRepository = aiConversationChargeRepository; 
+            _purchaseRepository = purchaseRepository;
         }
 
         public async Task<decimal> GetUserCoinBalanceAsync(Guid userId)
@@ -157,27 +164,45 @@ namespace AESP.Service.Implementation
 
 
 
-        public async Task<int> PayCoinAsync(Guid userId, int payCoin)
+        public async Task<int> PayCoinAsync(Guid userId, Guid aiChargeId)
         {
-            if (payCoin <= 0)
-                throw new Exception("Số tiền phải lớn hơn 0.");
+            var user = await _userRepository.GetById(userId)
+                ?? throw new Exception("Không tìm thấy người dùng.");
 
-            var user = await _userRepository.GetById(userId);
-            if (user == null)
-                throw new Exception("Không tìm thấy người dùng.");
+            var charge = await _aiConversationChargeRepository.GetById(aiChargeId);
+
+            if (charge == null)
+                throw new Exception("Gói AI không tồn tại.");
+
+            if (charge.Status != "Active")
+                throw new Exception("Gói AI hiện không khả dụng.");
+
+            var payCoin = charge.AmountCoin;
 
             if (user.CoinBalance < payCoin)
-                return 0;   
+                return 0;
 
             user.CoinBalance -= payCoin;
 
+            var purchase = new Purchase
+            {
+                UserId = userId,
+                AmountCoin = payCoin,
+                AIConversationChargeId = aiChargeId,
+                Status = "Completed",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _purchaseRepository.Insert(purchase);
             await _userRepository.Update(user);
             await _unitOfWork.SaveChangeAsync();
 
-            _logger.LogInformation("💸 User {UserId} đã thanh toán {PayCoin} coin", userId, payCoin);
-
-            return 1; 
+            return 1;
         }
+
+
+
+
 
         public async Task<object> WithdrawCoinAsync(Guid userId, int coin, string bankName, string accountNumber)
         {
@@ -226,6 +251,64 @@ namespace AESP.Service.Implementation
                 coin,
                 amountMoney
             };
+        }
+
+
+        public async Task<IEnumerable<object>> GetDepositHistoryAsync(Guid userId)
+        {
+            var list = _transactionRepository.AsQueryable()
+                .Where(t => t.UserId == userId && t.Type == "Deposit")
+                .OrderByDescending(t => t.CreatedTransaction)
+                .Select(t => new
+                {
+                    t.OrderCode,
+                    t.AmountMoney,
+                    t.AmountCoin,
+                    t.Status,
+                    t.Description,
+                    CreatedAt = t.CreatedTransaction
+                })
+                .ToList();
+
+            return list;
+        }
+
+        public async Task<IEnumerable<object>> GetWithdrawHistoryAsync(Guid userId)
+        {
+            var list = _transactionRepository.AsQueryable()
+                .Where(t => t.UserId == userId && t.Type == "Withdrawal")
+                .OrderByDescending(t => t.CreatedTransaction)
+                .Select(t => new
+                {
+                    t.OrderCode,
+                    t.AmountMoney,
+                    t.AmountCoin,
+                    t.Status,
+                    t.BankName,
+                    t.AccountNumber,
+                    t.Description,
+                    CreatedAt = t.CreatedTransaction
+                })
+                .ToList();
+
+            return list;
+        }
+
+
+        public async Task<IEnumerable<object>> GetActiveAIConversationPackagesAsync()
+        {
+            var list = _aiConversationChargeRepository.AsQueryable()
+                .Where(x => x.Status == "Active" && x.IsDeleted == false)
+                .OrderBy(x => x.AmountCoin)
+                .Select(x => new
+                {
+                    x.AIConversationChargeId,
+                    x.AmountCoin,
+                    x.AllowedMinutes
+                })
+                .ToList();
+
+            return list;
         }
 
     }

@@ -4,6 +4,7 @@ using AESP.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AESP.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251117164440_DelHeatMap")]
+    partial class DelHeatMap
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -327,6 +330,9 @@ namespace AESP.Repository.Migrations
                     b.Property<int>("NumberofReview")
                         .HasColumnType("int");
 
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("ScoreForVoice")
                         .HasColumnType("int");
 
@@ -346,6 +352,8 @@ namespace AESP.Repository.Migrations
                     b.HasIndex("LearnerProfileId");
 
                     b.HasIndex("LearningPathQuestionId");
+
+                    b.HasIndex("QuestionId");
 
                     b.ToTable("LearnerAnswers");
                 });
@@ -1365,9 +1373,17 @@ namespace AESP.Repository.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("AESP.Repository.Models.Question", "Question")
+                        .WithMany("LearnerAnswers")
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("LearnerProfile");
 
                     b.Navigation("LearningPathQuestion");
+
+                    b.Navigation("Question");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.LearnerCourse", b =>
@@ -1776,6 +1792,8 @@ namespace AESP.Repository.Migrations
             modelBuilder.Entity("AESP.Repository.Models.Question", b =>
                 {
                     b.Navigation("AssessmentDetails");
+
+                    b.Navigation("LearnerAnswers");
 
                     b.Navigation("PhonemeResults");
 

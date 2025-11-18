@@ -138,6 +138,7 @@ builder.Services.AddScoped<ILearnerAnswerService, LearnerAnswerService>();
 builder.Services.AddScoped<ILearningPathExerciseService, LearningPathExerciseService>();
 builder.Services.AddScoped<ILearnerReviewRequestService, LearnerReviewRequestService>();
 builder.Services.AddScoped<ILearningPathQuestionService, LearningPathQuestionService>();
+builder.Services.AddScoped<IAdminWithdrawalService, AdminWithdrawalService>();
 
 
 builder.Services.AddScoped<ILearningPathChapterService, LearningPathChapterService>();
