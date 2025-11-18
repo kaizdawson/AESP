@@ -152,7 +152,7 @@ builder.Services.AddScoped<IAIConversationChargeService, AIConversationChargeSer
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IReviewerReviewService, ReviewerReviewService>();
 builder.Services.AddScoped<IRealtimeNotifier, SignalRNotifier>();
-
+builder.Services.AddScoped<IAdminReviewFeeService, AdminReviewFeeService>();
 
 
 builder.Services.AddHttpClient<PayOSService>();

@@ -18,5 +18,6 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> UpdateReviewerLevelAsync(Guid reviewerProfileId, string newLevel);
         Task<ResponseDTO> GetUnapprovedCertificatesAsync(Guid reviewerProfileId);
         Task<ResponseDTO> GetAllPendingCertificatesAsync(int pageNumber, int pageSize);
+        
     }
 }
