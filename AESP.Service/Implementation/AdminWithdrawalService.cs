@@ -120,6 +120,108 @@ Trân trọng,
             return dto;
         }
 
+        public async Task<ResponseDTO> GetAllWithdrawalAsync(string? keyword, string? status, int pageNumber, int pageSize)
+        {
+            var dto = new ResponseDTO(); try
+            {
+                var db = _transactionRepository.GetDbContext();
+
+                var query = db.Transactions
+                    .Include(t => t.User)
+                    .Where(t => t.Type == "Withdrawal")
+                    .OrderByDescending(t => t.CreatedTransaction)
+                    .AsQueryable();
+
+                // =====================
+                // 🔍 SEARCH
+                // =====================
+                if (!string.IsNullOrWhiteSpace(keyword))
+                {
+                    var kw = keyword.Trim().ToLower();
+
+                    query = query.Where(t =>
+                        (t.User.FullName != null && t.User.FullName.ToLower().Contains(kw)) ||
+                        (t.User.Email != null && t.User.Email.ToLower().Contains(kw)) ||
+                        (t.OrderCode != null && t.OrderCode.ToLower().Contains(kw)) 
+                    );
+                }
+
+                // =====================
+                // 🔍 FILTER STATUS
+                // =====================
+                if (!string.IsNullOrEmpty(status))
+                {
+                    switch (status.ToLower())
+                    {
+                        case "pending":
+                            query = query.Where(t => t.Status == "Pending");
+                            break;
+
+                        case "approved":
+                            query = query.Where(t => t.Status == "Approved");
+                            break;
+
+                        case "rejected":
+                            query = query.Where(t => t.Status == "Rejected");
+                            break;
+
+                        case "processing":
+                            query = query.Where(t => t.Status == "Processing");
+                            break;
+
+                        case "all":
+                        default:
+                            break;
+                    }
+                }
+
+                // =====================
+                // 📌 PAGING
+                // =====================
+                var totalItems = await query.CountAsync();
+                var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+                var items = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(t => new
+                    {
+                        t.TransactionId,
+                        t.UserId,
+                        ReviewerName = t.User.FullName,
+                        t.User.Email,
+                        Coin = t.AmountCoin,
+                        AmountMoney = t.AmountMoney,
+                        t.BankName,
+                        t.AccountNumber,
+                        t.OrderCode,
+                        Status = t.Status,
+                        CreatedAt = t.CreatedTransaction
+                    })
+                    .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách yêu cầu rút coin thành công.";
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    TotalPages = totalPages,
+                    Items = items
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy danh sách yêu cầu rút coin: " + ex.Message;
+            }
+
+            return dto;
+        }
+
         public async Task<ResponseDTO> GetPendingWithdrawalsAsync(int pageNumber, int pageSize)
         {
             var dto = new ResponseDTO();
@@ -174,7 +276,50 @@ Trân trọng,
 
             return dto;
         }
+        //API: Lấy tổng quan 4 trạng thái (cho 4 ô trên UI)
+        public async Task<ResponseDTO> GetWithdrawalSummaryAsync()
+        {
+            var dto = new ResponseDTO();
 
+            try
+            {
+                var db = _transactionRepository.GetDbContext();
+
+                var pending = await db.Transactions
+                    .CountAsync(t => t.Type == "Withdrawal" && t.Status == "Pending");
+
+                var approved = await db.Transactions
+                    .CountAsync(t => t.Type == "Withdrawal" && t.Status == "Approved");
+
+                var rejected = await db.Transactions
+                    .CountAsync(t => t.Type == "Withdrawal" && t.Status == "Rejected");
+
+                var processing = await db.Transactions
+                    .CountAsync(t => t.Type == "Withdrawal" && t.Status == "Processing");
+
+                var total = pending + approved + rejected + processing;
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy thống kê thành công.";
+                dto.Data = new
+                {
+                    Pending = pending,
+                    Approved = approved,
+                    Rejected = rejected,
+                    Processing = processing,
+                    Total = total
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy thống kê: " + ex.Message;
+            }
+
+            return dto;
+        }
 
         public async Task<ResponseDTO> RejectWithdrawalAsync(Guid transactionId, string reason)
         {

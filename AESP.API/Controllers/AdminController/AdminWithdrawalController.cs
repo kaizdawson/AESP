@@ -48,5 +48,35 @@ namespace AESP.API.Controllers.AdminController
             var result = await _withdrawalService.RejectWithdrawalAsync(transactionId, dto.Reason.Trim());
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
+        [HttpGet("summary")]
+        public async Task<IActionResult> GetWithdrawalSummary()
+        {
+            var result = await _withdrawalService.GetWithdrawalSummaryAsync();
+
+            if (!result.IsSucess)
+                return BadRequest(result);
+
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAllWithdrawals(
+           [FromQuery] string? keyword = null,
+           [FromQuery] string? status = "all",
+           [FromQuery] int pageNumber = 1,
+           [FromQuery] int pageSize = 10
+       )
+        {
+            var result = await _withdrawalService.GetAllWithdrawalAsync(
+                keyword,
+                status,
+                pageNumber,
+                pageSize
+            );
+
+            if (!result.IsSucess)
+                return BadRequest(result);
+
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
     }
 }
