@@ -28,6 +28,54 @@ namespace AESP.Service.Implementation
             _unitOfWork = unitOfWork;
         }
 
+        public async Task<ResponseDTO> ApproveFeedbackAsync(Guid feedbackId)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                var db = _feedbackRepository.GetDbContext();
+                var feedback = await db.Feedbacks
+            .Include(f => f.Review)
+            .FirstOrDefaultAsync(f => f.FeedbackId == feedbackId);
+
+                if (feedback == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy phản hồi.";
+                    return dto;
+                }
+
+                if (feedback.Status == "Active")
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_ACTION;
+                    dto.Message = "Feedback đã được duyệt trước đó.";
+                    return dto;
+                }
+
+                // Cập nhật
+                feedback.Status = "Active";
+
+                await _feedbackRepository.Update(feedback);
+                await _unitOfWork.SaveChangeAsync();
+
+                // Sau khi admin duyệt → cập nhật điểm reviewer
+                await RecalculateReviewerRatingAsync(feedback.Review.ReviewerProfileId);
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                dto.Message = "Duyệt phản hồi thành công.";
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi duyệt phản hồi: " + ex.Message;
+            }
+            return dto;
+        }
+
         public async Task<ResponseDTO> GetAllFeedbackAsync(
               string? keyword,
               string? status,
@@ -204,6 +252,36 @@ namespace AESP.Service.Implementation
 
             return dto;
 
+        }
+        private async Task RecalculateReviewerRatingAsync(Guid reviewerProfileId)
+        {
+            var db = _feedbackRepository.GetDbContext();
+
+            // 1️⃣ Lấy tất cả feedback thuộc những review mà reviewer này chấm
+            var feedbacks = await db.Feedbacks
+                .Include(f => f.Review)
+                .Where(f =>
+                    f.Review.ReviewerProfileId == reviewerProfileId &&
+                    f.Type == "ReviewerFeedback" &&
+                    f.Status == "Active")
+                .ToListAsync();
+
+            if (feedbacks.Count == 0)
+                return;
+
+            // 2️⃣ Tính điểm trung bình
+            double avgRating = Math.Round(feedbacks.Average(f => f.Rating), 1);
+
+            // 3️⃣ Update rating của reviewer
+            var reviewer = await db.ReviewerProfiles
+                .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+            if (reviewer != null)
+            {
+                reviewer.Rating = avgRating;
+                db.ReviewerProfiles.Update(reviewer);
+                await db.SaveChangesAsync();
+            }
         }
     }
 }
