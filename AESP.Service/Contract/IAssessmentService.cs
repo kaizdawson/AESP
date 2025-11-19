@@ -17,6 +17,7 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetPlacementTestForLearnerAsync(Guid userId);
 
         Task<ResponseDTO> SubmitPlacementTestCombinedAsync(CreatePlacementTestDTO dto);
+        Task<ResponseDTO> GetAllAssessmentsAsync(int pageNumber, int pageSize);
 
     }
 }

@@ -665,8 +665,84 @@ namespace AESP.Service.Implementation
             }
         }
 
+        public async Task<ResponseDTO> GetAllAssessmentsAsync(int pageNumber, int pageSize)
+        {
+            ResponseDTO dto = new();
 
+            try
+            {
+                var db = _assessmentRepository.GetDbContext();
 
+                // 1️⃣ Load full depth
+                var query = db.Assessments
+                    .Include(a => a.AssessmentDetails)
+                        .ThenInclude(d => d.QuestionAssessment)
+                    .AsQueryable();
 
+                // 2️⃣ Pagination
+                var totalItems = await query.CountAsync();
+                var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+
+                var data = await query
+                    .OrderByDescending(a => a.CreatedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                // 3️⃣ Map output format EXACLY like you want
+                var mapped = data.Select(a => new
+                {
+                    assessmentId = a.AssessmentId,
+                    createdAt = a.CreatedAt,
+                    score = a.Score,
+                    feedback = a.Feedback,
+                    numberOfQuestion = a.NumberOfQuestion,
+                    learnerProfileId = a.LearnerProfileId,
+
+                    assessmentDetails = a.AssessmentDetails.Select(d => new
+                    {
+                        assessmentDetailId = d.AssessmentDetailId,
+                        score = d.Score,
+                        type = d.Type,
+                        ai_Feedback = d.AI_Feedback,
+                        answerAudio = d.AnswerAudio,
+
+                        questionAssessment = d.QuestionAssessment == null
+                            ? null
+                            : new
+                            {
+                                questionAssessmentId = d.QuestionAssessment.QuestionAssessmentId,
+                                type = d.QuestionAssessment.Type,
+                                content = d.QuestionAssessment.Content,
+                                status = d.QuestionAssessment.Status
+                            }
+                    }).ToList()
+                }).ToList();
+
+                // 4️⃣ Response
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách bài đánh giá thành công.";
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    TotalPages = totalPages,
+                    Items = mapped
+                };
+            }
+            catch (Exception ex)
+            {
+                dto = new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.EXCEPTION,
+                    Message = "Lỗi khi lấy danh sách bài đánh giá: " + ex.Message
+                };
+            }
+
+            return dto;
+        }
     }
 }

@@ -63,5 +63,14 @@ namespace AESP.API.Controllers.ManagerController
             var response = await _assessmentService.DeleteAssessmentAsync(id);
             return Ok(response);
         }
+
+        [HttpGet("get-all")]
+        public async Task<IActionResult> GetAllAssessments(
+           [FromQuery] int pageNumber = 1,
+           [FromQuery] int pageSize = 10)
+        {
+            var result = await _assessmentService.GetAllAssessmentsAsync(pageNumber, pageSize);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
     }
 }
