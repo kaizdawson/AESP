@@ -80,6 +80,16 @@ namespace AESP.Repository.DB
                 Role = "ADMIN",
                 Status = "Active"
             });
+            modelBuilder.Entity<User>().HasData(new User
+            {
+                UserId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                FullName = "Second Admin",
+                Email = "admin2@aesp.com",
+                PhoneNumber = "0912345678",
+                PasswordHash = hash, // Admin@123
+                Role = "ADMIN",
+                Status = "Active"
+            });
 
             foreach (var fk in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
             {
