@@ -12,5 +12,7 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> SubmitReviewAsync(Guid reviewerProfileId, Guid? learnerAnswerId, Guid? recordId, double score, string comment);
         Task<ResponseDTO> GetReviewHistoryAsync(Guid reviewerProfileId, int pageNumber = 1, int pageSize = 10);
         Task<ResponseDTO> GetPendingReviewsAsync(Guid reviewerProfileId, int pageNumber = 1, int pageSize = 10);
+        Task<ResponseDTO> GetReviewerStatisticsAsync(Guid reviewerProfileId);
+        Task<ResponseDTO> GetReviewerWalletAsync(Guid reviewerProfileId, int pageNumber, int pageSize);
     }
 }

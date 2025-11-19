@@ -1,4 +1,5 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -200,6 +201,56 @@ namespace AESP.API.Controllers.CoinController
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+        [HttpPut("withdraw/update/{transactionId}")]
+        public async Task<IActionResult> UpdateWithdraw(Guid transactionId,[FromBody] UpdateWithdrawalDTO dto)
+        {
+            try
+            {
+                // Validate DTO
+                if (dto == null)
+                {
+                    return BadRequest(new ResponseDTO
+                    {
+                        IsSucess = false,
+                        BusinessCode = BusinessCode.INVALID_INPUT,
+                        Message = "Dữ liệu gửi lên không hợp lệ."
+                    });
+                }
+
+                // Lấy userId từ token
+                var userIdClaim = User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!Guid.TryParse(userIdClaim, out Guid userId))
+                {
+                    return Unauthorized(new ResponseDTO
+                    {
+                        IsSucess = false,
+                        BusinessCode = BusinessCode.AUTH_NOT_FOUND,
+                        Message = "Không xác định được người dùng từ token."
+                    });
+                }
+
+                // Gọi service
+                var result = await _coinService.UpdateWithdrawalAsync(
+                    transactionId,
+                    userId,
+                    dto.NewAmountMoney,
+                    dto.BankName,
+                    dto.AccountNumber
+                );
+
+                return StatusCode(result.IsSucess ? 200 : 400, result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.EXCEPTION,
+                    Message = ex.Message
+                });
+            }
+
         }
 
     }

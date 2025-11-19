@@ -78,6 +78,34 @@ namespace AESP.API.Controllers.ReviewerController
 
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
+        [HttpGet("statistics")]
+        public async Task<IActionResult> GetReviewerStatistics()
+        {
+            var reviewerProfileId = GetReviewerProfileIdFromToken(User);
+            if (reviewerProfileId == null)
+                return Unauthorized(new ResponseDTO
+                {
+                    IsSucess = false,
+                    Message = "Không xác định được reviewer từ token."
+                });
+
+            var result = await _reviewService.GetReviewerStatisticsAsync(reviewerProfileId.Value);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
+        [HttpGet("wallet")]
+        public async Task<IActionResult> GetReviewerWallet(
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
+        {
+            var reviewerProfileId = GetReviewerProfileIdFromToken(User);
+            if (reviewerProfileId == null)
+                return Unauthorized(new { message = "Không xác định được reviewer từ token." });
+
+            var result = await _reviewService.GetReviewerWalletAsync(
+                reviewerProfileId.Value, pageNumber, pageSize);
+
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
 
         private Guid? GetReviewerProfileIdFromToken(ClaimsPrincipal user)
         {

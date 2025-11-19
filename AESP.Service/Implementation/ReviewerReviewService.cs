@@ -135,6 +135,181 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
+        public async Task<ResponseDTO> GetReviewerStatisticsAsync(Guid reviewerProfileId)
+        {
+            var dto = new ResponseDTO();
+
+            try
+            {
+                var db = _unitOfWork.GetDbContext();
+
+                // ================================
+                // 1. Tổng phản hồi (Feedback từ Learner, đã Active)
+                // ================================
+                var totalFeedback = await db.Set<Feedback>()
+                    .Include(f => f.Review)
+                    .CountAsync(f =>
+                        f.Type == "ReviewerFeedback" &&
+                        f.Status == "Active" &&
+                        f.Review.ReviewerProfileId == reviewerProfileId);
+
+                // ================================
+                // 2. Tổng bài đã review
+                // ================================
+                var totalReviews = await db.Set<Review>()
+                    .CountAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                // ================================
+                // 3. Điểm trung bình Rating
+                // ================================
+                var ratingList = await db.Set<Feedback>()
+                    .Include(f => f.Review)
+                    .Where(f =>
+                        f.Type == "ReviewerFeedback" &&
+                        f.Status == "Active" &&
+                        f.Review.ReviewerProfileId == reviewerProfileId)
+                    .Select(f => (double?)f.Rating)
+                    .ToListAsync();
+
+                double avgRating = ratingList.Count == 0
+                    ? 0
+                    : Math.Round(ratingList.Average() ?? 0, 1);
+
+                // ================================
+                // 4. Số tiền trong ví
+                // ================================
+                var reviewer = await db.Set<ReviewerProfile>()
+                    .Include(r => r.User)
+                    .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                var coinBalance = reviewer?.User?.CoinBalance ?? 0;
+
+                // ================================
+                // TRẢ VỀ
+                // ================================
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy thống kê reviewer thành công.";
+                dto.Data = new
+                {
+                    TotalFeedback = totalFeedback,
+                    TotalReviews = totalReviews,
+                    AverageRating = avgRating,
+                    CoinBalance = coinBalance
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy thống kê reviewer: " + ex.Message;
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> GetReviewerWalletAsync(Guid reviewerProfileId, int pageNumber, int pageSize)
+        {
+            var dto = new ResponseDTO();
+
+            try
+            {
+                var db = _unitOfWork.GetDbContext();
+
+                // =============================
+                // 1. Reviewer + User
+                // =============================
+                var reviewer = await db.Set<ReviewerProfile>()
+                    .Include(r => r.User)
+                    .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                if (reviewer == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy reviewer.";
+                    return dto;
+                }
+
+                var user = reviewer.User;
+
+                // =============================
+                // 2. Tổng coin kiếm được
+                // =============================
+                int totalEarnedCoin = await db.Set<TransferTransaction>()
+                    .Where(t =>
+                        t.ReviewerProfileId == reviewerProfileId &&
+                        t.Status == "Completed")
+                    .SumAsync(t => (int?)t.AmountCoin) ?? 0;
+
+                decimal totalEarnedMoney = totalEarnedCoin * 1000;
+
+                // =============================
+                // 3. Danh sách giao dịch rút tiền
+                // =============================
+                var query = db.Set<Transaction>()
+                    .Where(t => t.Type == "Withdrawal" && t.UserId == user.UserId)
+                    .OrderByDescending(t => t.CreatedTransaction)
+                    .AsQueryable();
+
+                var totalItems = await query.CountAsync();
+
+                var items = await query
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(t => new
+                    {
+                        t.TransactionId,
+                        Coin = t.AmountCoin,
+                        Money = t.AmountMoney,
+                        t.BankName,
+                        t.AccountNumber,
+                        t.Status,
+                        t.OrderCode,
+                        CreatedAt = t.CreatedTransaction,
+                        t.Description
+                    })
+                    .ToListAsync();
+
+                // =============================
+                // 4. Số dư hiện tại (coin + tiền)
+                // =============================
+                int balanceCoin = user.CoinBalance;
+                decimal balanceMoney = balanceCoin * 1000;
+
+                // =============================
+                // TRẢ VỀ
+                // =============================
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy ví reviewer thành công.";
+                dto.Data = new
+                {
+                    TotalEarnedCoin = totalEarnedCoin,
+                    TotalEarnedMoney = totalEarnedMoney,
+
+                    CurrentBalanceCoin = balanceCoin,
+                    CurrentBalanceMoney = balanceMoney,
+
+                    Transactions = new
+                    {
+                        PageNumber = pageNumber,
+                        PageSize = pageSize,
+                        TotalItems = totalItems,
+                        Items = items
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy ví reviewer: " + ex.Message;
+            }
+
+            return dto;
+        }
+
         public async Task<ResponseDTO> GetReviewHistoryAsync(Guid reviewerProfileId, int pageNumber = 1, int pageSize = 10)
         {
             var dto = new ResponseDTO();
