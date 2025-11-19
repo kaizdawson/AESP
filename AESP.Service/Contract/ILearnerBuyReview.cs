@@ -12,5 +12,7 @@ namespace AESP.Service.Contract
         Task<List<ReviewFeeMenuDto>> GetReviewFeeMenuAsync();
 
         Task<(bool isSuccess, string message)> BuyReviewFeeAsync(Guid userId, Guid reviewFeeId, Guid learnerAnswerId);
+
+        Task<(bool isSuccess, string message)> BuyReviewFeeForRecordAsync(Guid userId, Guid reviewFeeId, Guid recordId);
     }
 }

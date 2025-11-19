@@ -13,6 +13,7 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<User> _userRepo;
         private readonly IGenericRepository<LearnerAnswer> _learnerAnswerRepo;
         private readonly IGenericRepository<Purchase> _purchaseRepo;
+        private readonly IGenericRepository<Record> _recordRepo;
         private readonly IUnitOfWork _unitOfWork;
 
         public LearnerBuyReview(
@@ -20,6 +21,7 @@ namespace AESP.Service.Implementation
             IGenericRepository<ReviewFeeDetail> reviewfeeDetailRepo,
             IGenericRepository<User> userRepo,
             IGenericRepository<LearnerAnswer> learnerAnswerRepo,
+            IGenericRepository<Record> recordRepo,
             IGenericRepository<Purchase> purchaseRepo,
             IUnitOfWork unitOfWork)
         {
@@ -28,6 +30,7 @@ namespace AESP.Service.Implementation
             _userRepo = userRepo;
             _learnerAnswerRepo = learnerAnswerRepo;
             _purchaseRepo = purchaseRepo;
+            _recordRepo = recordRepo;
             _unitOfWork = unitOfWork;
         }
 
@@ -81,6 +84,7 @@ namespace AESP.Service.Implementation
 
             // LearnerAnswer phải có NumberOfReview trong model
             learnerAnswer.NumberofReview += numberOfReview;
+            learnerAnswer.IsNeededReviewed = learnerAnswer.NumberofReview > 0;
             await _learnerAnswerRepo.Update(learnerAnswer);
 
             var purchase = new Purchase
@@ -101,6 +105,63 @@ namespace AESP.Service.Implementation
         }
 
 
+        public async Task<(bool isSuccess, string message)> BuyReviewFeeForRecordAsync(
+    Guid userId, Guid reviewFeeId, Guid recordId)
+        {
+      
+            var user = await _userRepo.GetById(userId);
+            if (user == null)
+                return (false, "User không tồn tại.");
+
+           
+            var record = await _recordRepo.GetById(recordId);
+            if (record == null)
+                return (false, "Không tìm thấy record.");
+
+        
+            var fee = await _reviewfeeRepo.GetById(reviewFeeId);
+            if (fee == null)
+                return (false, "Không tìm thấy gói review.");
+
+          
+            var detail = await _reviewfeeDetailRepo.GetFirstByExpression(x => x.ReviewFeeId == reviewFeeId);
+            if (detail == null)
+                return (false, "Không tìm thấy chi tiết gói review.");
+
+            int numberOfReview = (int)fee.NumberOfReview;
+            int amount = (int)(fee.NumberOfReview * detail.PricePerReviewFee);
+
+      
+            if (user.CoinBalance < amount)
+                return (false, $"Số dư không đủ để mua gói. Cần {amount} coin, hiện có {user.CoinBalance} coin.");
+
+   
+            user.CoinBalance -= amount;
+            await _userRepo.Update(user);
+
+
+            record.NumberOfReview += numberOfReview;
+            record.IsNeedReviewed = record.NumberOfReview > 0;
+            await _recordRepo.Update(record);
+
+
+            var purchase = new Purchase
+            {
+                PurchaseId = Guid.NewGuid(),
+                Status = "Completed",
+                CreatedAt = DateTime.UtcNow,
+                UserId = userId,
+                ReviewFeeId = reviewFeeId,
+                AmountCoin = amount
+
+            };
+
+            await _purchaseRepo.Insert(purchase);
+
+            await _unitOfWork.SaveChangeAsync();
+
+            return (true, "Mua gói review cho record thành công.");
+        }
 
     }
 }

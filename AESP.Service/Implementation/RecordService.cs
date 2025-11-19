@@ -91,7 +91,6 @@ namespace AESP.Service.Implementation
                 record.Score = dto.Score;
                 record.AIFeedback = dto.AIFeedback;
                 record.Status = "Submitted";
-                record.NumberOfReview += 1;
 
                 await _recordRepo.Update(record);
                 await _unitOfWork.SaveChangeAsync();
