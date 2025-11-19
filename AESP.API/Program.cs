@@ -282,6 +282,6 @@ app.UseAuthorization();
 
 app.UseMiddleware<UpdateLastActiveMiddleware>();
 app.MapControllers();
-app.MapHub<ReviewerHub>("/hubs/reviewer");
+app.MapHub<ReviewerHub>("/api/hubs/reviewer");
 
 app.Run();
