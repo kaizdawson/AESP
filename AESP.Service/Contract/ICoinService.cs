@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AESP.Common.DTOs;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -25,6 +26,7 @@ namespace AESP.Service.Contract
         Task<IEnumerable<object>> GetWithdrawHistoryAsync(Guid userId);
 
         Task<IEnumerable<object>> GetActiveAIConversationPackagesAsync();
+        Task<ResponseDTO> UpdateWithdrawalAsync(Guid transactionId, Guid userId, int newAmountMoney, string bankName, string accountNumber);
 
     }
 }

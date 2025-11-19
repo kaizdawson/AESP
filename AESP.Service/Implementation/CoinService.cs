@@ -1,7 +1,10 @@
-﻿using AESP.Repository.Contract;
+﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
+using AESP.Repository.Contract;
 using AESP.Repository.Implementation;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Text.Json;
@@ -311,5 +314,122 @@ namespace AESP.Service.Implementation
             return list;
         }
 
+        public async Task<ResponseDTO> UpdateWithdrawalAsync(Guid transactionId, Guid userId, int newAmountMoney, string bankName, string accountNumber)
+        {
+            var dto = new ResponseDTO();
+
+            try
+            {
+                if (newAmountMoney <= 0)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "Số tiền rút phải lớn hơn 0.";
+                    return dto;
+                }
+
+                var db = _transactionRepository.GetDbContext();
+
+                var transaction = await db.Transactions
+                    .Include(t => t.User)
+                    .FirstOrDefaultAsync(t => t.TransactionId == transactionId);
+
+                if (transaction == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy giao dịch.";
+                    return dto;
+                }
+
+                // 1️⃣ Kiểm tra quyền sửa
+                if (transaction.UserId != userId)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.ACCESS_DENIED;
+                    dto.Message = "Bạn không có quyền sửa giao dịch này.";
+                    return dto;
+                }
+
+                // 2️⃣ Chỉ được sửa khi Pending
+                if (transaction.Status != "Pending")
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_ACTION;
+                    dto.Message = "Chỉ có thể sửa giao dịch đang ở trạng thái Pending.";
+                    return dto;
+                }
+
+                var user = transaction.User;
+
+                // 3️⃣ Tính số coin mới (1 coin = 1000 VNĐ)
+                decimal newCoin = (decimal)newAmountMoney / 1000m;
+
+                if (newCoin <= 0)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "Số tiền quá nhỏ.";
+                    return dto;
+                }
+
+                // 4️⃣ Tính coin chênh lệch
+                decimal oldCoin = transaction.AmountCoin;
+                decimal diffCoin = newCoin - oldCoin;
+
+                if (diffCoin > 0)
+                {
+                    // RÚT NHIỀU HƠN → TRỪ COIN
+                    if (user.CoinBalance < diffCoin)
+                    {
+                        dto.IsSucess = false;
+                        dto.BusinessCode = BusinessCode.INVALID_ACTION;
+                        dto.Message = "Số dư coin không đủ để tăng số tiền rút.";
+                        return dto;
+                    }
+
+                    user.CoinBalance -= (int)diffCoin;
+                }
+                else if (diffCoin < 0)
+                {
+                    // RÚT ÍT LẠI → HOÀN COIN
+                    user.CoinBalance += (int)Math.Abs(diffCoin);
+                }
+
+                // 5️⃣ Cập nhật transaction
+                transaction.AmountCoin = newCoin;
+                transaction.AmountMoney = newAmountMoney;
+                transaction.BankName = bankName;
+                transaction.AccountNumber = accountNumber;
+                transaction.Description =
+                    $"Cập nhật yêu cầu rút: {newCoin} coin tương ứng {newAmountMoney:N0} VNĐ | Lúc {DateTime.Now:dd/MM/yyyy HH:mm}";
+
+                db.Users.Update(user);
+                db.Transactions.Update(transaction);
+
+                await _unitOfWork.SaveChangeAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                dto.Message = "Cập nhật yêu cầu rút coin thành công.";
+                dto.Data = new
+                {
+                    transaction.TransactionId,
+                    transaction.AmountCoin,
+                    transaction.AmountMoney,
+                    transaction.BankName,
+                    transaction.AccountNumber,
+                    transaction.Status
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = ex.Message;
+            }
+
+            return dto;
+        }
     }
 }
