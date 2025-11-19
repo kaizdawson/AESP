@@ -30,5 +30,11 @@ namespace AESP.API.Controllers.AdminController
             var result = await __adminReviewerFeeService.ScheduleNewReviewFeeDetailAsync(dto);
             return StatusCode(result.IsSucess ? 201 : 400, result);
         }
+        [HttpGet("review-fee-packages")]
+        public async Task<IActionResult> GetAllReviewFeePackages(int pageNumber = 1, int pageSize = 10)
+        {
+            var result = await __adminReviewerFeeService.GetAllReviewFeePackagesAsync(pageNumber, pageSize);
+            return StatusCode(result.IsSucess ? 201 : 400, result);
+        }
     }
 }
