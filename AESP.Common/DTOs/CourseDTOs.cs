@@ -133,6 +133,8 @@ namespace AESP.Common.DTOs
         public bool IsFree { get; set; }
 
         public string Description { get; set; }
+        public int RemainingDays { get; set; }     
+        public bool ShowDuration { get; set; }     
         public List<ReadCourseChapterForCourseDTO>? Chapters { get; set; }
 
     }
