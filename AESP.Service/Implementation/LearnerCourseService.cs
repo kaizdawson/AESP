@@ -524,7 +524,7 @@ namespace AESP.Service.Implementation
             {
                 string[] levelOrder = { "A1", "A2", "B1", "B2", "C1", "C2" };
 
-                // 🟢 Lấy danh sách tất cả course mà learner đã enroll
+                // 1️⃣ Lấy danh sách tất cả course đã enroll
                 var enrolled = await (
                     from lc in _learnerCourseRepo.AsQueryable()
                     join lp in _learningPathCourseRepo.AsQueryable()
@@ -542,19 +542,40 @@ namespace AESP.Service.Implementation
                     }
                 ).ToListAsync();
 
-                // 🟢 Duyệt toàn bộ level → gom tất cả course trong level đó
-                var result = levelOrder.Select(level => new
+                // 2️⃣ Lấy tổng số course của từng level (không phải course learner enroll)
+                var coursesByLevel = await _courseRepo.AsQueryable()
+                    .GroupBy(x => x.Level)
+                    .ToDictionaryAsync(
+                        g => g.Key,
+                        g => g.Select(c => (object)new { c.CourseId, c.Title, c.OrderIndex }).ToList()
+                    );
+
+                // 3️⃣ Build response cho từng level
+                var result = levelOrder.Select(level =>
                 {
-                    Level = level,
-                    Courses = enrolled
+                    var allCoursesInLevel = coursesByLevel.ContainsKey(level)
+                        ? coursesByLevel[level]
+                        : new List<object>();
+
+                    var enrolledCourses = enrolled
                         .Where(x => x.Level == level)
-                        .Select(x => new
+                        .Select(x => (object)new
                         {
                             x.LearnerCourseId,
                             x.LearningPathCourseId,
                             x.CourseId,
                             x.Status
-                        }).ToList()
+                        })
+                        .ToList();
+
+                    return new Dictionary<string, object>
+                    {
+                        ["Level"] = level,
+                        ["TotalCourses"] = allCoursesInLevel.Count,                // Tổng số course trong level
+                        ["CompletedCourses"] = enrolledCourses
+                                .Count(c => ((dynamic)c).Status == "Completed"),   // đã completed bao nhiêu
+                        ["Courses"] = enrolledCourses                              // danh sách learner enroll
+                    };
                 }).ToList();
 
                 return new ResponseDTO

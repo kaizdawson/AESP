@@ -90,7 +90,8 @@ namespace AESP.API.Controllers
                 message = result.Message,
                 role = result.Role,
                 isPlacementTestDone = result.IsPlacementTestDone,
-                isReviewerActive = result.IsReviewerActive
+                isReviewerActive = result.IsReviewerActive,
+                reviewerStatus = result.ReviewerStatus
             });
         }
 
@@ -295,7 +296,8 @@ namespace AESP.API.Controllers
                 refreshToken = result.RefreshToken,
                 message = result.Message,
                 role = result.Role,
-                isReviewerActive = result.IsReviewerActive
+                isReviewerActive = result.IsReviewerActive,
+                reviewerStatus = result.ReviewerStatus
             });
         }
 

@@ -83,6 +83,63 @@ namespace AESP.API.Controllers.LearnerController
 
 
 
+        [HttpPost("upgrade-level")]
+        public async Task<IActionResult> UpgradeLevel()
+        {
+            try
+            {
+                Guid learnerProfileId;
+
+                // =========================================
+                // 1️⃣ Ưu tiên lấy LearnerProfileId từ token
+                // =========================================
+                var learnerProfileClaim = User.Claims
+                    .FirstOrDefault(c => c.Type == "LearnerProfileId");
+
+                if (learnerProfileClaim != null &&
+                    Guid.TryParse(learnerProfileClaim.Value, out var parsedLearnerId))
+                {
+                    learnerProfileId = parsedLearnerId;
+                }
+                else
+                {
+                    // =========================================
+                    // 2️⃣ Không có → fallback lấy UserId
+                    // =========================================
+                    var userIdClaim = User.Claims.FirstOrDefault(c =>
+                        c.Type == JwtRegisteredClaimNames.Sub ||
+                        c.Type == ClaimTypes.NameIdentifier ||
+                        c.Type.EndsWith("/nameidentifier")
+                    );
+
+                    if (userIdClaim == null)
+                        return Unauthorized(new { message = "Token không hợp lệ." });
+
+                    if (!Guid.TryParse(userIdClaim.Value, out var userId))
+                        return Unauthorized(new { message = "UserId trong token không hợp lệ." });
+
+                    // Lấy LearnerProfileId từ DB
+                    var learnerProfile = await _learnerProfileRepo.AsQueryable()
+                        .FirstOrDefaultAsync(lp => lp.UserId == userId);
+
+                    if (learnerProfile == null)
+                        return Unauthorized(new { message = "Không tìm thấy hồ sơ học viên." });
+
+                    learnerProfileId = learnerProfile.LearnerProfileId;
+                }
+
+                // =========================================
+                // 3️⃣ Gọi service check & up level
+                // =========================================
+                var result = await _learnerAnswerService.CheckAndUpgradeLevelAsync(learnerProfileId);
+
+                return HandleResult(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi hệ thống: " + ex.Message });
+            }
+        }
 
 
         // ============================================================
