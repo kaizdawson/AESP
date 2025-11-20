@@ -434,5 +434,58 @@ namespace AESP.Service.Implementation
 
             return dto;
         }
+
+
+
+        public async Task<ResponseDTO> GetAllTransactionsAsync()
+        {
+            var dto = new ResponseDTO();
+
+            try
+            {
+                var list = _transactionRepository.AsQueryable()
+                    .OrderByDescending(t => t.CreatedTransaction)
+                    .Select(t => new
+                    {
+                        t.TransactionId,
+                        t.UserId,
+                        t.UserName,
+                        t.ServicePackageId,
+                        t.ServicePackageName,
+                        t.AmountMoney,
+                        t.AmountCoin,
+                        t.OrderCode,
+                        t.BankName,
+                        t.AccountNumber,
+                        t.Description,
+                        t.Type,
+                        t.Status,
+                        t.ReasonReject,
+                        t.CreatedTransaction
+                    })
+                    .ToList();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách giao dịch thành công.";
+                dto.Data = list;
+
+                return dto;
+            }
+            catch (Exception ex)
+            {
+                return new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.EXCEPTION,
+                    Message = ex.Message,
+                    Data = null
+                };
+            }
+        }
+
+
+
+
     }
 }

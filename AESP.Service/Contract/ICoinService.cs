@@ -27,6 +27,7 @@ namespace AESP.Service.Contract
 
         Task<IEnumerable<object>> GetActiveAIConversationPackagesAsync();
         Task<ResponseDTO> UpdateWithdrawalAsync(Guid transactionId, Guid userId, int newAmountMoney, string bankName, string accountNumber);
+        Task<ResponseDTO> GetAllTransactionsAsync();
 
     }
 }
