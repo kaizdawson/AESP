@@ -177,6 +177,94 @@ namespace AESP.Service.Implementation
         }
 
 
+
+        public async Task<ResponseDTO> CheckAndUpgradeLevelAsync(Guid learnerProfileId)
+        {
+            try
+            {
+                var learner = await _unitOfWork.GetDbContext().Set<LearnerProfile>()
+                    .FirstOrDefaultAsync(x => x.LearnerProfileId == learnerProfileId);
+
+                if (learner == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
+
+                string[] levels = { "A1", "A2", "B1", "B2", "C1", "C2" };
+                int currentIndex = Array.IndexOf(levels, learner.Level);
+
+                if (currentIndex == -1 || currentIndex == levels.Length - 1)
+                    return Fail(BusinessCode.INVALID_ACTION, "Bạn đã ở level cao nhất hoặc level không hợp lệ.");
+
+                string currentLevel = learner.Level;
+
+                // ===============================
+                // 1️⃣ Lấy tất cả khóa học Level hiện tại
+                // ===============================
+                var courses = await _unitOfWork.GetDbContext().Set<Course>()
+                    .Where(c => c.Level == currentLevel)
+                    .OrderBy(c => c.OrderIndex)
+                    .ToListAsync();
+
+                if (!courses.Any())
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Level hiện tại không có khóa học.");
+
+                // ===============================
+                // 2️⃣ Kiểm tra tất cả LearningPathCourse đều Completed
+                // ===============================
+                var lpCourses = await _unitOfWork.GetDbContext().Set<LearningPathCourse>()
+                    .Where(lp => lp.LearnerCourse.LearnerProfileId == learnerProfileId &&
+                                 lp.Course.Level == currentLevel)
+                    .Include(lp => lp.LearningPathChapters)
+                        .ThenInclude(ch => ch.LearningPathExercises)
+                    .ToListAsync();
+
+                if (lpCourses.Count != courses.Count)
+                    return Fail(BusinessCode.INVALID_ACTION, "Bạn chưa mở hoặc chưa hoàn thành toàn bộ khóa học của level.");
+
+                foreach (var lpCourse in lpCourses)
+                {
+                    if (lpCourse.Status != "Completed")
+                        return Fail(BusinessCode.INVALID_ACTION, $"Khóa học '{lpCourse.Course.Title}' chưa hoàn thành.");
+
+                    // Check chapter
+                    foreach (var chapter in lpCourse.LearningPathChapters)
+                    {
+                        if (chapter.Status != "Completed")
+                            return Fail(BusinessCode.INVALID_ACTION, "Vẫn còn chương chưa hoàn thành.");
+
+                        // Check exercises
+                        foreach (var ex in chapter.LearningPathExercises)
+                        {
+                            if (ex.Status != "Completed")
+                                return Fail(BusinessCode.INVALID_ACTION, "Vẫn còn bài tập chưa hoàn thành.");
+                        }
+                    }
+                }
+
+                // ===============================
+                // 3️⃣ TẤT CẢ HOÀN THÀNH → UP LEVEL
+                // ===============================
+                learner.Level = levels[currentIndex + 1];
+                learner.UpdatedAt = DateTime.UtcNow;
+
+                _unitOfWork.GetDbContext().Update(learner);
+                await _unitOfWork.SaveChangeAsync();
+
+                return Success(
+                    BusinessCode.UPDATE_SUCESSFULLY,
+                    $"Chúc mừng! Bạn đã lên {learner.Level}.",
+                    new { NewLevel = learner.Level }
+                );
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, "Lỗi hệ thống: " + ex.Message);
+            }
+        }
+
+
+
+
+
         private ResponseDTO Success(BusinessCode code, string msg, object data = null)
     => new ResponseDTO { IsSucess = true, BusinessCode = code, Message = msg, Data = data };
 
