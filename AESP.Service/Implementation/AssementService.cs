@@ -689,7 +689,7 @@ namespace AESP.Service.Implementation
                     .Take(pageSize)
                     .ToListAsync();
 
-                // 3️⃣ Map output format EXACLY like you want
+                // 3️⃣ Map format (ĐÃ BỎ questionAssessmentId)
                 var mapped = data.Select(a => new
                 {
                     assessmentId = a.AssessmentId,
@@ -707,14 +707,13 @@ namespace AESP.Service.Implementation
                         ai_Feedback = d.AI_Feedback,
                         answerAudio = d.AnswerAudio,
 
+                        // ❌ Không lấy QuestionAssessmentId nữa
+                        // ✅ Chỉ lấy Content
                         questionAssessment = d.QuestionAssessment == null
                             ? null
                             : new
                             {
-                                questionAssessmentId = d.QuestionAssessment.QuestionAssessmentId,
-                                type = d.QuestionAssessment.Type,
-                                content = d.QuestionAssessment.Content,
-                                status = d.QuestionAssessment.Status
+                                content = d.QuestionAssessment.Content
                             }
                     }).ToList()
                 }).ToList();
