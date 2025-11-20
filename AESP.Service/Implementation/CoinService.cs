@@ -437,38 +437,65 @@ namespace AESP.Service.Implementation
 
 
 
-        public async Task<ResponseDTO> GetAllTransactionsAsync()
+        public async Task<ResponseDTO> GetAllTransactionsAsync(int pageNumber = 1, int pageSize = 10, string? status = null, string? search = null)
         {
             var dto = new ResponseDTO();
 
             try
             {
-                var list = _transactionRepository.AsQueryable()
-                    .OrderByDescending(t => t.CreatedTransaction)
-                    .Select(t => new
-                    {
-                        t.TransactionId,
-                        t.UserId,
-                        t.UserName,
-                        t.ServicePackageId,
-                        t.ServicePackageName,
-                        t.AmountMoney,
-                        t.AmountCoin,
-                        t.OrderCode,
-                        t.BankName,
-                        t.AccountNumber,
-                        t.Description,
-                        t.Type,
-                        t.Status,
-                        t.ReasonReject,
-                        t.CreatedTransaction
-                    })
-                    .ToList();
+                // Validate phân trang
+                if (pageNumber < 1) pageNumber = 1;
+                if (pageSize < 1) pageSize = 10;
+                var query = _transactionRepository.AsQueryable();
+                // === FILTER ===
+                if (!string.IsNullOrWhiteSpace(status))
+                    query = query.Where(t => t.Status == status.Trim());
+
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var keyword = search.Trim().ToLower();
+                    query = query.Where(t =>
+                        t.UserName.ToLower().Contains(keyword) ||
+                        t.OrderCode.ToLower().Contains(keyword));
+                }
+                // === ĐẾM TỔNG SỐ BẢN GHI SAU KHI FILTER ===
+                var totalItems = await query.CountAsync();
+
+                var items = await query
+             .OrderByDescending(t => t.CreatedTransaction)
+             .Skip((pageNumber - 1) * pageSize)
+             .Take(pageSize)
+             .Select(t => new
+             {
+                 t.TransactionId,
+                 t.UserId,
+                 t.UserName,
+                 t.ServicePackageId,
+                 t.ServicePackageName,
+                 t.AmountMoney,
+                 t.AmountCoin,
+                 t.OrderCode,
+                 t.BankName,
+                 t.AccountNumber,
+                 t.Description,
+                 t.Type,
+                 t.Status,
+                 t.ReasonReject,
+                 t.CreatedTransaction
+             })
+             .ToListAsync();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy danh sách giao dịch thành công.";
-                dto.Data = list;
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize),
+                    Items = items
+                };
 
                 return dto;
             }

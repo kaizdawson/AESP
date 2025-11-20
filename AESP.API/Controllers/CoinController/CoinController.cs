@@ -254,12 +254,23 @@ namespace AESP.API.Controllers.CoinController
         }
 
         [HttpGet("transactions/all")]
-        public async Task<IActionResult> GetAllTransactions()
+        public async Task<IActionResult> GetAllTransactions(
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10,
+    [FromQuery] string? status = null,      // Pending, Completed, Rejected...     
+    [FromQuery] string? search = null)
         {
             try
             {
-                var result = await _coinService.GetAllTransactionsAsync();
-                return StatusCode(result.IsSucess ? 200 : 400, result);
+                // Gọi service đã được fix ở tin trước
+                var result = await _coinService.GetAllTransactionsAsync(
+                    pageNumber: pageNumber,
+                    pageSize: pageSize,
+                    status: status,
+                    search: search);
+
+                return StatusCode(result.IsSucess ? StatusCodes.Status200OK
+                                                  : StatusCodes.Status400BadRequest, result);
             }
             catch (Exception ex)
             {
