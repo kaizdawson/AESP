@@ -19,7 +19,7 @@ namespace AESP.Service.Implementation
             _context = context;
         }
 
-        public string GenerateAccessToken(User user, bool? isPlacementTestDone = null, bool? isReviewerActive = null, Guid? learnerProfileId = null)
+        public string GenerateAccessToken(User user, bool? isPlacementTestDone = null, bool? isReviewerActive = null, Guid? learnerProfileId = null, string? reviewerStatus = null)
         {
             var role = string.IsNullOrEmpty(user.Role) ? "User" : user.Role;
 
@@ -46,6 +46,10 @@ namespace AESP.Service.Implementation
             {
                 claims.Add(new Claim("IsReviewerActive", isReviewerActive.Value.ToString().ToLower(), ClaimValueTypes.Boolean));
             }
+
+            if (role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(reviewerStatus))
+                claims.Add(new Claim("ReviewerStatus", reviewerStatus));
+
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:Secret"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);

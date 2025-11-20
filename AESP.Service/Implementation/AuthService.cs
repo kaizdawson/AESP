@@ -241,7 +241,8 @@ namespace AESP.Service.Implementation
                 user,
                 isPlacementTestDone,
                 isReviewerActive,
-                learnerProfileId
+                learnerProfileId,
+                reviewerStatus
             );
 
 
@@ -812,7 +813,7 @@ namespace AESP.Service.Implementation
                 }
 
                 // 6️⃣ Tạo Access + Refresh token
-                var accessToken = _jwtService.GenerateAccessToken(user, null, isReviewerActive);
+                var accessToken = _jwtService.GenerateAccessToken(user, null, isReviewerActive, null, reviewerStatus);
                 var refreshToken = GenerateRefreshToken();
 
                 var refreshTokenEntity = new RefreshToken
