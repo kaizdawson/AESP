@@ -170,6 +170,7 @@ namespace AESP.Service.Implementation
 
             bool isPlacementTestDone = false;
             bool isReviewerActive = false;
+            string? reviewerStatus = null;
 
             // ✅ CHUẨN BỊ DANH SÁCH CLAIMS CHUNG CHO TẤT CẢ TOKEN
             var claims = new List<Claim>
@@ -206,6 +207,7 @@ namespace AESP.Service.Implementation
 
                 if (reviewerProfile != null)
                 {
+                    reviewerStatus = reviewerProfile.Status;
                     var st = reviewerProfile.Status?.ToUpperInvariant();
                     isReviewerActive = st == "PENDING" || st == "ACTIVE";
                 }
@@ -217,6 +219,9 @@ namespace AESP.Service.Implementation
                         UserId = user.UserId,
                         Status = "Draft"
                     };
+
+                    reviewerStatus = "Draft";
+
                     await _reviewerProfileRepository.Insert(newProfile);
                     await _unitOfWork.SaveChangeAsync();
                     isReviewerActive = false;
@@ -248,7 +253,8 @@ namespace AESP.Service.Implementation
                 RefreshToken = refreshToken,
                 Role = user.Role,
                 IsPlacementTestDone = user.Role.Equals("LEARNER", StringComparison.OrdinalIgnoreCase) ? isPlacementTestDone : (bool?)null,
-                IsReviewerActive = user.Role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase) ? isReviewerActive : (bool?)null
+                IsReviewerActive = user.Role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase) ? isReviewerActive : (bool?)null,
+                ReviewerStatus = user.Role.Equals("REVIEWER", StringComparison.OrdinalIgnoreCase) ? reviewerStatus : null
             };
 
         }
@@ -795,9 +801,12 @@ namespace AESP.Service.Implementation
 
                 // 5️⃣ Check trạng thái reviewer
                 bool isReviewerActive = false;
+                string? reviewerStatus = null;
+
                 var reviewer = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
                 if (reviewer != null)
                 {
+                    reviewerStatus = reviewer.Status;
                     var st = reviewer.Status?.ToUpperInvariant();
                     isReviewerActive = st == "PENDING" || st == "ACTIVE";
                 }
@@ -828,7 +837,8 @@ namespace AESP.Service.Implementation
                     Token = accessToken,
                     RefreshToken = refreshToken,
                     Role = user.Role,
-                    IsReviewerActive = isReviewerActive
+                    IsReviewerActive = isReviewerActive,
+                    ReviewerStatus = reviewerStatus
                 };
             }
             catch (Exception ex)

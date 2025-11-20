@@ -16,5 +16,8 @@ namespace AESP.Common.DTOs
         public string? Email { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public bool? IsReviewerActive { get; set; }
+
+        public string? ReviewerStatus { get; set; }
+
     }
 }
