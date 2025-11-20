@@ -36,16 +36,19 @@ namespace AESP.Service.Implementation
         }
 
         public async Task<ResponseDTO> SubmitAnswerAsync(
-            Guid learnerProfileId,
-            Guid learningPathQuestionId,
-            SubmitLearnerAnswerDTO dto)
+       Guid learnerProfileId,
+       Guid learningPathQuestionId,
+       SubmitLearnerAnswerDTO dto)
         {
             try
             {
-                // 1️⃣ Load LPQuestion (chỉ cần lấy Question + Exercise)
+                // 1️⃣ Load LPQuestion
                 var lpQuestion = await _lpQuestionRepo.AsQueryable()
                     .Include(q => q.Question)
                     .Include(q => q.LearningPathExercise)
+                        .ThenInclude(e => e.LearningPathChapter)
+                                    .ThenInclude(ch => ch.LearningPathCourse)  // ⭐ BẮT BUỘC
+
                     .FirstOrDefaultAsync(q => q.LearningPathQuestionId == learningPathQuestionId);
 
                 if (lpQuestion == null)
@@ -61,7 +64,6 @@ namespace AESP.Service.Implementation
                     LearnerAnswerId = Guid.NewGuid(),
                     LearnerProfileId = learnerProfileId,
                     LearningPathQuestionId = learningPathQuestionId,
-                  //  QuestionId = question.QuestionId,
                     AudioRecordingUrl = dto.AudioRecordingUrl,
                     TranscribedText = dto.TranscribedText,
                     ScoreForVoice = dto.ScoreForVoice,
@@ -91,10 +93,50 @@ namespace AESP.Service.Implementation
 
                 lpExercise.Status = completed == lpExercise.NumberOfQuestion ? "Completed" : "InProgress";
                 lpExercise.ScoreAchieved = allLpQuestions.Average(q => q.Score);
+
                 await _lpExerciseRepo.Update(lpExercise);
                 await _unitOfWork.SaveChangeAsync();
 
-                // 5️⃣ Next LPQuestion (theo OrderIndex)
+
+                // ⭐⭐⭐ 4.1️⃣ UPDATE CHAPTER ⭐⭐⭐
+                var lpChapter = lpExercise.LearningPathChapter;
+
+                var chapterExercises = await _lpExerciseRepo.AsQueryable()
+                    .Where(e => e.LearningPathChapterId == lpChapter.LearningPathChapterId)
+                    .ToListAsync();
+
+                var chapterCompletedCount = chapterExercises.Count(e => e.Status == "Completed");
+
+                lpChapter.Status = chapterCompletedCount == lpChapter.NumberOfModule ? "Completed" : "InProgress";
+
+                lpChapter.Progress = lpChapter.NumberOfModule == 0
+                    ? 0
+                    : (double)chapterCompletedCount / lpChapter.NumberOfModule * 100;
+
+                await _lpChapterRepo.Update(lpChapter);
+                await _unitOfWork.SaveChangeAsync();
+
+
+                // ⭐⭐⭐ 4.2️⃣ UPDATE COURSE ⭐⭐⭐
+                var lpCourse = lpChapter.LearningPathCourse;
+
+                var courseChapters = await _lpChapterRepo.AsQueryable()
+                    .Where(c => c.LearningPathCourseId == lpCourse.LearningPathCourseId)
+                    .ToListAsync();
+
+                var courseCompletedCount = courseChapters.Count(c => c.Status == "Completed");
+
+                lpCourse.Status = courseCompletedCount == lpCourse.NumberOfChapter ? "Completed" : "InProgress";
+
+                lpCourse.Progress = lpCourse.NumberOfChapter == 0
+                    ? 0
+                    : (double)courseCompletedCount / lpCourse.NumberOfChapter * 100;
+
+                await _lpCourseRepo.Update(lpCourse);
+                await _unitOfWork.SaveChangeAsync();
+
+
+                // 5️⃣ Next question
                 var nextQuestion = await _lpQuestionRepo.AsQueryable()
                     .Include(x => x.Question)
                     .Where(x => x.LearningPathExerciseId == lpExercise.LearningPathExerciseId &&
@@ -104,7 +146,7 @@ namespace AESP.Service.Implementation
 
                 bool isLast = nextQuestion == null;
 
-                // 6️⃣ FINAL RESPONSE — CHUẨN FORMAT FE CẦN
+                // 6️⃣ RESPONSE
                 return Success(
                     BusinessCode.UPDATE_SUCESSFULLY,
                     isLast ? "Hoàn thành bài tập." : "Nộp câu trả lời thành công.",
@@ -112,16 +154,11 @@ namespace AESP.Service.Implementation
                     {
                         LearningPathExerciseId = lpExercise.LearningPathExerciseId,
                         ExerciseId = exerciseId,
-
-                        // ⭐ Thông tin kết quả
                         SubmittedScore = dto.ScoreForVoice,
                         AverageScore = lpExercise.ScoreAchieved,
                         TotalQuestions = lpExercise.NumberOfQuestion,
                         NumberDone = completed,
-
                         ExerciseStatus = lpExercise.Status,
-
-                        // ⭐ Câu hỏi tiếp theo (format gọn gàng)
                         NextQuestion = isLast ? null : new
                         {
                             LearningPathQuestionId = nextQuestion.LearningPathQuestionId,
@@ -138,6 +175,95 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.EXCEPTION, ex.Message);
             }
         }
+
+
+
+        public async Task<ResponseDTO> CheckAndUpgradeLevelAsync(Guid learnerProfileId)
+        {
+            try
+            {
+                var learner = await _unitOfWork.GetDbContext().Set<LearnerProfile>()
+                    .FirstOrDefaultAsync(x => x.LearnerProfileId == learnerProfileId);
+
+                if (learner == null)
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy hồ sơ học viên.");
+
+                string[] levels = { "A1", "A2", "B1", "B2", "C1", "C2" };
+                int currentIndex = Array.IndexOf(levels, learner.Level);
+
+                if (currentIndex == -1 || currentIndex == levels.Length - 1)
+                    return Fail(BusinessCode.INVALID_ACTION, "Bạn đã ở level cao nhất hoặc level không hợp lệ.");
+
+                string currentLevel = learner.Level;
+
+                // ===============================
+                // 1️⃣ Lấy tất cả khóa học Level hiện tại
+                // ===============================
+                var courses = await _unitOfWork.GetDbContext().Set<Course>()
+                    .Where(c => c.Level == currentLevel)
+                    .OrderBy(c => c.OrderIndex)
+                    .ToListAsync();
+
+                if (!courses.Any())
+                    return Fail(BusinessCode.DATA_NOT_FOUND, "Level hiện tại không có khóa học.");
+
+                // ===============================
+                // 2️⃣ Kiểm tra tất cả LearningPathCourse đều Completed
+                // ===============================
+                var lpCourses = await _unitOfWork.GetDbContext().Set<LearningPathCourse>()
+                    .Where(lp => lp.LearnerCourse.LearnerProfileId == learnerProfileId &&
+                                 lp.Course.Level == currentLevel)
+                    .Include(lp => lp.LearningPathChapters)
+                        .ThenInclude(ch => ch.LearningPathExercises)
+                    .ToListAsync();
+
+                if (lpCourses.Count != courses.Count)
+                    return Fail(BusinessCode.INVALID_ACTION, "Bạn chưa mở hoặc chưa hoàn thành toàn bộ khóa học của level.");
+
+                foreach (var lpCourse in lpCourses)
+                {
+                    if (lpCourse.Status != "Completed")
+                        return Fail(BusinessCode.INVALID_ACTION, $"Khóa học '{lpCourse.Course.Title}' chưa hoàn thành.");
+
+                    // Check chapter
+                    foreach (var chapter in lpCourse.LearningPathChapters)
+                    {
+                        if (chapter.Status != "Completed")
+                            return Fail(BusinessCode.INVALID_ACTION, "Vẫn còn chương chưa hoàn thành.");
+
+                        // Check exercises
+                        foreach (var ex in chapter.LearningPathExercises)
+                        {
+                            if (ex.Status != "Completed")
+                                return Fail(BusinessCode.INVALID_ACTION, "Vẫn còn bài tập chưa hoàn thành.");
+                        }
+                    }
+                }
+
+                // ===============================
+                // 3️⃣ TẤT CẢ HOÀN THÀNH → UP LEVEL
+                // ===============================
+                learner.Level = levels[currentIndex + 1];
+                learner.UpdatedAt = DateTime.UtcNow;
+
+                _unitOfWork.GetDbContext().Update(learner);
+                await _unitOfWork.SaveChangeAsync();
+
+                return Success(
+                    BusinessCode.UPDATE_SUCESSFULLY,
+                    $"Chúc mừng! Bạn đã lên {learner.Level}.",
+                    new { NewLevel = learner.Level }
+                );
+            }
+            catch (Exception ex)
+            {
+                return Fail(BusinessCode.EXCEPTION, "Lỗi hệ thống: " + ex.Message);
+            }
+        }
+
+
+
+
 
         private ResponseDTO Success(BusinessCode code, string msg, object data = null)
     => new ResponseDTO { IsSucess = true, BusinessCode = code, Message = msg, Data = data };

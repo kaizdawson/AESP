@@ -18,7 +18,10 @@ namespace AESP.Repository.Models
         public Guid? ServicePackageId { get; set; }
         public virtual ServicePackage? ServicePackage { get; set; }
 
-   
+        public string? UserName { get; set; }
+        public string? ServicePackageName { get; set; }
+
+
         [Column(TypeName = "decimal(18,2)")]
         public decimal AmountMoney { get; set; }
 

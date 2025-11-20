@@ -10,6 +10,7 @@ namespace AESP.Service.Contract
     public interface ILearnerAnswerService
     {
         Task<ResponseDTO> SubmitAnswerAsync(Guid learnerProfileId, Guid learningPathQuestionId, SubmitLearnerAnswerDTO dto);
+        Task<ResponseDTO> CheckAndUpgradeLevelAsync(Guid learnerProfileId);
 
     }
 }

@@ -60,19 +60,22 @@ namespace AESP.Service.Implementation
             if (package.Status != "Active")
                 throw new Exception("Gói dịch vụ hiện không khả dụng.");
 
+            var user = await _userRepository.GetById(userId)?? throw new Exception("Không tìm thấy User này.");
             var orderCode = new Random().Next(100000, 999999);
 
             var transaction = new Transaction
             {
                 TransactionId = Guid.NewGuid(),
                 UserId = userId,
+                UserName = user.FullName,
+                ServicePackageName = package.Name,
                 ServicePackageId = package.ServicePackageId,
                 OrderCode = orderCode.ToString(),
                 AmountMoney = package.Price,
                 AmountCoin = package.NumberOfCoin,
                 Status = "Pending",
                 Type = "Deposit",
-                Description = $"Nạp {package.NumberOfCoin} coin ({package.Name})"
+                Description = $"Nạp {package.NumberOfCoin} coin"
             };
 
             await _transactionRepository.Insert(transaction);
