@@ -11,6 +11,6 @@ namespace AESP.Service.Contract
     {
         Task<ResponseDTO> GetSummaryAsync();
         Task<ResponseDTO> GetReviewerListAsync(string? search, int pageNumber, int pageSize);
-        Task<ResponseDTO> GetReviewerDetailAsync(Guid reviewerProfileId);
+        Task<ResponseDTO> GetReviewerDetailAsync(Guid reviewerProfileId, DateTime? fromDate, DateTime? toDate);
     }
 }

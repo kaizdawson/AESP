@@ -1,4 +1,5 @@
 ﻿using AESP.Service.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,11 +31,14 @@ namespace AESP.API.Controllers.AdminController
             var result = await _service.GetReviewerListAsync(search, pageNumber, pageSize);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
-
-        [HttpGet("{reviewerProfileId:guid}/detail")]
-        public async Task<IActionResult> GetReviewerDetail(Guid reviewerProfileId)
+        [HttpGet("reviewer-detail/{reviewerProfileId}")]
+        public async Task<IActionResult> GetDetail(
+            Guid reviewerProfileId,
+            DateTime? fromDate,
+            DateTime? toDate)
         {
-            var result = await _service.GetReviewerDetailAsync(reviewerProfileId);
+            var result = await _service.GetReviewerDetailAsync(reviewerProfileId, fromDate, toDate);
+
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
