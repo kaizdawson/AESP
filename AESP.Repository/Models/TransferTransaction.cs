@@ -26,7 +26,9 @@ namespace AESP.Repository.Models
 
         public string Status { get; set; } = "Pending";
 
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public string TransactionType { get; set; } = "ReviewPayment";
 
         // --- Navigation ---
         public virtual LearnerProfile LearnerProfile { get; set; }

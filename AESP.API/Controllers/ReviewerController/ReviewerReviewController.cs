@@ -106,6 +106,19 @@ namespace AESP.API.Controllers.ReviewerController
 
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
+        [HttpPost("tip-after-review")]
+        public async Task<IActionResult> TipAfterReview([FromBody] ReviewerTipAfterReviewDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new ResponseDTO { IsSucess = false, Message = "Dữ liệu không hợp lệ." });
+
+            var reviewerProfileId = GetReviewerProfileIdFromToken(User);
+            if (!reviewerProfileId.HasValue)
+                return Unauthorized(new { message = "Không xác định được reviewer." });
+
+            var result = await _reviewService.TipAfterReviewAsync(reviewerProfileId.Value, dto);
+            return StatusCode(result.IsSucess ? 200 : 400, result); // luôn 200, lỗi thì trong body
+        }
 
         private Guid? GetReviewerProfileIdFromToken(ClaimsPrincipal user)
         {

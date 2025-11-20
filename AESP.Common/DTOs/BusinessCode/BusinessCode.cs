@@ -31,6 +31,7 @@ namespace AESP.Common.DTOs.BusinessCode
         AUTH_NOT_FOUND = 3010,
         ACCESS_DENIED = 3011,
         PERMISSION_DENIED = 3012,
+        INSUFFICIENT_BALANCE = 3013,
 
         // 💥 SERVER / EXCEPTION (4xxx)
         INTERNAL_ERROR = 4000,
