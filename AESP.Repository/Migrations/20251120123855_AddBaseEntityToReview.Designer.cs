@@ -4,6 +4,7 @@ using AESP.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AESP.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251120123855_AddBaseEntityToReview")]
+    partial class AddBaseEntityToReview
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1134,9 +1137,6 @@ namespace AESP.Repository.Migrations
                     b.Property<Guid?>("ServicePackageId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ServicePackageName")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Status")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -1147,9 +1147,6 @@ namespace AESP.Repository.Migrations
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("UserName")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("TransactionId");
 
@@ -1267,7 +1264,7 @@ namespace AESP.Repository.Migrations
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 11, 20, 9, 35, 23, 514, DateTimeKind.Utc).AddTicks(7862),
+                            CreatedAt = new DateTime(2025, 11, 20, 12, 38, 54, 543, DateTimeKind.Utc).AddTicks(7872),
                             Email = "admin@aesp.com",
                             FirebaseUid = "",
                             FullName = "Super Admin",
@@ -1276,14 +1273,14 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0909000000",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 11, 20, 9, 35, 23, 514, DateTimeKind.Utc).AddTicks(7864)
+                            UpdatedAt = new DateTime(2025, 11, 20, 12, 38, 54, 543, DateTimeKind.Utc).AddTicks(7875)
                         },
                         new
                         {
                             UserId = new Guid("22222222-2222-2222-2222-222222222222"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 11, 20, 9, 35, 23, 514, DateTimeKind.Utc).AddTicks(7914),
+                            CreatedAt = new DateTime(2025, 11, 20, 12, 38, 54, 543, DateTimeKind.Utc).AddTicks(7936),
                             Email = "admin2@aesp.com",
                             FirebaseUid = "",
                             FullName = "Second Admin",
@@ -1292,7 +1289,7 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0912345678",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 11, 20, 9, 35, 23, 514, DateTimeKind.Utc).AddTicks(7915)
+                            UpdatedAt = new DateTime(2025, 11, 20, 12, 38, 54, 543, DateTimeKind.Utc).AddTicks(7936)
                         });
                 });
 

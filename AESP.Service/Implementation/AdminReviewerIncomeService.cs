@@ -1,6 +1,7 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
+using AESP.Repository.DB;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.EntityFrameworkCore;
@@ -28,39 +29,97 @@ namespace AESP.Service.Implementation
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<ResponseDTO> GetReviewerDetailAsync(Guid reviewerProfileId)
+
+
+        public async Task<ResponseDTO> GetReviewerDetailAsync(Guid reviewerProfileId, DateTime? fromDate, DateTime? toDate)
         {
             var dto = new ResponseDTO();
+
             try
             {
                 var db = _unitOfWork.GetDbContext();
 
-                var incomeQuery = db.Set<TransferTransaction>()
-                    .Where(t =>
-                        t.ReviewerProfileId == reviewerProfileId &&
-                        t.Status == "Completed");
+                // ========================================
+                // 1) Lấy giá review mới nhất
+                // ========================================
+                var feeDetail = await db.Set<ReviewFeeDetail>()
+                    .OrderByDescending(x => x.AppliedDate)
+                    .FirstOrDefaultAsync();
 
-                var totalIncome = await incomeQuery.SumAsync(t => (int?)t.AmountCoin) ?? 0;
-                var totalReviews = await incomeQuery.CountAsync();
+                if (feeDetail == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy cấu hình giá review.";
+                    return dto;
+                }
+
+                decimal pricePerReview = feeDetail.PricePerReviewFee;
+                decimal reviewerPercent = feeDetail.PercentOfReviewer;
+                decimal incomePerReview = pricePerReview * reviewerPercent; // ❗ không chia 100 nữa
+
+                // ========================================
+                // 2) Lấy tất cả bài review Completed
+                // ========================================
+                var query = db.Set<Review>()
+                    .Include(r => r.LearnerAnswer)
+                        .ThenInclude(la => la.LearnerProfile)
+                            .ThenInclude(lp => lp.User)
+                    .Include(r => r.Record)
+                        .ThenInclude(rc => rc.LearnerRecord)
+                            .ThenInclude(lr => lr.LearnerProfile)
+                                .ThenInclude(lp => lp.User)
+                    .Where(r => r.ReviewerProfileId == reviewerProfileId &&
+                                r.Status == "Completed")
+                    .AsQueryable();
+
+                if (fromDate != null)
+                    query = query.Where(r => r.CreatedAt >= fromDate);
+
+                if (toDate != null)
+                    query = query.Where(r => r.CreatedAt <= toDate);
+
+                var reviews = await query.ToListAsync();
+
+                // ========================================
+                // 3) Mapping data
+                // ========================================
+                int totalReviews = reviews.Count;
+                decimal totalIncome = totalReviews * incomePerReview;
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy chi tiết reviewer thành công.";
                 dto.Data = new
                 {
-                    ReviewerProfileId = reviewerProfileId,
+                    TotalReviews = totalReviews,
                     TotalIncome = totalIncome,
-                    TotalReviews = totalReviews
+                    Items = reviews.Select(r => new
+                    {
+                        r.ReviewId,
+                        r.Score,
+                        r.Comment,
+                        r.Status,
+                        CreatedAt = r.CreatedAt,
+
+                        // ưu tiên lấy từ LearnerAnswer
+                        Learner = r.LearnerAnswer?.LearnerProfile?.User?.FullName
+                                  ?? r.Record?.LearnerRecord?.LearnerProfile?.User?.FullName
+                                  ?? "",
+
+                        Income = incomePerReview
+                    })
                 };
+
+                return dto;
             }
             catch (Exception ex)
             {
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi lấy chi tiết: " + ex.Message;
+                dto.Message = "Lỗi: " + ex.Message;
+                return dto;
             }
-
-            return dto;
         }
 
         public async Task<ResponseDTO> GetReviewerListAsync(string? search, int pageNumber, int pageSize)
