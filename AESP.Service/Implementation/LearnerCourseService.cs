@@ -197,27 +197,55 @@ namespace AESP.Service.Implementation
                     });
             }
 
+            
             // ============================================================
-            // 2️⃣ VALIDATE LEVEL
+            // 2️⃣ VALIDATE LEVEL (CHECK ORDERINDEX CUỐI CÙNG PHẢI COMPLETED)
             // ============================================================
-            if (courseIndex < learnerIndex)
-                return Fail(BusinessCode.INVALID_ACTION,
-                    $"Bạn đang ở Level {learner.Level}, không thể học Level thấp hơn ({course.Level}).");
-
             if (courseIndex > learnerIndex)
             {
-                var completed = await (
+                // 2.1 Lấy tất cả course trong Level hiện tại
+                var allCoursesInCurrentLevel = await _courseRepo.AsQueryable()
+                    .Where(c => c.Level == learner.Level)
+                    .ToListAsync();
+
+                if (!allCoursesInCurrentLevel.Any())
+                {
+                    return Fail(BusinessCode.DATA_NOT_FOUND,
+                        $"Không tìm thấy khóa học nào cho Level {learner.Level}.");
+                }
+
+                // 👉 xác định orderindex cuối cùng trong level hiện tại
+                int maxOrderIndex = allCoursesInCurrentLevel.Max(c => c.OrderIndex);
+
+                // 2.2 Lấy LearningPathCourse của học viên tương ứng order cuối
+                var lastCourseLp = await (
                     from lp in _learningPathCourseRepo.AsQueryable()
                     join c in _courseRepo.AsQueryable() on lp.CourseId equals c.CourseId
                     join lc in _learnerCourseRepo.AsQueryable() on lp.LearnerCourseId equals lc.LearnerCourseId
-                    where lc.LearnerProfileId == learner.LearnerProfileId && c.Level == learner.Level
-                    select lp.Status
-                ).AnyAsync(s => s == "Completed");
+                    where lc.LearnerProfileId == learnerProfileId
+                          && c.Level == learner.Level
+                          && c.OrderIndex == maxOrderIndex
+                    select lp
+                ).FirstOrDefaultAsync();
 
-                if (!completed)
+                // 👉 CHƯA ENROLL course cuối → KHÔNG CHO LÊN LEVEL
+                if (lastCourseLp == null)
+                {
                     return Fail(BusinessCode.INVALID_ACTION,
-                        $"Bạn phải hoàn thành Level {learner.Level} trước.");
+                        $"Bạn chưa hoàn thành khóa cuối Level {learner.Level} (OrderIndex {maxOrderIndex}).");
+                }
+
+                // 👉 enrolled nhưng chưa Completed → KHÔNG CHO LÊN LEVEL
+                if (!lastCourseLp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Fail(BusinessCode.INVALID_ACTION,
+                        $"Bạn phải hoàn thành khóa cuối Level {learner.Level} (OrderIndex {maxOrderIndex}) trước khi học Level {course.Level}.");
+                }
             }
+
+
+
+
 
             // ============================================================
             // 3️⃣ CHỈ CHO ĐK KHÓA ĐẦU TIÊN (ORDERINDEX = 1)
