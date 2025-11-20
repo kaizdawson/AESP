@@ -253,5 +253,26 @@ namespace AESP.API.Controllers.CoinController
 
         }
 
+        [HttpGet("transactions/all")]
+        public async Task<IActionResult> GetAllTransactions()
+        {
+            try
+            {
+                var result = await _coinService.GetAllTransactionsAsync();
+                return StatusCode(result.IsSucess ? 200 : 400, result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.EXCEPTION,
+                    Message = ex.Message
+                });
+            }
+        }
+
+
+
     }
 }
