@@ -483,8 +483,11 @@ namespace AESP.Service.Implementation
             {
                 lpCourse = await _repo.AsQueryable()
                     .Include(x => x.Course)
-                    .FirstOrDefaultAsync(x => x.CourseId == courseId.Value);
+                    .Where(x => x.CourseId == courseId.Value)
+                    .OrderBy(x => x.OrderIndex)  // tránh lấy sai course nếu có nhiều
+                    .FirstOrDefaultAsync();
             }
+
 
             if (lpCourse == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy LearningPathCourse.");
@@ -518,7 +521,6 @@ namespace AESP.Service.Implementation
                     x.Progress,
                     x.NumberOfModule,
 
-                    // ⭐ Title + Description từ bảng Chapter
                     ChapterTitle = db.Set<Chapter>()
                         .Where(ch => ch.ChapterId == x.ChapterId)
                         .Select(ch => ch.Title)
@@ -529,7 +531,6 @@ namespace AESP.Service.Implementation
                         .Select(ch => ch.Description)
                         .FirstOrDefault(),
 
-                    // ⭐ Exercises
                     Exercises = db.Set<LearningPathExercise>()
                         .Where(e => e.LearningPathChapterId == x.LearningPathChapterId)
                         .OrderBy(e => e.OrderIndex)
@@ -552,7 +553,6 @@ namespace AESP.Service.Implementation
                                 .Select(ex => ex.Description)
                                 .FirstOrDefault(),
 
-                            // ⭐⭐ LearningPathQuestions (nếu exercise đã START)
                             Questions = db.Set<LearningPathQuestion>()
                                 .Where(q => q.LearningPathExerciseId == e.LearningPathExerciseId)
                                 .OrderBy(q => q.Question.OrderIndex)
@@ -564,7 +564,6 @@ namespace AESP.Service.Implementation
                                     q.Score,
                                     q.NumberOfRetake,
 
-                                    // Lấy từ bảng Question
                                     Text = db.Set<Question>()
                                         .Where(qq => qq.QuestionId == q.QuestionId)
                                         .Select(qq => qq.Text)
@@ -580,49 +579,68 @@ namespace AESP.Service.Implementation
                                         .Select(qq => qq.OrderIndex)
                                         .FirstOrDefault(),
 
-                                    // ⭐⭐ LẤY MEDIA CHO CÂU HỎI
                                     Media = db.Set<QuestionMedia>()
-            .Where(m => m.QuestionId == q.QuestionId)
-            .Select(m => new
-            {
-                m.QuestionMediaId,
-                m.Accent,
-                m.AudioUrl,
-                m.VideoUrl,
-                m.ImageUrl,
-                m.Source
-            })
-            .ToList()
+                                        .Where(m => m.QuestionId == q.QuestionId)
+                                        .Select(m => new
+                                        {
+                                            m.QuestionMediaId,
+                                            m.Accent,
+                                            m.AudioUrl,
+                                            m.VideoUrl,
+                                            m.ImageUrl,
+                                            m.Source
+                                        })
+                                        .ToList()
                                 }).ToList()
                         }).ToList()
                 })
                 .ToListAsync();
 
             // =============================================
-            // 4️⃣ Trả kết quả
+            // 4️⃣ TÍNH DURATION – Không ảnh hưởng logic hiện tại
             // =============================================
-            return Success(BusinessCode.GET_DATA_SUCCESSFULLY, "Lấy đầy đủ LearningPathCourse thành công.", new
-            {
-                lpCourse.LearningPathCourseId,
-                lpCourse.LearnerCourseId,
-                lpCourse.CourseId,
-                lpCourse.Status,
-                lpCourse.Progress,
-                lpCourse.NumberOfChapter,
-                lpCourse.OrderIndex,
+            var duration = lpCourse.Course.Duration; // số ngày
+            var activatedAt = lpCourse.CreatedAt.Date;
+            var today = DateTime.UtcNow.Date;
 
-                Course = new
+            var usedDays = (today - activatedAt).Days;
+            var remainingDays = Math.Max(duration - usedDays, 0);
+
+            // ❗ Free course (OrderIndex = 1) → không show duration
+            bool showDuration = lpCourse.Course.OrderIndex > 1;
+
+            // =============================================
+            // 5️⃣ Trả kết quả
+            // =============================================
+            return Success(BusinessCode.GET_DATA_SUCCESSFULLY,
+                "Lấy đầy đủ LearningPathCourse thành công.",
+                new
                 {
-                    lpCourse.Course.CourseId,
-                    lpCourse.Course.Title,
-                    lpCourse.Course.Description,
-                    lpCourse.Course.Level,
-                    lpCourse.Course.Price
-                },
+                    lpCourse.LearningPathCourseId,
+                    lpCourse.LearnerCourseId,
+                    lpCourse.CourseId,
+                    lpCourse.Status,
+                    lpCourse.Progress,
+                    lpCourse.NumberOfChapter,
+                    lpCourse.OrderIndex,
 
-                Chapters = chapters
-            });
+                    Course = new
+                    {
+                        lpCourse.Course.CourseId,
+                        lpCourse.Course.Title,
+                        lpCourse.Course.Description,
+                        lpCourse.Course.Level,
+                        lpCourse.Course.Price,
+                        lpCourse.Course.Duration,
+
+                        ShowDuration = showDuration,
+                        RemainingDays = showDuration ? remainingDays : 0
+                    },
+
+                    Chapters = chapters
+                });
         }
+
 
 
 
