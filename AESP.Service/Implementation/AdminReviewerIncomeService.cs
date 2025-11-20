@@ -38,13 +38,22 @@ namespace AESP.Service.Implementation
             try
             {
                 var db = _unitOfWork.GetDbContext();
+                var now = DateTime.UtcNow;
 
                 // ========================================
                 // 1) Lấy giá review mới nhất
                 // ========================================
                 var feeDetail = await db.Set<ReviewFeeDetail>()
-                    .OrderByDescending(x => x.AppliedDate)
-                    .FirstOrDefaultAsync();
+                 .Where(x => x.AppliedDate <= now)
+                 .OrderByDescending(x => x.AppliedDate)
+                 .FirstOrDefaultAsync();
+
+                if (feeDetail == null)
+                {
+                    feeDetail = await db.Set<ReviewFeeDetail>()
+                        .OrderBy(x => x.AppliedDate)
+                        .FirstOrDefaultAsync();
+                }
 
                 if (feeDetail == null)
                 {
@@ -85,15 +94,38 @@ namespace AESP.Service.Implementation
                 // 3) Mapping data
                 // ========================================
                 int totalReviews = reviews.Count;
-                decimal totalIncome = totalReviews * incomePerReview;
+                // Lấy thực tế từ TransferTransaction (chính xác tuyệt đối)
+                var totalEarnedFromSystem = await db.Set<TransferTransaction>()
+                    .Where(t => t.ReviewerProfileId == reviewerProfileId
+                             && t.Status == "Completed"
+                             && t.TransactionType == "ReviewPayment"
+                             && (fromDate == null || t.CreatedAt >= fromDate)
+                             && (toDate == null || t.CreatedAt <= toDate))
+                    .SumAsync(t => (decimal?)t.AmountCoin) ?? 0m;
+
+                // Tiền reviewer đã tip cho learner (nếu có)
+                var totalSpentOnTips = await db.Set<TransferTransaction>()
+                    .Where(t => t.ReviewerProfileId == reviewerProfileId
+                             && t.Status == "Completed"
+                             && t.TransactionType == "ReviewerTip"
+                             && (fromDate == null || t.CreatedAt >= fromDate)
+                             && (toDate == null || t.CreatedAt <= toDate))
+                    .SumAsync(t => (decimal?)t.AmountCoin) ?? 0m;
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy chi tiết reviewer thành công.";
                 dto.Data = new
-                {
+                {// Thông tin cơ bản
                     TotalReviews = totalReviews,
-                    TotalIncome = totalIncome,
+                    IncomePerReview = incomePerReview,                    // 8.0 nếu price=10, percent=0.80
+
+                    // Tiền reviewer thực tế nhận & chi
+                    TotalEarnedFromSystem = totalEarnedFromSystem,        // tiền hệ thống trả (8 coin/bài)
+                    TotalSpentOnTips = totalSpentOnTips,                  // tiền reviewer đã thưởng cho học viên
+                    NetIncome = totalEarnedFromSystem - totalSpentOnTips, // còn lại trong ví (nếu muốn)
+
+                    // Danh sách các bài đã review
                     Items = reviews.Select(r => new
                     {
                         r.ReviewId,
@@ -101,14 +133,11 @@ namespace AESP.Service.Implementation
                         r.Comment,
                         r.Status,
                         CreatedAt = r.CreatedAt,
-
-                        // ưu tiên lấy từ LearnerAnswer
                         Learner = r.LearnerAnswer?.LearnerProfile?.User?.FullName
                                   ?? r.Record?.LearnerRecord?.LearnerProfile?.User?.FullName
-                                  ?? "",
-
-                        Income = incomePerReview
-                    })
+                                  ?? "Không xác định",
+                        EarnedFromThisReview = incomePerReview   // mỗi bài kiếm được bao nhiêu
+                    }).ToList()
                 };
 
                 return dto;
@@ -146,6 +175,7 @@ namespace AESP.Service.Implementation
                 }
 
                 var grouped = query
+                    .Where(t => t.TransactionType == "ReviewPayment")
                     .GroupBy(t => new
                     {
                         t.ReviewerProfileId,
@@ -198,8 +228,9 @@ namespace AESP.Service.Implementation
                 var db = _unitOfWork.GetDbContext();
 
                 var totalIncome = await db.Set<TransferTransaction>()
-                    .Where(x => x.Status == "Completed")
-                    .SumAsync(x => (int?)x.AmountCoin) ?? 0;
+                     .Where(x => x.Status == "Completed"
+                     && x.TransactionType == "ReviewPayment") // ← THÊM DÒNG NÀY!
+                     .SumAsync(x => (decimal?)x.AmountCoin) ?? 0m;
 
                 var totalReviews = await db.Set<Review>()
                     .CountAsync();

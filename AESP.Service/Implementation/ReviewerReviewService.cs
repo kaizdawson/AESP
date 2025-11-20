@@ -638,6 +638,125 @@ namespace AESP.Service.Implementation
 
         }
 
+        public async Task<ResponseDTO> TipAfterReviewAsync(Guid reviewerProfileId, ReviewerTipAfterReviewDTO dto)
+        {
+            var response = new ResponseDTO();
+            var db = (AppDbContext)_unitOfWork.GetDbContext();
+
+            await using var transaction = await db.Database.BeginTransactionAsync();
+
+            try
+            {
+                // 1. Kiểm tra Review có tồn tại + đúng reviewer + đã Completed
+                var review = await db.Reviews
+                    .Include(r => r.ReviewerProfile).ThenInclude(rp => rp.User)
+                    .Include(r => r.LearnerAnswer).ThenInclude(la => la.LearnerProfile).ThenInclude(lp => lp.User)
+                    .Include(r => r.Record).ThenInclude(rec => rec.LearnerRecord).ThenInclude(lr => lr.LearnerProfile).ThenInclude(lp => lp.User)
+                    .FirstOrDefaultAsync(r =>
+                        r.ReviewId == dto.ReviewId &&
+                        r.ReviewerProfileId == reviewerProfileId &&
+                        r.Status == "Completed");
+
+                if (review == null)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    response.Message = "Không tìm thấy review hợp lệ hoặc bạn không có quyền tặng thưởng cho bài này.";
+                    return response;
+                }
+
+                // 2. Kiểm tra đã từng donate cho review này chưa (chống donate nhiều lần)
+                bool alreadyTipped = await db.TransferTransactions
+                .AnyAsync(t => t.ReviewId == dto.ReviewId
+                 && t.ReviewerProfileId == reviewerProfileId
+                 && t.TransactionType == "ReviewerTip");
+
+                if (alreadyTipped)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.INVALID_ACTION;
+                    response.Message = "Bạn đã thưởng cho bài này rồi.";
+                    return response;
+                }
+
+                // 3. Kiểm tra số dư reviewer
+                var reviewerUser = review.ReviewerProfile.User;
+                if (reviewerUser.CoinBalance < dto.AmountCoin)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.INSUFFICIENT_BALANCE;
+                    response.Message = "Số dư coin không đủ để thưởng.";
+                    return response;
+                }
+
+                // 4. Lấy learner UserId
+                Guid learnerUserId = review.LearnerAnswer != null
+                    ? review.LearnerAnswer.LearnerProfile.User.UserId
+                    : review.Record.LearnerRecord.LearnerProfile.User.UserId;
+
+                Guid learnerProfileId = review.LearnerAnswer != null
+                    ? review.LearnerAnswer.LearnerProfileId
+                    : review.Record.LearnerRecord.LearnerId;
+
+                // 5. Trừ & cộng coin
+                reviewerUser.CoinBalance -= dto.AmountCoin;
+
+                var learnerUser = await db.Users.FirstOrDefaultAsync(u => u.UserId == learnerUserId);
+                learnerUser.CoinBalance += dto.AmountCoin;
+
+                // 6. Ghi log TransferTransaction
+                var transfer = new TransferTransaction
+                {
+                    TransferTransactionId = Guid.NewGuid(),
+                    LearnerProfileId = learnerProfileId,
+                    ReviewerProfileId = reviewerProfileId,
+                    ReviewId = dto.ReviewId,                    // quan trọng: gắn vào review
+                    AmountCoin = dto.AmountCoin,
+                    Comment = $"Reviewer thưởng kèm review: {dto.Message}",
+                    Status = "Completed",
+                    CreatedAt = DateTime.UtcNow,
+                    TransactionType = "ReviewerTip"
+                };
+                await db.TransferTransactions.AddAsync(transfer);
+
+                // 7. Gửi Notification cho learner
+                var notification = new Notification
+                {
+                    NotificationId = Guid.NewGuid(),
+                    UserId = learnerUserId,
+                    Message = $"Reviewer {reviewerUser.FullName} đã thưởng bạn {dto.AmountCoin} coin vì phần nói rất tuyệt vời!\n\"{dto.Message}\"",
+                    Type = "ReviewerTip",
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await db.Notifications.AddAsync(notification);
+
+                // 8. Save + Commit
+                await _unitOfWork.SaveChangeAsync();
+                await transaction.CommitAsync();
+
+                response.IsSucess = true;
+                response.BusinessCode = BusinessCode.CREATED_SUCCESSFULLY;
+                response.Message = $"Thưởng thành công {dto.AmountCoin} coin!";
+                response.Data = new
+                {
+                    TipCoin = dto.AmountCoin,
+                    LearnerFullName = learnerUser.FullName,
+                    RemainingCoin = reviewerUser.CoinBalance
+                };
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                response.IsSucess = false;
+                response.BusinessCode = BusinessCode.EXCEPTION;
+                response.Message = "Lỗi khi thưởng coin: " + ex.Message;
+                return response;
+            }
+        }
+
         private async Task PayReviewerAsync(
      AppDbContext db,
      Guid reviewerProfileId,
@@ -725,7 +844,8 @@ namespace AESP.Service.Implementation
                     AmountCoin = reviewerCoin,
                     Comment = comment,
                     Status = "Completed",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    TransactionType = "ReviewPayment"
                 };
 
                 await db.Set<TransferTransaction>().AddAsync(transaction);
