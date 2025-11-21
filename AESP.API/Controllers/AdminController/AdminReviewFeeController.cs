@@ -1,4 +1,5 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
 using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
@@ -35,6 +36,24 @@ namespace AESP.API.Controllers.AdminController
         {
             var result = await __adminReviewerFeeService.GetAllReviewFeePackagesAsync(pageNumber, pageSize);
             return StatusCode(result.IsSucess ? 201 : 400, result);
+        }
+        [HttpGet("package/{reviewFeeId}")]
+        public async Task<IActionResult> GetPackageDetail([FromRoute] Guid reviewFeeId)
+        {
+            try
+            {
+                var result = await __adminReviewerFeeService.GetReviewFeePackageDetailAsync(reviewFeeId);
+                return result.IsSucess ? Ok(result) : NotFound(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.EXCEPTION,
+                    Message = "Lỗi hệ thống: " + ex.Message
+                });
+            }
         }
     }
 }

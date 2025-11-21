@@ -91,9 +91,10 @@ namespace AESP.Service.Implementation
         {
             var response = new ResponseDTO();
             var packagesDto = new List<ReviewFeePackageResponseDto>();
+
             try
             {
-                // 1. Validation cơ bản cho phân trang
+                // 1. Validation phân trang
                 if (pageNumber <= 0 || pageSize <= 0)
                 {
                     response.IsSucess = false;
@@ -102,17 +103,21 @@ namespace AESP.Service.Implementation
                     return response;
                 }
 
-                // 2. Chuẩn bị Query và Lấy tổng số lượng (Thực hiện trên Database)
-                var baseQuery = _reviewFeeRepository.AsQueryable();
+                var now = DateTime.UtcNow;
 
-                // Lấy tổng số lượng (KHÔNG PHÂN TRANG)
-                var totalItems = await baseQuery.CountAsync();
+                // 2. Lấy tất cả gói + detail, rồi lọc trên DB những gói có ít nhất 1 chính sách đang áp dụng
+                var activePackagesQuery = _reviewFeeRepository.AsQueryable()
+                    .Include(rf => rf.ReviewFeeDetails)
+                    .Where(rf => rf.ReviewFeeDetails.Any(d => d.AppliedDate <= now))
+                    .OrderByDescending(rf => rf.NumberOfReview);
+
+                var totalItems = await activePackagesQuery.CountAsync();
 
                 if (totalItems == 0)
                 {
                     response.IsSucess = true;
                     response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-                    response.Message = "Không tìm thấy gói Review Fee nào.";
+                    response.Message = "Không có gói Review Fee nào đang hoạt động.";
                     response.Data = new
                     {
                         PageNumber = pageNumber,
@@ -123,61 +128,55 @@ namespace AESP.Service.Implementation
                     return response;
                 }
 
-                // 3. Áp dụng Sắp xếp (Sorting) và Phân trang (Paging) trên Database
-                var pagedQuery = baseQuery
-                    .OrderByDescending(rf => rf.NumberOfReview) // Sắp xếp theo một trường (ví dụ: Số lượng review)
+                // 3. Phân trang + lấy dữ liệu
+                var pagedPackages = await activePackagesQuery
                     .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize);
-
-                // 4. Lấy dữ liệu paged (có Include) từ Database
-                // CHỈ LẤY DỮ LIỆU CỦA TRANG HIỆN TẠI VÀ THÔNG TIN LIÊN QUAN
-                var pagedReviewFees = await pagedQuery
-                    .Include(rf => rf.ReviewFeeDetails)
+                    .Take(pageSize)
                     .ToListAsync();
 
-                // 5. Xử lý logic tìm Chính sách giá hiện tại (Trên bộ nhớ)
-                var now = DateTime.UtcNow;
-                foreach (var reviewFee in pagedReviewFees)
+                // 4. Chỉ lấy chính sách giá HIỆN TẠI (mới nhất <= now)
+                foreach (var pkg in pagedPackages)
                 {
-                    var currentDetail = reviewFee.ReviewFeeDetails
+                    var currentDetail = pkg.ReviewFeeDetails
                         .Where(d => d.AppliedDate <= now)
                         .OrderByDescending(d => d.AppliedDate)
                         .FirstOrDefault();
 
-                    var packageDto = new ReviewFeePackageResponseDto
+                    // Bắt buộc phải có (do đã filter ở trên)
+                    if (currentDetail != null)
                     {
-                        ReviewFeeId = reviewFee.ReviewFeeId,
-                        NumberOfReview = reviewFee.NumberOfReview,
-                        CurrentPricePolicy = currentDetail != null ? new ReviewFeeDetailResponseDto
+                        packagesDto.Add(new ReviewFeePackageResponseDto
                         {
-                            ReviewFeeDetailId = currentDetail.ReviewFeeDetailId,
-                            PricePerReviewFee = currentDetail.PricePerReviewFee,
-                            AppliedDate = currentDetail.AppliedDate,
-                            PercentOfSystem = currentDetail.PercentOfSystem,
-                            PercentOfReviewer = currentDetail.PercentOfReviewer
-                        } : null
-                    };
-
-                    packagesDto.Add(packageDto);
+                            ReviewFeeId = pkg.ReviewFeeId,
+                            NumberOfReview = pkg.NumberOfReview,
+                            CurrentPricePolicy = new ReviewFeeDetailResponseDto
+                            {
+                                ReviewFeeDetailId = currentDetail.ReviewFeeDetailId,
+                                PricePerReviewFee = currentDetail.PricePerReviewFee,
+                                AppliedDate = currentDetail.AppliedDate,
+                                PercentOfSystem = currentDetail.PercentOfSystem,
+                                PercentOfReviewer = currentDetail.PercentOfReviewer
+                            }
+                        });
+                    }
                 }
 
-                // 6. Trả về kết quả phân trang
                 response.IsSucess = true;
                 response.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                response.Message = "Lấy dữ liệu gói Review Fee thành công.";
+                response.Message = "Lấy danh sách gói Review Fee đang hoạt động thành công.";
                 response.Data = new
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
-                    TotalItems = totalItems, // Tổng số lượng tất cả gói
-                    Items = packagesDto       // Danh sách gói đã phân trang
+                    TotalItems = totalItems,
+                    Items = packagesDto
                 };
             }
             catch (Exception ex)
             {
                 response.IsSucess = false;
                 response.BusinessCode = BusinessCode.EXCEPTION;
-                response.Message = "Lỗi khi lấy dữ liệu gói phí: " + ex.Message;
+                response.Message = "Lỗi khi lấy danh sách gói phí: " + ex.Message;
                 response.Data = new
                 {
                     PageNumber = pageNumber,
@@ -186,6 +185,93 @@ namespace AESP.Service.Implementation
                     Items = packagesDto
                 };
             }
+
+            return response;
+        }
+
+        public async Task<ResponseDTO> GetReviewFeePackageDetailAsync(Guid reviewFeeId)
+        {
+            var response = new ResponseDTO();
+
+            try
+            {
+                var now = DateTime.UtcNow;
+
+                var package = await _reviewFeeRepository.AsQueryable()
+                    .Include(rf => rf.ReviewFeeDetails)
+                    .FirstOrDefaultAsync(rf => rf.ReviewFeeId == reviewFeeId);
+
+                if (package == null)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    response.Message = "Không tìm thấy gói Review Fee.";
+                    return response;
+                }
+
+                // Chính sách ĐANG ÁP DỤNG
+                var currentPolicy = package.ReviewFeeDetails
+                    .Where(d => d.AppliedDate <= now)
+                    .OrderByDescending(d => d.AppliedDate)
+                    .FirstOrDefault();
+
+                // Chính sách SẮP ÁP DỤNG (nếu có)
+                var upcomingPolicy = package.ReviewFeeDetails
+                    .Where(d => d.AppliedDate > now)
+                    .OrderBy(d => d.AppliedDate)
+                    .FirstOrDefault();
+
+                // Tất cả lịch sử chính sách (sắp xếp cũ → mới)
+                var historyPolicies = package.ReviewFeeDetails
+                    .OrderBy(d => d.AppliedDate)
+                    .Select(d => new
+                    {
+                        d.ReviewFeeDetailId,
+                        d.PricePerReviewFee,
+                        ReviewerIncome = d.PricePerReviewFee * d.PercentOfReviewer,
+                        d.PercentOfReviewer,
+                        d.PercentOfSystem,
+                        AppliedDate = d.AppliedDate.ToString("dd/MM/yyyy HH:mm"),
+                        IsCurrent = d.AppliedDate <= now && (currentPolicy == null || d.ReviewFeeDetailId == currentPolicy.ReviewFeeDetailId),
+                        IsUpcoming = upcomingPolicy != null && d.ReviewFeeDetailId == upcomingPolicy.ReviewFeeDetailId
+                    })
+                    .ToList();
+
+                string status = currentPolicy == null ? "Chưa kích hoạt" :
+                                upcomingPolicy == null ? "Đang áp dụng" : "Sắp thay đổi giá";
+
+                response.IsSucess = true;
+                response.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                response.Message = "Lấy chi tiết gói Review Fee thành công.";
+                response.Data = new
+                {
+                    ReviewFeeId = package.ReviewFeeId,
+                    NumberOfReview = package.NumberOfReview,
+                    Status = status,
+                    CurrentPolicy = currentPolicy != null ? new
+                    {
+                        currentPolicy.PricePerReviewFee,
+                        ReviewerIncome = currentPolicy.PricePerReviewFee * currentPolicy.PercentOfReviewer,
+                        currentPolicy.PercentOfReviewer,
+                        AppliedFrom = currentPolicy.AppliedDate.ToString("dd/MM/yyyy HH:mm")
+                    } : null,
+                    UpcomingPolicy = upcomingPolicy != null ? new
+                    {
+                        upcomingPolicy.PricePerReviewFee,
+                        ReviewerIncome = upcomingPolicy.PricePerReviewFee * upcomingPolicy.PercentOfReviewer,
+                        upcomingPolicy.PercentOfReviewer,
+                        WillApplyFrom = upcomingPolicy.AppliedDate.ToString("dd/MM/yyyy HH:mm")
+                    } : null,
+                    HistoryPolicies = historyPolicies
+                };
+            }
+            catch (Exception ex)
+            {
+                response.IsSucess = false;
+                response.BusinessCode = BusinessCode.EXCEPTION;
+                response.Message = "Lỗi khi lấy chi tiết gói phí: " + ex.Message;
+            }
+
             return response;
         }
 
