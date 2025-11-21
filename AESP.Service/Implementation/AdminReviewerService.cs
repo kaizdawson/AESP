@@ -374,6 +374,7 @@ Trân trọng,
                         Email = r.User.Email,
                         Phone = r.User.PhoneNumber,
                         ReviewerStatus = r.Status,
+                        Experience = r.Experience,
 
                         // ✔ CHỈ show certificate PENDING
                         Certificates = r.Certificates
