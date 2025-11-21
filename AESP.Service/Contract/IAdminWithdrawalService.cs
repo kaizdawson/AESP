@@ -12,7 +12,8 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetPendingWithdrawalsAsync(int pageNumber, int pageSize);
         Task<ResponseDTO> ApproveWithdrawalAsync(Guid transactionId);
         Task<ResponseDTO> RejectWithdrawalAsync(Guid transactionId, string reason);
-        Task<ResponseDTO> GetAllWithdrawalAsync(string? keyword, string? status, int pageNumber , int pageSize );
+        Task<ResponseDTO> GetAllWithdrawalAsync(string? keyword, string? status, int pageNumber , int pageSize);
         Task<ResponseDTO> GetWithdrawalSummaryAsync();
+        Task<ResponseDTO> GetAllTransferTransactionsAsync(string? keyword, string? type, int pageNumber , int pageSize);
     }
 }

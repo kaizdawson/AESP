@@ -120,6 +120,104 @@ Trân trọng,
             return dto;
         }
 
+        public async Task<ResponseDTO> GetAllTransferTransactionsAsync(string? keyword, string? type, int pageNumber, int pageSize)
+        {
+            var dto = new ResponseDTO();
+            var resultList = new List<object>();
+
+            try
+            {
+                var db = _unitOfWork.GetDbContext();
+
+                var query = db.Set<TransferTransaction>()
+                    .Include(t => t.ReviewerProfile)
+                        .ThenInclude(rp => rp.User)
+                    .Include(t => t.LearnerProfile)
+                        .ThenInclude(lp => lp.User)
+                    .AsQueryable();
+
+                // ===================== FILTER THEO LOẠI GIAO DỊCH =====================
+                if (!string.IsNullOrWhiteSpace(type))
+                {
+                    query = query.Where(t => t.TransactionType == type.Trim());
+                }
+
+                // ===================== TÌM KIẾM THEO TÊN =====================
+                if (!string.IsNullOrWhiteSpace(keyword))
+                {
+                    var kw = keyword.Trim().ToLower();
+                    query = query.Where(t =>
+                        (t.ReviewerProfile != null && t.ReviewerProfile.User.FullName != null && t.ReviewerProfile.User.FullName.ToLower().Contains(kw)) ||
+                        (t.LearnerProfile != null && t.LearnerProfile.User.FullName != null && t.LearnerProfile.User.FullName.ToLower().Contains(kw)) ||
+                        (t.Comment != null && t.Comment.ToLower().Contains(kw))
+                    );
+                }
+
+                // ===================== SẮP XẾP + PHÂN TRANG =====================
+                var totalItems = await query.CountAsync();
+
+                var items = await query
+                    .OrderByDescending(t => t.CreatedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(t => new
+                    {
+                        TransferId = t.TransferTransactionId,
+                        CreatedAt = t.CreatedAt,
+
+                        // LOẠI GIAO DỊCH
+                        Type = t.TransactionType == "ReviewPayment" ? "Thanh toán review" :
+                               t.TransactionType == "ReviewerTip" ? "Reviewer tip learner" : t.TransactionType,
+
+
+                        AmountCoin = t.AmountCoin,
+                       
+                       
+                        // REVIEWER: NGƯỜI NHẬN TIỀN (kiếm coin hoặc bị trừ khi tip)
+                        ReviewerId = t.ReviewerProfileId,
+                        ReviewerName = t.ReviewerProfile != null ? t.ReviewerProfile.User.FullName : "(Đã xóa)",
+                        ReviewerEmail = t.ReviewerProfile != null ? t.ReviewerProfile.User.Email : null,
+
+                        // LEARNER: NGƯỜI ĐƯỢC NHẬN TIP (chỉ có khi tip)
+                        LearnerId = t.LearnerProfileId,
+                        LearnerName = t.LearnerProfile != null ? t.LearnerProfile.User.FullName : null,
+                        LearnerEmail = t.LearnerProfile != null ? t.LearnerProfile.User.Email : null,
+
+                        // NẾU LÀ TIP → HIỂN THỊ RÕ NGƯỜI TẶNG CHO AI
+                        FlowDescription = t.TransactionType == "ReviewPayment"
+                     ? $"Hệ thống → {(t.ReviewerProfile != null && t.ReviewerProfile.User != null ? t.ReviewerProfile.User.FullName : "(Đã xóa)")} (+{t.AmountCoin} coin)"
+                     : t.TransactionType == "ReviewerTip"
+                     ? $"{(t.ReviewerProfile != null && t.ReviewerProfile.User != null ? t.ReviewerProfile.User.FullName : "(Đã xóa)")} → {(t.LearnerProfile != null && t.LearnerProfile.User != null ? t.LearnerProfile.User.FullName : "Người học")} (+{t.AmountCoin} coin)"
+                     : t.Comment ?? "Chuyển coin nội bộ",
+
+                        Comment = t.Comment,
+                        Status = t.Status,
+                        ReviewId = t.ReviewId
+                    })
+                    .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách chuyển coin nội bộ thành công.";
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize),
+                    Items = items
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy danh sách chuyển coin: " + ex.Message;
+            }
+
+            return dto;
+        }
+
         public async Task<ResponseDTO> GetAllWithdrawalAsync(string? keyword, string? status, int pageNumber, int pageSize)
         {
             var dto = new ResponseDTO(); try
