@@ -1,5 +1,6 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Service.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -77,6 +78,36 @@ namespace AESP.API.Controllers.AdminController
                 return BadRequest(result);
 
             return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
+        [HttpGet("transfer-transactions")]
+        public async Task<IActionResult> GetAllTransferTransactions(
+            [FromQuery] string? keyword = null,
+            [FromQuery] string? type = null,           // ReviewPayment / ReviewerTip
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                // GỌI HÀM BẠN VỪA ĐƯỢC MÌNH VIẾT Ở SERVICE
+                var result = await _withdrawalService.GetAllTransferTransactionsAsync(
+                    keyword: keyword,
+                    type: type,
+                    pageNumber: pageNumber,
+                    pageSize: pageSize);
+
+                return result.IsSucess
+                    ? Ok(result)
+                    : BadRequest(result);
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = AESP.Common.DTOs.BusinessCode.BusinessCode.EXCEPTION,
+                    Message = "Lỗi hệ thống: " + ex.Message
+                });
+            }
         }
     }
 }
