@@ -5,8 +5,8 @@ namespace AESP.Service.Contract
     public interface IRecordService
     {
         Task<ResponseDTO> SubmitRecordAsync(Guid learnerProfileId, Guid folderId, SubmitRecordDTO dto);
-        Task<ResponseDTO> DeleteRecordAsync(Guid learnerProfileId, Guid recordId);
+        Task<ResponseDTO> UpdateRecordAIResultAsync(Guid learnerProfileId, Guid recordId, UpdateRecordAIResultDTO dto);
         Task<ResponseDTO> GetRecordsByCategoryAsync(Guid learnerProfileId, Guid folderId);
+        Task<ResponseDTO> DeleteRecordAsync(Guid learnerProfileId, Guid recordId);
     }
-
 }

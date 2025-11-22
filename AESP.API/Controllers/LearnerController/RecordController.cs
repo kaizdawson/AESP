@@ -71,6 +71,13 @@ namespace AESP.API.Controllers.LearnerController
             return Ok(await _recordService.DeleteRecordAsync(learnerId, recordId));
         }
 
+        [HttpPut("{recordId}/review")]
+        public async Task<IActionResult> Review(Guid recordId, [FromBody] UpdateRecordAIResultDTO dto)
+        {
+            var learnerId = await GetLearnerProfileIdAsync();
+            return Ok(await _recordService.UpdateRecordAIResultAsync(learnerId, recordId, dto));
+        }
+
 
     }
 }
