@@ -197,9 +197,9 @@ namespace AESP.Service.Implementation
 
                 string currentLevel = learner.Level;
 
-                // ===============================
-                // 1️⃣ Lấy tất cả khóa học Level hiện tại
-                // ===============================
+                // ========================================
+                // 1. Lấy tất cả course của level hiện tại
+                // ========================================
                 var courses = await _unitOfWork.GetDbContext().Set<Course>()
                     .Where(c => c.Level == currentLevel)
                     .OrderBy(c => c.OrderIndex)
@@ -208,9 +208,9 @@ namespace AESP.Service.Implementation
                 if (!courses.Any())
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Level hiện tại không có khóa học.");
 
-                // ===============================
-                // 2️⃣ Kiểm tra tất cả LearningPathCourse đều Completed
-                // ===============================
+                // ========================================
+                // 2. Load toàn bộ LP Course
+                // ========================================
                 var lpCourses = await _unitOfWork.GetDbContext().Set<LearningPathCourse>()
                     .Where(lp => lp.LearnerCourse.LearnerProfileId == learnerProfileId &&
                                  lp.Course.Level == currentLevel)
@@ -221,18 +221,19 @@ namespace AESP.Service.Implementation
                 if (lpCourses.Count != courses.Count)
                     return Fail(BusinessCode.INVALID_ACTION, "Bạn chưa mở hoặc chưa hoàn thành toàn bộ khóa học của level.");
 
+                // ========================================
+                // 3. Validate Completed từng Course/Chapter/Exercise
+                // ========================================
                 foreach (var lpCourse in lpCourses)
                 {
                     if (lpCourse.Status != "Completed")
                         return Fail(BusinessCode.INVALID_ACTION, $"Khóa học '{lpCourse.Course.Title}' chưa hoàn thành.");
 
-                    // Check chapter
                     foreach (var chapter in lpCourse.LearningPathChapters)
                     {
                         if (chapter.Status != "Completed")
                             return Fail(BusinessCode.INVALID_ACTION, "Vẫn còn chương chưa hoàn thành.");
 
-                        // Check exercises
                         foreach (var ex in chapter.LearningPathExercises)
                         {
                             if (ex.Status != "Completed")
@@ -241,9 +242,38 @@ namespace AESP.Service.Implementation
                     }
                 }
 
-                // ===============================
-                // 3️⃣ TẤT CẢ HOÀN THÀNH → UP LEVEL
-                // ===============================
+                // ========================================
+                // ⭐ 4. TÍNH TRUNG BÌNH SCORE CỦA LEVEL
+                // ========================================
+                double totalScore = 0;
+                int exerciseCount = 0;
+
+                foreach (var lpCourse in lpCourses)
+                {
+                    foreach (var chapter in lpCourse.LearningPathChapters)
+                    {
+                        foreach (var ex in chapter.LearningPathExercises)
+                        {
+                            totalScore += ex.ScoreAchieved;
+                            exerciseCount++;
+                        }
+                    }
+                }
+
+                double avgScore = exerciseCount == 0 ? 0 : totalScore / exerciseCount;
+
+                // ❌ Nếu TBC < 60 → không cho lên level
+                if (avgScore < 60)
+                {
+                    return Fail(
+                        BusinessCode.INVALID_ACTION,
+                        $"Điểm trung bình Level {currentLevel} là {Math.Round(avgScore, 2)}. Cần đạt >= 60 để lên Level tiếp theo."
+                    );
+                }
+
+                // ========================================
+                // 5. UP LEVEL
+                // ========================================
                 learner.Level = levels[currentIndex + 1];
                 learner.UpdatedAt = DateTime.UtcNow;
 
@@ -253,7 +283,11 @@ namespace AESP.Service.Implementation
                 return Success(
                     BusinessCode.UPDATE_SUCESSFULLY,
                     $"Chúc mừng! Bạn đã lên {learner.Level}.",
-                    new { NewLevel = learner.Level }
+                    new
+                    {
+                        NewLevel = learner.Level,
+                        AverageScore = Math.Round(avgScore, 2)
+                    }
                 );
             }
             catch (Exception ex)

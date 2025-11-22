@@ -310,7 +310,9 @@ namespace AESP.Service.Implementation
                 "Đăng ký khóa học đầu tiên của Level {course.Level} thành công! Chúc bạn học tốt.",
                 new
                 {
+
                     Level = course.Level,
+                    LearnerCourseId = learnerCourse.LearnerCourseId,
                     LearningPathCourseId = lpCourse.LearningPathCourseId,
                     CourseId = course.CourseId,
                     Status = "InProgress"
