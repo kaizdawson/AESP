@@ -1,4 +1,5 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
@@ -163,5 +164,97 @@ namespace AESP.Service.Implementation
             return (true, "Mua gói review cho record thành công.");
         }
 
+        public async Task<ResponseDTO> GetLearnerReviewHistoryAsync(Guid learnerProfileId, int pageNumber = 1, int pageSize = 10)
+        {
+            var dto = new ResponseDTO();
+
+            try
+            {
+                if (learnerProfileId == Guid.Empty)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "LearnerProfileId không hợp lệ.";
+                    return dto;
+                }
+
+                var db = _unitOfWork.GetDbContext();
+
+                // ================================
+                // Lấy tất cả review mà learner này là người submit
+                // ================================
+                var query = db.Set<Review>()
+                    .Include(r => r.LearnerAnswer)
+                        .ThenInclude(la => la.LearningPathQuestion)
+                        .ThenInclude(lpq => lpq.Question)
+                    .Include(r => r.LearnerAnswer)
+                        .ThenInclude(la => la.LearnerProfile)
+                        .ThenInclude(lp => lp.User)
+                    .Include(r => r.Record)
+                        .ThenInclude(rec => rec.LearnerRecord)
+                        .ThenInclude(lr => lr.LearnerProfile)
+                        .ThenInclude(lp => lp.User)
+                    .AsNoTracking()
+                   .Where(r =>
+                         (r.LearnerAnswer != null &&
+                         r.LearnerAnswer.LearnerProfileId == learnerProfileId)
+                         ||
+                         (r.Record != null &&
+                         r.Record.LearnerRecord.LearnerProfile.LearnerProfileId == learnerProfileId)
+                          );
+
+                var totalItems = await query.CountAsync();
+
+                var items = await query
+                    .OrderByDescending(r => r.ReviewId)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(r => new
+                    {
+                        r.ReviewId,
+                        r.Score,
+                        r.Comment,
+                        r.Status,
+
+                        LearnerAnswerId = r.LearnerAnswerId,
+                        RecordId = r.RecordId,
+
+                        CreatedAt = r.LearnerAnswer != null
+                            ? r.LearnerAnswer.SubmittedAt
+                            : (r.Record != null ? r.Record.CreatedAt : DateTime.UtcNow),
+
+                        QuestionContent = r.LearnerAnswer != null
+                            ? r.LearnerAnswer.LearningPathQuestion.Question.Text
+                            : (r.Record != null ? r.Record.Content : null),
+
+                        // Reviewer Name
+                        ReviewerFullName = r.ReviewerProfile.User.FullName,
+
+                        ReviewType = r.LearnerAnswerId != null ? "LearnerAnswer" : "Record",
+
+                        
+                    })
+                    .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy lịch sử học viên được review thành công.";
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    Items = items
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy lịch sử review của học viên: " + ex.Message;
+            }
+
+            return dto;
+        }
     }
 }
