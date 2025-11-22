@@ -116,13 +116,16 @@ public class RecordService : IRecordService
             record.Score = dto.Score;
             record.AIFeedback = dto.AIFeedback;
             record.Status = "Reviewed";
-            record.NumberOfReview += 1;
+            record.NumberOfReview = Math.Max(0, record.NumberOfReview - 1);
+
+            if (record.NumberOfReview == 0)
+                record.IsNeedReviewed = false;
 
             await _recordRepo.Update(record);
             await _unitOfWork.SaveChangeAsync();
             await _unitOfWork.CommitAsync();
 
-            return Success("Cập nhật kết quả AI thành công.", new
+            return Success("Cập nhật kết quả review thành công.", new
             {
                 record.RecordId,
                 record.Score,
