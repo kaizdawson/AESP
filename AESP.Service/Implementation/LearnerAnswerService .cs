@@ -152,6 +152,7 @@ namespace AESP.Service.Implementation
                     isLast ? "Hoàn thành bài tập." : "Nộp câu trả lời thành công.",
                     new
                     {
+                        LearnerAnswerId = answer.LearnerAnswerId,   
                         LearningPathExerciseId = lpExercise.LearningPathExerciseId,
                         ExerciseId = exerciseId,
                         SubmittedScore = dto.ScoreForVoice,
