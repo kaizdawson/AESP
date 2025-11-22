@@ -239,7 +239,7 @@ Trân trọng,
                 // Lấy toàn bộ reviewer (đã duyệt) — không loại bỏ bị ban, để còn sort hiển thị
                 var query = db.ReviewerProfiles
                     .Include(r => r.User)
-                    .Where(r => r.User.Role == "REVIEWER" && r.Status == "Active" || r.Status == "Banned");
+                    .Where(r => r.User.Role == "REVIEWER" && r.Status == "Active" || r.Status == "Banned" || r.Status == "Pending" );
 
                 // 🔍 Tìm kiếm theo tên hoặc email
                 if (!string.IsNullOrEmpty(search))
@@ -258,7 +258,9 @@ Trân trọng,
                     double daysInactive = (now - (r.User.LastActiveAt ?? r.User.CreatedAt)).TotalDays;
 
                     string status;
-                    if (r.User.IsDeleted || r.IsDeleted)
+                    if (r.Status == "Pending")
+                        status = "Pending";
+                    else if (r.User.IsDeleted || r.IsDeleted)
                         status = "Banned";
                     else if (daysInactive > 30)
                         status = "Inactived";
@@ -288,8 +290,10 @@ Trân trọng,
                 }
 
                 // ✅ Sort thứ tự ưu tiên: Actived -> Inactived -> Banned
-                mapped = mapped.OrderBy(m => m.Status == "Banned" ? 3 : m.Status == "Inactived" ? 2 : 1)
-                               .ThenByDescending(m => m.Rating);
+                mapped = mapped.OrderBy(m => m.Status == "Pending" ? 0 :
+                                     m.Status == "Actived" ? 1 :
+                                     m.Status == "Inactived" ? 2 : 3)
+                        .ThenByDescending(m => m.Rating);
 
                 // ✅ Phân trang
                 var totalItems = mapped.Count();
