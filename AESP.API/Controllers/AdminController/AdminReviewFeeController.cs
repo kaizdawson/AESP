@@ -55,5 +55,12 @@ namespace AESP.API.Controllers.AdminController
                 });
             }
         }
+        [HttpGet("review-fee-packages/all")]
+        [AllowAnonymous]  
+        public async Task<IActionResult> GetAllReviewFeePackages()
+        {
+            var result = await __adminReviewerFeeService.GetAllReviewFeePackagesAsync();
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
     }
 }
