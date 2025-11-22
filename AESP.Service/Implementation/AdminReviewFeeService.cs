@@ -189,6 +189,88 @@ namespace AESP.Service.Implementation
             return response;
         }
 
+        public async Task<ResponseDTO> GetAllReviewFeePackagesAsync()
+        {
+            var response = new ResponseDTO();
+            var packagesDto = new List<ReviewFeePackageResponseDto>();
+
+            try
+            {
+                var now = DateTime.UtcNow;
+
+                // ================================
+                // 1) Lấy toàn bộ gói + detail
+                // ================================
+                var packages = await _reviewFeeRepository.AsQueryable()
+                    .Include(rf => rf.ReviewFeeDetails)
+                    .Where(rf => rf.ReviewFeeDetails.Any(d => d.AppliedDate <= now))
+                    .OrderByDescending(rf => rf.NumberOfReview)
+                    .ToListAsync();
+
+                if (packages.Count == 0)
+                {
+                    response.IsSucess = true;
+                    response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    response.Message = "Không có gói Review Fee nào đang hoạt động.";
+                    response.Data = new
+                    {
+                        TotalItems = 0,
+                        Items = packagesDto
+                    };
+                    return response;
+                }
+
+                // ================================
+                // 2) Map chính sách giá hiện tại
+                // ================================
+                foreach (var pkg in packages)
+                {
+                    var currentDetail = pkg.ReviewFeeDetails
+                        .Where(d => d.AppliedDate <= now)
+                        .OrderByDescending(d => d.AppliedDate)
+                        .FirstOrDefault();
+
+                    if (currentDetail != null)
+                    {
+                        packagesDto.Add(new ReviewFeePackageResponseDto
+                        {
+                            ReviewFeeId = pkg.ReviewFeeId,
+                            NumberOfReview = pkg.NumberOfReview,
+
+                            CurrentPricePolicy = new ReviewFeeDetailResponseDto
+                            {
+                                ReviewFeeDetailId = currentDetail.ReviewFeeDetailId,
+                                PricePerReviewFee = currentDetail.PricePerReviewFee,
+                                AppliedDate = currentDetail.AppliedDate,
+                                PercentOfSystem = currentDetail.PercentOfSystem,
+                                PercentOfReviewer = currentDetail.PercentOfReviewer
+                            }
+                        });
+                    }
+                }
+
+                // ================================
+                // 3) RESPONSE
+                // ================================
+                response.IsSucess = true;
+                response.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                response.Message = "Lấy danh sách Review Fee Packages thành công.";
+                response.Data = new
+                {
+                    TotalItems = packagesDto.Count,
+                    Items = packagesDto
+                };
+            }
+            catch (Exception ex)
+            {
+                response.IsSucess = false;
+                response.BusinessCode = BusinessCode.EXCEPTION;
+                response.Message = "Lỗi khi lấy danh sách Review Fee Packages: " + ex.Message;
+            }
+
+            return response;
+        }
+
         public async Task<ResponseDTO> GetReviewFeePackageDetailAsync(Guid reviewFeeId)
         {
             var response = new ResponseDTO();
