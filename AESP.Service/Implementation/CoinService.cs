@@ -238,7 +238,9 @@ namespace AESP.Service.Implementation
                 BankName = bankName,
                 AccountNumber = accountNumber,
                 Description = $"Rút {coin} coin tương ứng {amountMoney} vnđ",
-                OrderCode = orderCode
+                OrderCode = orderCode,
+                UserName = user.FullName,
+                ServicePackageName = null
             };
 
             user.CoinBalance -= coin;
@@ -247,15 +249,16 @@ namespace AESP.Service.Implementation
             await _userRepository.Update(user);
             await _unitOfWork.SaveChangeAsync();
 
-            _logger.LogInformation("🔻 User {UserId} tạo yêu cầu rút {Coin} coin - OrderCode {OrderCode}",
-                userId, coin, orderCode);
+            _logger.LogInformation("User {UserId} - {FullName} tạo yêu cầu rút {Coin} coin → {AmountMoney} VNĐ - Order: {OrderCode}",
+         userId, user.FullName, coin, amountMoney, orderCode);
 
             return new
             {
                 orderCode,
                 status = "Pending",
                 coin,
-                amountMoney
+                amountMoney,
+                message = "Yêu cầu rút coin đã được gửi. Vui lòng chờ admin duyệt."
             };
         }
 
@@ -446,7 +449,13 @@ namespace AESP.Service.Implementation
                 // Validate phân trang
                 if (pageNumber < 1) pageNumber = 1;
                 if (pageSize < 1) pageSize = 10;
-                var query = _transactionRepository.AsQueryable();
+
+                var db = _transactionRepository.GetDbContext();
+
+                var query = db.Transactions
+            .Include(t => t.User) // BẮT BUỘC Include để lấy được User.FullName
+            .AsQueryable();
+
                 // === FILTER ===
                 if (!string.IsNullOrWhiteSpace(status))
                     query = query.Where(t => t.Status == status.Trim());
@@ -469,7 +478,7 @@ namespace AESP.Service.Implementation
              {
                  t.TransactionId,
                  t.UserId,
-                 t.UserName,
+                 UserName = t.User != null ? t.User.FullName : "(Đã xóa tài khoản)",
                  t.ServicePackageId,
                  t.ServicePackageName,
                  t.AmountMoney,
@@ -478,10 +487,10 @@ namespace AESP.Service.Implementation
                  t.BankName,
                  t.AccountNumber,
                  t.Description,
-                 t.Type,
-                 t.Status,
+                 Type = t.Type,
+                 Status = t.Status,
                  t.ReasonReject,
-                 t.CreatedTransaction
+                 CreatedTransaction = t.CreatedTransaction
              })
              .ToListAsync();
 
