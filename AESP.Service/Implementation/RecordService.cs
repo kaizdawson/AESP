@@ -5,87 +5,64 @@ using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.EntityFrameworkCore;
 
-namespace AESP.Service.Implementation
+public class RecordService : IRecordService
 {
-    public class RecordService : IRecordService
+    private readonly IGenericRepository<Record> _recordRepo;
+    private readonly IGenericRepository<LearnerRecord> _folderRepo;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public RecordService(
+        IGenericRepository<Record> recordRepo,
+        IGenericRepository<LearnerRecord> folderRepo,
+        IUnitOfWork unitOfWork)
     {
-        private readonly IGenericRepository<Record> _recordRepo;
-        private readonly IGenericRepository<LearnerRecord> _learnerRecordRepo;
-        private readonly IUnitOfWork _unitOfWork;
+        _recordRepo = recordRepo;
+        _folderRepo = folderRepo;
+        _unitOfWork = unitOfWork;
+    }
 
-        public RecordService(
-            IGenericRepository<Record> recordRepo,
-            IGenericRepository<LearnerRecord> learnerRecordRepo,
-            IUnitOfWork unitOfWork)
-        {
-            _recordRepo = recordRepo;
-            _learnerRecordRepo = learnerRecordRepo;
-            _unitOfWork = unitOfWork;
-        }
+    // ============================================================
+    // SUBMIT (CREATE OR UPDATE)
+    // ============================================================
+    public async Task<ResponseDTO> SubmitRecordAsync(Guid learnerProfileId, Guid folderId, SubmitRecordDTO dto)
+    {
+        await _unitOfWork.BeginTransactionAsync();
 
-        // ============================
-        // Create Record
-        // ============================
-        public async Task<ResponseDTO> CreateRecordAsync(Guid learnerProfileId, CreateRecordDTO dto)
+        try
         {
-            try
+            // Check folder belongs to learner
+            var folder = await _folderRepo.AsQueryable()
+                .FirstOrDefaultAsync(x => x.LearnerRecordId == folderId && x.LearnerId == learnerProfileId);
+
+            if (folder == null)
+                return Fail("Không tìm thấy thư mục hoặc không có quyền.");
+
+            // Check record exists
+            var record = await _recordRepo.AsQueryable()
+                .FirstOrDefaultAsync(r => r.LearnerRecordId == folderId);
+
+            if (record == null)
             {
-                var learnerRecord = await _learnerRecordRepo.AsQueryable()
-                    .FirstOrDefaultAsync(x => x.LearnerId == learnerProfileId);
-
-                if (learnerRecord == null)
-                {
-                    learnerRecord = new LearnerRecord
-                    {
-                        LearnerRecordId = Guid.NewGuid(),
-                        LearnerId = learnerProfileId,
-                        Name = "My Record",
-                        Status = "Active"
-                    };
-
-                    await _learnerRecordRepo.Insert(learnerRecord);
-                }
-
-                var record = new Record
+                // CREATE NEW RECORD
+                record = new Record
                 {
                     RecordId = Guid.NewGuid(),
-                    LearnerRecordId = learnerRecord.LearnerRecordId,
+                    LearnerRecordId = folderId,
                     AudioRecordingURL = dto.AudioRecordingURL,
                     Content = dto.Content,
-                    Status = "Draft",
-                    Score = 0,
+                    Score = dto.Score,
+                    AIFeedback = dto.AIFeedback,
+                    Status = "Submitted",
+                    CreatedAt = DateTime.UtcNow,
                     NumberOfReview = 0,
                     IsNeedReviewed = false
                 };
 
                 await _recordRepo.Insert(record);
-                await _unitOfWork.SaveChangeAsync();
-
-                return Success("Tạo bản ghi thành công.", record);
             }
-            catch (Exception ex)
+            else
             {
-                return Fail(ex.Message);
-            }
-        }
-
-        // ============================
-        // Submit Record
-        // ============================
-        public async Task<ResponseDTO> SubmitRecordAsync(Guid learnerProfileId, Guid recordId, SubmitRecordDTO dto)
-        {
-            try
-            {
-                var record = await _recordRepo.AsQueryable()
-                    .Include(r => r.LearnerRecord)
-                    .FirstOrDefaultAsync(r => r.RecordId == recordId);
-
-                if (record == null)
-                    return Fail("Không tìm thấy record.");
-
-                if (record.LearnerRecord.LearnerId != learnerProfileId)
-                    return Fail("Không có quyền.");
-
+                // UPDATE EXISTING RECORD
                 record.AudioRecordingURL = dto.AudioRecordingURL;
                 record.Content = dto.Content;
                 record.Score = dto.Score;
@@ -93,69 +70,145 @@ namespace AESP.Service.Implementation
                 record.Status = "Submitted";
 
                 await _recordRepo.Update(record);
-                await _unitOfWork.SaveChangeAsync();
-
-                return Success("Nộp record thành công.", record);
             }
-            catch (Exception ex)
+
+            await _unitOfWork.SaveChangeAsync();
+            await _unitOfWork.CommitAsync();
+
+            return Success("Gửi record thành công.", new
             {
-                return Fail(ex.Message);
-            }
+                record.RecordId,
+                record.LearnerRecordId,
+                record.AudioRecordingURL,
+                record.Content,
+                record.Score,
+                record.AIFeedback,
+                record.Status,
+                record.CreatedAt
+            });
         }
-
-        // ============================
-        // Delete Record
-        // ============================
-        public async Task<ResponseDTO> DeleteRecordAsync(Guid learnerProfileId, Guid recordId)
+        catch (Exception ex)
         {
-            try
-            {
-                var record = await _recordRepo.AsQueryable()
-                    .Include(r => r.LearnerRecord)
-                    .FirstOrDefaultAsync(r => r.RecordId == recordId);
-
-                if (record == null)
-                    return Fail("Không tìm thấy record.");
-
-                if (record.LearnerRecord.LearnerId != learnerProfileId)
-                    return Fail("Không có quyền.");
-
-                await _recordRepo.Delete(record);
-                await _unitOfWork.SaveChangeAsync();
-
-                return Success("Xóa thành công.");
-            }
-            catch (Exception ex)
-            {
-                return Fail(ex.Message);
-            }
+            await _unitOfWork.RollbackAsync();
+            return Fail(ex.Message);
         }
-
-        // ============================
-        // GetAll Record of learner
-        // ============================
-        public async Task<ResponseDTO> GetAllRecordsAsync(Guid learnerProfileId)
-        {
-            try
-            {
-                var records = await _recordRepo.AsQueryable()
-                    .Include(r => r.LearnerRecord)
-                    .Where(r => r.LearnerRecord.LearnerId == learnerProfileId)
-                    .OrderByDescending(r => r.CreatedAt)
-                    .ToListAsync();
-
-                return Success("Lấy dữ liệu thành công.", records);
-            }
-            catch (Exception ex)
-            {
-                return Fail(ex.Message);
-            }
-        }
-
-        private ResponseDTO Success(string msg, object data = null)
-            => new ResponseDTO { IsSucess = true, BusinessCode = BusinessCode.UPDATE_SUCESSFULLY, Message = msg, Data = data };
-
-        private ResponseDTO Fail(string msg)
-            => new ResponseDTO { IsSucess = false, BusinessCode = BusinessCode.VALIDATION_FAILED, Message = msg };
     }
+
+    // ============================================================
+    // AI REVIEW (UPDATE SCORE + AIFEEDBACK)
+    // ============================================================
+    public async Task<ResponseDTO> UpdateRecordAIResultAsync(Guid learnerProfileId, Guid recordId, UpdateRecordAIResultDTO dto)
+    {
+        await _unitOfWork.BeginTransactionAsync();
+
+        try
+        {
+            var record = await _recordRepo.AsQueryable()
+                .Include(r => r.LearnerRecord)
+                .FirstOrDefaultAsync(r => r.RecordId == recordId);
+
+            if (record == null)
+                return Fail("Không tìm thấy record.");
+
+            if (record.LearnerRecord.LearnerId != learnerProfileId)
+                return Fail("Không có quyền.");
+
+            record.Score = dto.Score;
+            record.AIFeedback = dto.AIFeedback;
+            record.Status = "Reviewed";
+            record.NumberOfReview += 1;
+
+            await _recordRepo.Update(record);
+            await _unitOfWork.SaveChangeAsync();
+            await _unitOfWork.CommitAsync();
+
+            return Success("Cập nhật kết quả AI thành công.", new
+            {
+                record.RecordId,
+                record.Score,
+                record.AIFeedback,
+                record.Status,
+                record.NumberOfReview
+            });
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            return Fail(ex.Message);
+        }
+    }
+
+    // ============================================================
+    // GET ALL RECORDS BY FOLDER
+    // ============================================================
+    public async Task<ResponseDTO> GetRecordsByCategoryAsync(Guid learnerProfileId, Guid folderId)
+    {
+        try
+        {
+            var list = await _recordRepo.AsQueryable()
+                .Include(r => r.LearnerRecord)
+                .Where(r => r.LearnerRecordId == folderId &&
+                            r.LearnerRecord.LearnerId == learnerProfileId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new
+                {
+                    r.RecordId,
+                    r.LearnerRecordId,
+                    r.AudioRecordingURL,
+                    r.Score,
+                    r.AIFeedback,
+                    r.Status,
+                    r.CreatedAt,
+                    r.NumberOfReview
+                })
+                .ToListAsync();
+
+            return Success("Lấy danh sách record thành công.", list);
+        }
+        catch (Exception ex)
+        {
+            return Fail(ex.Message);
+        }
+    }
+
+    // ============================================================
+    // DELETE RECORD
+    // ============================================================
+    public async Task<ResponseDTO> DeleteRecordAsync(Guid learnerProfileId, Guid recordId)
+    {
+        await _unitOfWork.BeginTransactionAsync();
+
+        try
+        {
+            var record = await _recordRepo.AsQueryable()
+                .Include(r => r.LearnerRecord)
+                .FirstOrDefaultAsync(r => r.RecordId == recordId);
+
+            if (record == null)
+                return Fail("Không tìm thấy record.");
+
+            if (record.LearnerRecord.LearnerId != learnerProfileId)
+                return Fail("Không có quyền.");
+
+            await _recordRepo.Delete(record);
+            await _unitOfWork.SaveChangeAsync();
+            await _unitOfWork.CommitAsync();
+
+            return Success("Xóa record thành công.");
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            return Fail(ex.Message);
+        }
+    }
+
+    // ============================================================
+    // Helpers
+    // ============================================================
+    private ResponseDTO Success(string msg, object? data = null)
+        => new ResponseDTO { IsSucess = true, BusinessCode = BusinessCode.UPDATE_SUCESSFULLY, Message = msg, Data = data };
+
+    private ResponseDTO Fail(string msg)
+        => new ResponseDTO { IsSucess = false, BusinessCode = BusinessCode.VALIDATION_FAILED, Message = msg };
 }

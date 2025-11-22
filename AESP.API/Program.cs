@@ -158,6 +158,7 @@ builder.Services.AddScoped<IRealtimeNotifier, SignalRNotifier>();
 builder.Services.AddScoped<IAdminReviewFeeService, AdminReviewFeeService>();
 builder.Services.AddScoped<ILearnerBuyReview, LearnerBuyReview>();
 builder.Services.AddScoped<IRecordService, RecordService>();
+builder.Services.AddScoped<IRecordCategoryService, RecordCategoryService>();
 
 
 builder.Services.AddHttpClient<PayOSService>();
