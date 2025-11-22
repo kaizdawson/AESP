@@ -197,7 +197,18 @@ namespace AESP.Service.Implementation
                     });
             }
 
-            
+
+            // ============================================================
+            // ❗ 1.1 CHECK BẮT BUỘC: Chỉ được enroll đúng level hiện tại
+            // ============================================================
+            if (course.Level != learner.Level)
+            {
+                return Fail(
+                    BusinessCode.INVALID_ACTION,
+                    $"Bạn đang ở Level {learner.Level}, không thể đăng ký khóa Level {course.Level}."
+                );
+            }
+
             // ============================================================
             // 2️⃣ VALIDATE LEVEL (CHECK ORDERINDEX CUỐI CÙNG PHẢI COMPLETED)
             // ============================================================
