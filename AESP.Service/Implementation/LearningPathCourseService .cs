@@ -597,17 +597,30 @@ namespace AESP.Service.Implementation
                 .ToListAsync();
 
             // =============================================
-            // 4️⃣ TÍNH DURATION – Không ảnh hưởng logic hiện tại
+            // 4️⃣ TÍNH DURATION theo đúng giờ Việt Nam
             // =============================================
-            var duration = lpCourse.Course.Duration; // số ngày
-            var activatedAt = lpCourse.CreatedAt.Date;
-            var today = DateTime.UtcNow.Date;
 
+            // Lấy giờ VN (UTC+7)
+            var vnNow = DateTime.UtcNow.AddHours(7);
+
+            // Duration của course
+            var duration = lpCourse.Course.Duration; // số ngày
+
+            // Ngày kích hoạt (theo giờ VN)
+            var activatedAt = lpCourse.CreatedAt.AddHours(7).Date;
+
+            // Ngày hiện tại (theo giờ VN)
+            var today = vnNow.Date;
+
+            // Số ngày đã dùng
             var usedDays = (today - activatedAt).Days;
+
+            // Ngày còn lại
             var remainingDays = Math.Max(duration - usedDays, 0);
 
             // ❗ Free course (OrderIndex = 1) → không show duration
             bool showDuration = lpCourse.Course.OrderIndex > 1;
+
 
             // =============================================
             // 5️⃣ Trả kết quả
