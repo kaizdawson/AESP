@@ -1,8 +1,9 @@
 ﻿using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace AESP.API.Controllers.LearnerController
 {
@@ -22,7 +23,6 @@ namespace AESP.API.Controllers.LearnerController
         [HttpGet("my")]
         public async Task<IActionResult> GetMyProgress()
         {
-            // sub trong token chính là UserId (như bạn đã cấu hình JwtService)
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
                                ?? User.FindFirst(ClaimTypes.Name)
                                ?? User.FindFirst("sub");
@@ -37,8 +37,7 @@ namespace AESP.API.Controllers.LearnerController
             return Ok(result);
         }
 
-        // Nếu admin muốn xem theo learnerProfileId
-        // GET api/progressanalytics/by-learner/{learnerProfileId}
+        // Nếu admin/staff muốn xem theo learnerProfileId
         [HttpGet("by-learner/{learnerProfileId:guid}")]
         [Authorize(Roles = "ADMIN,STAFF")]
         public async Task<IActionResult> GetByLearner(Guid learnerProfileId)

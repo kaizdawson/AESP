@@ -9,7 +9,7 @@ namespace AESP.Service.Contract
 {
     public interface IProgressAnalyticsService
     {
-        Task UpdateTodayAsync(Guid learnerProfileId);
+        Task UpdateLifetimeAsync(Guid learnerProfileId);
     }
 
 }
