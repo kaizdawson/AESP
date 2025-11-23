@@ -115,6 +115,7 @@ public class RecordService : IRecordService
 
             record.Score = dto.Score;
             record.AIFeedback = dto.AIFeedback;
+            record.AudioRecordingURL = dto.AudioRecordingURL;
             record.Status = "Reviewed";
             record.NumberOfReview = Math.Max(0, record.NumberOfReview - 1);
 
@@ -130,6 +131,7 @@ public class RecordService : IRecordService
                 record.RecordId,
                 record.Score,
                 record.AIFeedback,
+                record.AudioRecordingURL,
                 record.Status,
                 record.NumberOfReview
             });

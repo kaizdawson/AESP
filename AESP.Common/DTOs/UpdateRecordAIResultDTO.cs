@@ -10,6 +10,8 @@ namespace AESP.Common.DTOs
     {
         public double Score { get; set; }
         public string AIFeedback { get; set; } = string.Empty;
+
+        public string AudioRecordingURL { get; set; }
     }
 
 }
