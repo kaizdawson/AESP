@@ -9,6 +9,7 @@ using AESP.Repository.DB;
 using AESP.Repository.Implementation;
 using AESP.Repository.Models;
 using AESP.Repository.Repositories;
+using AESP.Service.BackgroundJobs;
 using AESP.Service.Contract;
 using AESP.Service.Implementation;
 using CloudinaryDotNet;
@@ -159,6 +160,10 @@ builder.Services.AddScoped<IAdminReviewFeeService, AdminReviewFeeService>();
 builder.Services.AddScoped<ILearnerBuyReview, LearnerBuyReview>();
 builder.Services.AddScoped<IRecordService, RecordService>();
 builder.Services.AddScoped<IRecordCategoryService, RecordCategoryService>();
+
+builder.Services.AddScoped<IProgressAnalyticsService, ProgressAnalyticsService>(); 
+builder.Services.AddScoped<IProgressAnalyticsQueryService, ProgressAnalyticsQueryService>(); 
+builder.Services.AddHostedService<ProgressAnalyticsBackgroundService>();
 
 
 builder.Services.AddHttpClient<PayOSService>();
