@@ -37,45 +37,27 @@ public class RecordService : IRecordService
             if (folder == null)
                 return Fail("Không tìm thấy thư mục hoặc không có quyền.");
 
-            // Check record exists
-            var record = await _recordRepo.AsQueryable()
-                .FirstOrDefaultAsync(r => r.LearnerRecordId == folderId);
-
-            if (record == null)
+            // 🚀 Always create NEW record
+            var record = new Record
             {
-                // CREATE NEW RECORD
-                record = new Record
-                {
-                    RecordId = Guid.NewGuid(),
-                    LearnerRecordId = folderId,
-                    AudioRecordingURL = dto.AudioRecordingURL,
-                    Content = dto.Content,
-                    Score = dto.Score,
-                    AIFeedback = dto.AIFeedback,
-                    Status = "Submitted",
-                    CreatedAt = DateTime.UtcNow,
-                    NumberOfReview = 0,
-                    IsNeedReviewed = false
-                };
+                RecordId = Guid.NewGuid(),
+                LearnerRecordId = folderId,
+                AudioRecordingURL = dto.AudioRecordingURL,
+                Content = dto.Content,
+                Score = dto.Score,
+                AIFeedback = dto.AIFeedback,
+                Status = "Submitted",
+                CreatedAt = DateTime.UtcNow,
+                NumberOfReview = 0,
+                IsNeedReviewed = false
+            };
 
-                await _recordRepo.Insert(record);
-            }
-            else
-            {
-                // UPDATE EXISTING RECORD
-                record.AudioRecordingURL = dto.AudioRecordingURL;
-                record.Content = dto.Content;
-                record.Score = dto.Score;
-                record.AIFeedback = dto.AIFeedback;
-                record.Status = "Submitted";
-
-                await _recordRepo.Update(record);
-            }
+            await _recordRepo.Insert(record);
 
             await _unitOfWork.SaveChangeAsync();
             await _unitOfWork.CommitAsync();
 
-            return Success("Gửi record thành công.", new
+            return Success("Tạo record thành công.", new
             {
                 record.RecordId,
                 record.LearnerRecordId,
@@ -164,7 +146,8 @@ public class RecordService : IRecordService
                     r.AIFeedback,
                     r.Status,
                     r.CreatedAt,
-                    r.NumberOfReview
+                    r.NumberOfReview,
+                    r.Content
                 })
                 .ToListAsync();
 
