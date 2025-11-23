@@ -25,6 +25,7 @@ namespace AESP.Service.Implementation
         private readonly IMemoryCache _cache;
         private readonly IConfiguration _configuration;
         private readonly IRefreshTokenRepository _refreshTokenRepository;
+        private readonly IGenericRepository<ProgressAnalytics> _progressAnalyticsRepository;
 
         public AuthService(
             IGenericRepository<User> userRepository,
@@ -37,7 +38,8 @@ namespace AESP.Service.Implementation
             IEmailService emailService,
             IMemoryCache cache,
             IConfiguration configuration,
-            IRefreshTokenRepository refreshTokenRepository)
+            IRefreshTokenRepository refreshTokenRepository,
+            IGenericRepository<ProgressAnalytics> progressAnalyticsRepository)
         {
             _userRepository = userRepository;
             _learnerProfileRepository = learnerProfileRepository;
@@ -50,6 +52,7 @@ namespace AESP.Service.Implementation
             _cache = cache;
             _configuration = configuration;
             _refreshTokenRepository = refreshTokenRepository;
+            _progressAnalyticsRepository = progressAnalyticsRepository;
         }
 
 
@@ -97,6 +100,20 @@ namespace AESP.Service.Implementation
 
                 await _learnerProfileRepository.Insert(learnerProfile);
                 await _unitOfWork.SaveChangeAsync();
+
+                var progress = new ProgressAnalytics
+                {
+                    ProgressAnalyticsId = Guid.NewGuid(),
+                    DateRecorded = DateTime.UtcNow,
+                    SpeakingTime = 0,
+                    SessionsCompleted = 0,
+                    PronunciationScoreAvg = 0,
+                    LearnerProfileId = learnerProfile.LearnerProfileId
+                };
+
+                await _progressAnalyticsRepository.Insert(progress);
+                await _unitOfWork.SaveChangeAsync();
+
             }
 
             var otp = OtpGenerator.GenerateOtp();
