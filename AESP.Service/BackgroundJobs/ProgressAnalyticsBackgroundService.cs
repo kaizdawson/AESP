@@ -17,7 +17,7 @@ namespace AESP.Service.BackgroundJobs
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<ProgressAnalyticsBackgroundService> _logger;
-        private readonly TimeSpan _delay = TimeSpan.FromMinutes(5); // chu kỳ chạy
+        private readonly TimeSpan _delay = TimeSpan.FromMinutes(1); // chu kỳ chạy
 
         public ProgressAnalyticsBackgroundService(
             IServiceProvider serviceProvider,
@@ -53,7 +53,7 @@ namespace AESP.Service.BackgroundJobs
                     {
                         if (stoppingToken.IsCancellationRequested) break;
 
-                        await progressService.UpdateTodayAsync(learnerProfileId);
+                        await progressService.UpdateLifetimeAsync(learnerProfileId);
                     }
 
                     _logger.LogInformation("ProgressAnalyticsBackgroundService: cập nhật xong vòng lặp.");

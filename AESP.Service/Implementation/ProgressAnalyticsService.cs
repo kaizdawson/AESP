@@ -1,12 +1,13 @@
-﻿// AESP.Service/Implementation/ProgressAnalyticsService.cs
-using AESP.Common.DTOs;
-using AESP.Common.DTOs.BusinessCode;
+﻿using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.EntityFrameworkCore;
+using NAudio.Wave;
 using System;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace AESP.Service.Implementation
@@ -14,125 +15,64 @@ namespace AESP.Service.Implementation
     public class ProgressAnalyticsService : IProgressAnalyticsService
     {
         private readonly IGenericRepository<ProgressAnalytics> _progressRepo;
-        private readonly IGenericRepository<LearnerProfile> _learnerProfileRepo;
         private readonly IGenericRepository<LearnerAnswer> _learnerAnswerRepo;
         private readonly IUnitOfWork _unitOfWork;
 
         public ProgressAnalyticsService(
             IGenericRepository<ProgressAnalytics> progressRepo,
-            IGenericRepository<LearnerProfile> learnerProfileRepo,
             IGenericRepository<LearnerAnswer> learnerAnswerRepo,
             IUnitOfWork unitOfWork)
         {
             _progressRepo = progressRepo;
-            _learnerProfileRepo = learnerProfileRepo;
             _learnerAnswerRepo = learnerAnswerRepo;
             _unitOfWork = unitOfWork;
         }
 
-        // ================================
-        // Public API
-        // ================================
-        public async Task<ResponseDTO> GetByLearnerProfileIdAsync(Guid learnerProfileId)
+        // ============================================================
+        // LIFETIME PROGRESS
+        // ============================================================
+        public async Task UpdateLifetimeAsync(Guid learnerProfileId)
         {
             if (learnerProfileId == Guid.Empty)
-                return Fail(BusinessCode.VALIDATION_FAILED, "LearnerProfileId không hợp lệ.");
+                return;
 
-            // lấy bản ghi mới nhất theo DateRecorded
-            var data = await _progressRepo.AsQueryable()
-                .Where(x => x.LearnerProfileId == learnerProfileId)
-                .OrderByDescending(x => x.DateRecorded)
-                .FirstOrDefaultAsync();
-
-            if (data == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Chưa có thống kê nào cho học viên này.");
-
-            var dto = new ReadProgressAnalyticsDTO
-            {
-                ProgressAnalyticsId = data.ProgressAnalyticsId,
-                DateRecorded = data.DateRecorded,
-                SpeakingTime = data.SpeakingTime,
-                SessionsCompleted = data.SessionsCompleted,
-                PronunciationScoreAvg = data.PronunciationScoreAvg,
-                LearnerProfileId = data.LearnerProfileId
-            };
-
-            return Success(BusinessCode.GET_DATA_SUCCESSFULLY,
-                "Lấy ProgressAnalytics thành công.",
-                dto);
-        }
-
-        public async Task<ResponseDTO> GetMyProgressAsync(Guid userId)
-        {
-            if (userId == Guid.Empty)
-                return Fail(BusinessCode.VALIDATION_FAILED, "UserId không hợp lệ.");
-
-            var learner = await _learnerProfileRepo.AsQueryable()
-                .FirstOrDefaultAsync(lp => lp.UserId == userId);
-
-            if (learner == null)
-                return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy LearnerProfile tương ứng UserId.");
-
-            return await GetByLearnerProfileIdAsync(learner.LearnerProfileId);
-        }
-
-        // ================================
-        // Được gọi từ BackgroundService
-        // ================================
-        public async Task UpdateTodayAsync(Guid learnerProfileId)
-        {
-            if (learnerProfileId == Guid.Empty) return;
-
-            var todayUtc = DateTime.UtcNow.Date;
-
-            // Lấy tất cả LearnerAnswers của học viên trong ngày hôm nay
+            // Lấy toàn bộ answer lifetime
             var answers = await _learnerAnswerRepo.AsQueryable()
-                .Where(a => a.LearnerProfileId == learnerProfileId
-                            && a.SubmittedAt.Date == todayUtc)       // ✔ SubmittedAt là DateTime
+                .Where(a => a.LearnerProfileId == learnerProfileId)
                 .OrderBy(a => a.SubmittedAt)
                 .ToListAsync();
 
-            double speakingSeconds = 0;
             int sessionsCompleted = answers.Count;
-            double avgScore = 0;
+            double avgScore = answers.Any() ? answers.Average(a => a.ScoreForVoice) : 0;
 
-            if (answers.Any())
+            double speakingSeconds = 0;
+
+            // =====================================================
+            // Tính SpeakingTime từ audio thật
+            // =====================================================
+            foreach (var ans in answers)
             {
-                const int maxGapSeconds = 180; // 3 phút
-
-                for (int i = 1; i < answers.Count; i++)
+                if (!string.IsNullOrWhiteSpace(ans.AudioRecordingUrl))
                 {
-                    var prev = answers[i - 1].SubmittedAt;   // ✔ DateTime
-                    var current = answers[i].SubmittedAt;
-
-                    var delta = (current - prev).TotalSeconds;
-                    if (delta > 0 && delta <= maxGapSeconds)
-                    {
-                        speakingSeconds += delta;
-                    }
+                    speakingSeconds += await GetCloudinaryDurationAsync(ans.AudioRecordingUrl);
                 }
-
-                avgScore = answers.Average(a => a.ScoreForVoice);
-
             }
 
-            // convert giây → phút
-            double speakingMinutes = Math.Round(speakingSeconds / 60.0, 2);
+            double speakingMinutes = Math.Round(speakingSeconds / 60, 2);
 
-
-            // Tìm hoặc tạo record ProgressAnalytics cho hôm nay
+            // =====================================================
+            // Chỉ có 1 record duy nhất cho mỗi learner
+            // =====================================================
             var progress = await _progressRepo.AsQueryable()
-                .FirstOrDefaultAsync(p =>
-                    p.LearnerProfileId == learnerProfileId &&
-                    p.DateRecorded.Date == todayUtc);
+                .FirstOrDefaultAsync(p => p.LearnerProfileId == learnerProfileId);
 
             if (progress == null)
             {
                 progress = new ProgressAnalytics
                 {
                     ProgressAnalyticsId = Guid.NewGuid(),
-                    DateRecorded = DateTime.UtcNow,
                     LearnerProfileId = learnerProfileId,
+                    DateRecorded = DateTime.UtcNow,
                     SpeakingTime = speakingMinutes,
                     SessionsCompleted = sessionsCompleted,
                     PronunciationScoreAvg = avgScore
@@ -142,6 +82,7 @@ namespace AESP.Service.Implementation
             }
             else
             {
+                progress.DateRecorded = DateTime.UtcNow;
                 progress.SpeakingTime = speakingMinutes;
                 progress.SessionsCompleted = sessionsCompleted;
                 progress.PronunciationScoreAvg = avgScore;
@@ -152,13 +93,45 @@ namespace AESP.Service.Implementation
             await _unitOfWork.SaveChangeAsync();
         }
 
-        // ================================
-        // Helper
-        // ================================
-        private static ResponseDTO Fail(BusinessCode code, string msg)
-            => new() { IsSucess = false, BusinessCode = code, Message = msg };
+        // ============================================================
+        // HÀM ĐỌC ĐỘ DÀI AUDIO TỪ CLOUDINARY (MemoryStream bắt buộc)
+        // ============================================================
+        private async Task<double> GetCloudinaryDurationAsync(string audioUrl)
+        {
+            try
+            {
+                // Lấy public_id từ URL
+                var parts = audioUrl.Split('/');
+                var fileName = parts[^1]; // ominous-47658.mp3
+                var nameWithoutExt = fileName.Split('.')[0];
 
-        private static ResponseDTO Success(BusinessCode code, string msg, object? data = null)
-            => new() { IsSucess = true, BusinessCode = code, Message = msg, Data = data };
+                var publicId = $"AESP/audios/{nameWithoutExt}";
+
+                var cloudName = "ddqfq0jut";
+                var apiKey = "YOUR_API_KEY";
+                var apiSecret = "YOUR_API_SECRET";
+
+                var requestUrl = $"https://api.cloudinary.com/v1_1/{cloudName}/resources/raw/upload/{publicId}";
+
+                var client = new HttpClient();
+                var byteArray = System.Text.Encoding.ASCII.GetBytes($"{apiKey}:{apiSecret}");
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+
+                var json = await client.GetStringAsync(requestUrl);
+
+                dynamic result = Newtonsoft.Json.JsonConvert.DeserializeObject(json);
+                double duration = result.duration;
+
+                return duration;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+
+
     }
 }

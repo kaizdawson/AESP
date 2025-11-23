@@ -1,9 +1,13 @@
-﻿using AESP.Common.DTOs;
+﻿// AESP.Service/Implementation/ProgressAnalyticsQueryService.cs
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace AESP.Service.Implementation
 {
@@ -20,18 +24,14 @@ namespace AESP.Service.Implementation
             _learnerProfileRepo = learnerProfileRepo;
         }
 
-        // ================================
         // GET theo LearnerProfileId
-        // ================================
         public async Task<ResponseDTO> GetByLearnerProfileIdAsync(Guid learnerProfileId)
         {
             if (learnerProfileId == Guid.Empty)
                 return Fail(BusinessCode.VALIDATION_FAILED, "LearnerProfileId không hợp lệ.");
 
             var data = await _progressRepo.AsQueryable()
-                .Where(x => x.LearnerProfileId == learnerProfileId)
-                .OrderByDescending(x => x.DateRecorded)
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(x => x.LearnerProfileId == learnerProfileId);
 
             if (data == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Chưa có thống kê nào cho học viên này.");
@@ -51,9 +51,7 @@ namespace AESP.Service.Implementation
                 dto);
         }
 
-        // ================================
         // GET theo UserId (đọc từ token)
-        // ================================
         public async Task<ResponseDTO> GetMyProgressAsync(Guid userId)
         {
             if (userId == Guid.Empty)

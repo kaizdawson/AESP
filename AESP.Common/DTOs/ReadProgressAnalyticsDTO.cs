@@ -13,6 +13,6 @@ namespace AESP.Common.DTOs
         public double SpeakingTime { get; set; }           
         public int SessionsCompleted { get; set; }
         public double PronunciationScoreAvg { get; set; }
-        public Guid LearnerProfileId { get; set; }
+        public Guid LearnerProfileId { get; set; }  
     }
 }
