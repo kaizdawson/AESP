@@ -2,6 +2,8 @@
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using Microsoft.EntityFrameworkCore;
 using NAudio.Wave;
 using System;
@@ -17,15 +19,18 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<ProgressAnalytics> _progressRepo;
         private readonly IGenericRepository<LearnerAnswer> _learnerAnswerRepo;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly Cloudinary _cloudinary;
 
         public ProgressAnalyticsService(
             IGenericRepository<ProgressAnalytics> progressRepo,
             IGenericRepository<LearnerAnswer> learnerAnswerRepo,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            Cloudinary cloudinary)
         {
             _progressRepo = progressRepo;
             _learnerAnswerRepo = learnerAnswerRepo;
             _unitOfWork = unitOfWork;
+            _cloudinary = cloudinary;
         }
 
         // ============================================================
@@ -43,7 +48,7 @@ namespace AESP.Service.Implementation
                 .ToListAsync();
 
             int sessionsCompleted = answers.Count;
-            double avgScore = answers.Any() ? answers.Average(a => a.ScoreForVoice) : 0;
+            double avgScore = answers.Any() ? Math.Round(answers.Average(a => a.ScoreForVoice), 1) : 0;
 
             double speakingSeconds = 0;
 
@@ -54,11 +59,11 @@ namespace AESP.Service.Implementation
             {
                 if (!string.IsNullOrWhiteSpace(ans.AudioRecordingUrl))
                 {
-                    speakingSeconds += await GetCloudinaryDurationAsync(ans.AudioRecordingUrl);
+                    speakingSeconds += await GetAudioDurationAsync(ans.AudioRecordingUrl);
                 }
             }
 
-            double speakingMinutes = Math.Round(speakingSeconds / 60, 2);
+            double totalSeconds = Math.Round(speakingSeconds);
 
             // =====================================================
             // Chỉ có 1 record duy nhất cho mỗi learner
@@ -73,7 +78,7 @@ namespace AESP.Service.Implementation
                     ProgressAnalyticsId = Guid.NewGuid(),
                     LearnerProfileId = learnerProfileId,
                     DateRecorded = DateTime.UtcNow,
-                    SpeakingTime = speakingMinutes,
+                    SpeakingTime = totalSeconds,
                     SessionsCompleted = sessionsCompleted,
                     PronunciationScoreAvg = avgScore
                 };
@@ -83,7 +88,7 @@ namespace AESP.Service.Implementation
             else
             {
                 progress.DateRecorded = DateTime.UtcNow;
-                progress.SpeakingTime = speakingMinutes;
+                progress.SpeakingTime = totalSeconds;
                 progress.SessionsCompleted = sessionsCompleted;
                 progress.PronunciationScoreAvg = avgScore;
 
@@ -96,40 +101,47 @@ namespace AESP.Service.Implementation
         // ============================================================
         // HÀM ĐỌC ĐỘ DÀI AUDIO TỪ CLOUDINARY (MemoryStream bắt buộc)
         // ============================================================
-        private async Task<double> GetCloudinaryDurationAsync(string audioUrl)
+        private async Task<double> GetAudioDurationAsync(string audioUrl)
         {
             try
             {
-                // Lấy public_id từ URL
-                var parts = audioUrl.Split('/');
-                var fileName = parts[^1]; // ominous-47658.mp3
-                var nameWithoutExt = fileName.Split('.')[0];
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "ffprobe",
+                    Arguments = $"-v quiet -of csv=p=0 -show_entries format=duration \"{audioUrl}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
 
-                var publicId = $"AESP/audios/{nameWithoutExt}";
+                using var process = new System.Diagnostics.Process();
+                process.StartInfo = startInfo;
+                process.Start();
 
-                var cloudName = "ddqfq0jut";
-                var apiKey = "YOUR_API_KEY";
-                var apiSecret = "YOUR_API_SECRET";
+                string output = await process.StandardOutput.ReadToEndAsync();
+                process.WaitForExit();
 
-                var requestUrl = $"https://api.cloudinary.com/v1_1/{cloudName}/resources/raw/upload/{publicId}";
+                if (double.TryParse(output.Trim(),
+                                   System.Globalization.NumberStyles.Any,
+                                   System.Globalization.CultureInfo.InvariantCulture,
+                                   out double duration))
+                {
+                    return duration;
+                }
 
-                var client = new HttpClient();
-                var byteArray = System.Text.Encoding.ASCII.GetBytes($"{apiKey}:{apiSecret}");
-                client.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-
-                var json = await client.GetStringAsync(requestUrl);
-
-                dynamic result = Newtonsoft.Json.JsonConvert.DeserializeObject(json);
-                double duration = result.duration;
-
-                return duration;
+                return 0;
             }
             catch
             {
                 return 0;
             }
         }
+
+
+
+
+
 
 
 
