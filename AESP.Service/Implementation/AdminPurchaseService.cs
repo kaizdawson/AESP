@@ -286,7 +286,7 @@ namespace AESP.Service.Implementation
             var list = purchases.Select(p => new PurchaseReportItem
             {
                 PurchaseId = p.PurchaseId.ToString(),
-                UserId = p.UserId.ToString(),
+                UserName = p.User.FullName,
                 ItemType = p.CourseId != null ? "Course"
                          : p.ReviewFeeId != null ? "Review Fee"
                          : "AI Conversation",

@@ -9,14 +9,12 @@ using System.Threading.Tasks;
 
 namespace AESP.Service.Export
 {
-    public class PurchaseReportDocument : IDocument
+    public class TransactionReportDocument : IDocument
     {
-        public List<PurchaseReportItem> Items { get; set; }
-        public string GeneratedAt { get; set; } = "";
+        public List<TransactionReportItem> Items { get; set; }
+        public string GeneratedAt { get; set; }
 
         public DocumentMetadata GetMetadata() => DocumentMetadata.Default;
-
-        public DocumentSettings GetSettings() => DocumentSettings.Default;
 
         public void Compose(IDocumentContainer container)
         {
@@ -24,70 +22,75 @@ namespace AESP.Service.Export
             {
                 page.Margin(30);
 
-                // ---------- HEADER ----------
+                // ---------------- HEADER ----------------
                 page.Header().Row(row =>
                 {
                     row.RelativeColumn().Column(col =>
                     {
-                        col.Item().Text("AESP – Purchase Items Report")
+                        col.Item().Text("AESP - Transaction Report")
                             .FontSize(24).SemiBold().FontColor(Colors.Blue.Darken2);
 
-                        col.Item().Text($"Generated: {GeneratedAt}")
+                        col.Item().Text($"Generated at: {GeneratedAt}")
                             .FontSize(10).FontColor(Colors.Grey.Darken1);
                     });
                 });
 
-                // ---------- TABLE ----------
+                // ---------------- TABLE ----------------
                 page.Content().PaddingVertical(10).Table(table =>
                 {
                     table.ColumnsDefinition(col =>
                     {
-                        col.RelativeColumn(2);   // PurchaseId
+                        col.RelativeColumn(2);   // Transaction ID
                         col.RelativeColumn(2);   // UserName
-                        col.RelativeColumn(1.5f);// Type
-                        col.RelativeColumn(3);   // ItemName
+                        col.RelativeColumn(1.2f);// Type
+                        col.RelativeColumn(1.2f);// Money
                         col.RelativeColumn(1);   // Coin
-                        col.RelativeColumn(1.5f);// CreatedAt
+                        col.RelativeColumn(1);   // Status
+                        col.RelativeColumn(1.5f);// Created
                     });
 
-                    // ===== HEADER =====
+                    // ----- HEADER -----
                     table.Header(header =>
                     {
-                        header.Cell().Element(HeaderStyle).Text("Purchase ID");
-                        header.Cell().Element(HeaderStyle).Text("User");
+                        header.Cell().Element(HeaderStyle).Text("Transaction ID");
+                        header.Cell().Element(HeaderStyle).Text("User Name");
                         header.Cell().Element(HeaderStyle).Text("Type");
-                        header.Cell().Element(HeaderStyle).Text("Item");
+                        header.Cell().Element(HeaderStyle).Text("Money");
                         header.Cell().Element(HeaderStyle).Text("Coin");
-                        header.Cell().Element(HeaderStyle).Text("Created At");
+                        header.Cell().Element(HeaderStyle).Text("Status");
+                        header.Cell().Element(HeaderStyle).Text("Created");
                     });
 
+                    // ----- ROWS -----
                     bool isEven = false;
 
                     foreach (var item in Items)
                     {
-                        string bg = isEven ? Colors.Grey.Lighten4 : Colors.White;
+                        var bg = isEven ? Colors.Grey.Lighten4 : Colors.White;
                         isEven = !isEven;
 
-                        table.Cell().Element(x => CellStyle(x, bg)).Text(item.PurchaseId);
+                        table.Cell().Element(x => CellStyle(x, bg)).Text(item.TransactionId);
                         table.Cell().Element(x => CellStyle(x, bg)).Text(item.UserName);
-                        table.Cell().Element(x => CellStyle(x, bg)).Text(item.ItemType);
-                        table.Cell().Element(x => CellStyle(x, bg)).Text(item.ItemName);
-                        table.Cell().Element(x => CellStyle(x, bg))
-                         .Text($"{Convert.ToInt32(item.AmountCoin)} coin");
+                        table.Cell().Element(x => CellStyle(x, bg)).Text(item.Type);
+                        table.Cell().Element(x => CellStyle(x, bg)).Text($"{item.AmountMoney:N0} đ");
+                        table.Cell().Element(x => CellStyle(x, bg)).Text($"{item.AmountCoin:N0}");
+                        table.Cell().Element(x => CellStyle(x, bg)).Text(item.Status);
                         table.Cell().Element(x => CellStyle(x, bg)).Text(item.CreatedAt.ToString("dd/MM/yyyy HH:mm"));
                     }
                 });
 
-                // ---------- FOOTER ----------
+                // ---------------- FOOTER ----------------
                 page.Footer().AlignCenter().Text(text =>
                 {
-                    text.DefaultTextStyle(t => t.FontSize(10));
+                    text.DefaultTextStyle(x => x.FontSize(10));
                     text.Span("AESP Report • ").FontColor(Colors.Grey.Darken1);
                     text.Span("© 2025").FontColor(Colors.Grey.Darken1);
                 });
-            });
+            });   // <-- đóng Page
         }
 
+
+        // ----------- STYLE HELPERS --------------
         private IContainer HeaderStyle(IContainer container)
         {
             return container.Padding(5)
@@ -105,14 +108,19 @@ namespace AESP.Service.Export
                 .BorderColor(Colors.Grey.Lighten3);
         }
     }
-
-    public class PurchaseReportItem
-    {
-        public string PurchaseId { get; set; }
-        public string UserName { get; set; }   // CHANGE: use FullName instead of UserId
-        public string ItemType { get; set; }
-        public string ItemName { get; set; }
-        public decimal AmountCoin { get; set; }
-        public DateTime CreatedAt { get; set; }
+    
+       
+        public class TransactionReportItem
+        {
+            public string TransactionId { get; set; }
+            public string UserName { get; set; }
+            public string Type { get; set; }
+            public decimal AmountMoney { get; set; }
+            public decimal AmountCoin { get; set; }
+            public string Status { get; set; }
+            public string OrderCode { get; set; }
+            public DateTime CreatedAt { get; set; }
+        }
     }
-}
+
+
