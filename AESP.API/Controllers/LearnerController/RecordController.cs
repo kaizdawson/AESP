@@ -50,12 +50,13 @@ namespace AESP.API.Controllers.LearnerController
             return learner.LearnerProfileId;
         }
 
-        [HttpPost("{folderId}/submit")]
-        public async Task<IActionResult> Submit(Guid folderId, [FromBody] SubmitRecordDTO dto)
+        [HttpPut("{recordId}/submit")]
+        public async Task<IActionResult> Submit(Guid recordId, [FromBody] SubmitRecordUpdateDTO dto)
         {
             var learnerId = await GetLearnerProfileIdAsync();
-            return Ok(await _recordService.SubmitRecordAsync(learnerId, folderId, dto));
+            return Ok(await _recordService.SubmitRecordUpdateAsync(learnerId, recordId, dto));
         }
+
 
         [HttpGet("{folderId}/mine")]
         public async Task<IActionResult> GetMine(Guid folderId)
@@ -71,13 +72,21 @@ namespace AESP.API.Controllers.LearnerController
             return Ok(await _recordService.DeleteRecordAsync(learnerId, recordId));
         }
 
-        [HttpPut("{recordId}/review")]
-        public async Task<IActionResult> Review(Guid recordId, [FromBody] UpdateRecordAIResultDTO dto)
+
+        [HttpPost("{folderId}/create-content-only")]
+        public async Task<IActionResult> CreateContentOnly(Guid folderId, [FromBody] CreateRecordContentOnlyDTO dto)
         {
             var learnerId = await GetLearnerProfileIdAsync();
-            return Ok(await _recordService.UpdateRecordAIResultAsync(learnerId, recordId, dto));
+            return Ok(await _recordService.CreateRecordContentOnlyAsync(learnerId, folderId, dto));
         }
 
+
+        [HttpPut("{recordId}/update-content")]
+        public async Task<IActionResult> UpdateContent(Guid recordId, [FromBody] UpdateRecordContentDTO dto)
+        {
+            var learnerId = await GetLearnerProfileIdAsync();
+            return Ok(await _recordService.UpdateRecordContentAsync(learnerId, recordId, dto));
+        }
 
     }
 }

@@ -191,6 +191,133 @@ public class RecordService : IRecordService
         }
     }
 
+
+
+    public async Task<ResponseDTO> CreateRecordContentOnlyAsync(Guid learnerProfileId, Guid folderId, CreateRecordContentOnlyDTO dto)
+    {
+        await _unitOfWork.BeginTransactionAsync();
+
+        try
+        {
+            var folder = await _folderRepo.AsQueryable()
+                .FirstOrDefaultAsync(x => x.LearnerRecordId == folderId && x.LearnerId == learnerProfileId);
+
+            if (folder == null)
+                return Fail("Không tìm thấy thư mục hoặc không có quyền.");
+
+            var record = new Record
+            {
+                RecordId = Guid.NewGuid(),
+                LearnerRecordId = folderId,
+                Content = dto.Content,
+                AudioRecordingURL = string.Empty,
+                Score = 0,
+                AIFeedback = string.Empty,
+                Status = "Draft",
+                CreatedAt = DateTime.UtcNow,
+                NumberOfReview = 0,
+                IsNeedReviewed = false
+            };
+
+            await _recordRepo.Insert(record);
+
+            await _unitOfWork.SaveChangeAsync();
+            await _unitOfWork.CommitAsync();
+
+            return Success("Tạo record content-only thành công.", new
+            {
+                record.RecordId,
+                record.Content,
+                record.Status,
+                record.CreatedAt
+            });
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            return Fail(ex.Message);
+        }
+    }
+
+
+    public async Task<ResponseDTO> UpdateRecordContentAsync(Guid learnerProfileId, Guid recordId, UpdateRecordContentDTO dto)
+    {
+        await _unitOfWork.BeginTransactionAsync();
+
+        try
+        {
+            var record = await _recordRepo.AsQueryable()
+                .Include(r => r.LearnerRecord)
+                .FirstOrDefaultAsync(r => r.RecordId == recordId);
+
+            if (record == null)
+                return Fail("Không tìm thấy record.");
+
+            if (record.LearnerRecord.LearnerId != learnerProfileId)
+                return Fail("Không có quyền.");
+
+            record.Content = dto.Content;
+
+            await _recordRepo.Update(record);
+            await _unitOfWork.SaveChangeAsync();
+            await _unitOfWork.CommitAsync();
+
+            return Success("Cập nhật nội dung thành công.", new
+            {
+                record.RecordId,
+                record.Content
+            });
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            return Fail(ex.Message);
+        }
+    }
+
+
+    public async Task<ResponseDTO> SubmitRecordUpdateAsync(Guid learnerProfileId, Guid recordId, SubmitRecordUpdateDTO dto)
+    {
+        await _unitOfWork.BeginTransactionAsync();
+
+        try
+        {
+            var record = await _recordRepo.AsQueryable()
+                .Include(r => r.LearnerRecord)
+                .FirstOrDefaultAsync(r => r.RecordId == recordId);
+
+            if (record == null)
+                return Fail("Không tìm thấy record.");
+
+            if (record.LearnerRecord.LearnerId != learnerProfileId)
+                return Fail("Không có quyền.");
+
+            record.AudioRecordingURL = dto.AudioRecordingURL;
+            record.Score = dto.Score;
+            record.AIFeedback = dto.AIFeedback;
+            record.Status = "Submitted";
+
+            await _recordRepo.Update(record);
+            await _unitOfWork.SaveChangeAsync();
+            await _unitOfWork.CommitAsync();
+
+            return Success("Cập nhật record thành công.", new
+            {
+                record.RecordId,
+                record.AudioRecordingURL,
+                record.Score,
+                record.AIFeedback,
+                record.Status
+            });
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            return Fail(ex.Message);
+        }
+    }
+
+
     // ============================================================
     // Helpers
     // ============================================================
