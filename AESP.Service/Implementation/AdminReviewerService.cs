@@ -44,7 +44,8 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                var profile = await _reviewerProfileRepository.GetById(certificate.ReviewerProfileId);
+                var profile = await _reviewerProfileRepository
+    .GetFirstByExpression(x => x.ReviewerProfileId == certificate.ReviewerProfileId, x => x.User);
                 if (profile == null)
                 {
                     dto.IsSucess = false;
@@ -53,26 +54,49 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
+                // ------------------------------
+                // 1) Luôn duyệt certificate
+                // ------------------------------
                 certificate.Status = "Approved";
                 await _certificateRepository.Update(certificate);
 
-                //  Chỉ duyệt reviewer nếu họ đang Pending
-                if (profile.Status != "Pending")
+                // ------------------------------
+                // 2) Nếu reviewer đang Pending → Active lần đầu
+                // ------------------------------
+                if (profile.Status.Trim().ToLower() == "pending")
                 {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.VALIDATION_ERROR;
-                    dto.Message = "Reviewer này không ở trạng thái Pending.";
-                    return dto;
+                    profile.Status = "Active";
+                    await _reviewerProfileRepository.Update(profile);
                 }
 
-                //  Đổi reviewer sang trạng thái Active
-                profile.Status = "Active";
-                await _reviewerProfileRepository.Update(profile);
                 await _unitOfWork.SaveChangeAsync();
 
+                // ------------------------------
+                // 3) Gửi email thông báo cho Reviewer
+                // ------------------------------
+                if (!string.IsNullOrEmpty(profile.User?.Email))
+                {
+                    string subject = "AESP System - Chứng chỉ của bạn đã được phê duyệt";
+                    string body =
+        $@"Xin chào {profile.User.FullName},
+
+Chứng chỉ bạn gửi lên hệ thống đã được phê duyệt thành công.
+
+✔ Tên chứng chỉ: {certificate.Name}
+
+Bạn đã có thể tiếp tục tham gia vào các hoạt động đánh giá và làm việc trong hệ thống.
+
+Trân trọng,
+Đội ngũ Quản trị AESP.";
+                    await _emailService.SendEmailAsync(profile.User.Email, subject, body);
+                }
+
+                // ------------------------------
+                // 4) Trả kết quả
+                // ------------------------------
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                dto.Message = "Duyệt chứng chỉ thành công. Reviewer đã được Active.";
+                dto.Message = "Duyệt chứng chỉ thành công.";
                 dto.Data = new
                 {
                     ReviewerProfileId = profile.ReviewerProfileId,
@@ -379,6 +403,7 @@ Trân trọng,
                         Phone = r.User.PhoneNumber,
                         ReviewerStatus = r.Status,
                         Experience = r.Experience,
+                        level = r.Level,
 
                         // ✔ CHỈ show certificate PENDING
                         Certificates = r.Certificates

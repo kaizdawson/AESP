@@ -44,6 +44,25 @@ namespace AESP.Service.Implementation
 
                 var db = _unitOfWork.GetDbContext();
 
+                var reviewer = await db.Set<ReviewerProfile>()
+           .Include(r => r.User)
+           .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                if (reviewer == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy reviewer.";
+                    return dto;
+                }
+
+                if (reviewer.Status != "Active" || reviewer.IsDeleted || reviewer.User.IsDeleted)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.ACCESS_DENIED;
+                    dto.Message = "Reviewer chưa được duyệt hoặc đã bị khóa, không thể xem danh sách bài cần review.";
+                    return dto;
+                }
                 // ============================
                 // 1) GET LEARNER ANSWERS
                 // ============================
@@ -143,6 +162,26 @@ namespace AESP.Service.Implementation
             {
                 var db = _unitOfWork.GetDbContext();
 
+                var reviewer = await db.Set<ReviewerProfile>()
+    .Include(r => r.User)
+    .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                if (reviewer == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy reviewer.";
+                    return dto;
+                }
+
+                if (reviewer.Status != "Active" || reviewer.IsDeleted || reviewer.User.IsDeleted)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.ACCESS_DENIED;
+                    dto.Message = "Reviewer chưa được duyệt hoặc đã bị khóa, không thể xem thống kê.";
+                    return dto;
+                }
+
                 // ================================
                 // 1. Tổng phản hồi (Feedback từ Learner, đã Active)
                 // ================================
@@ -178,9 +217,9 @@ namespace AESP.Service.Implementation
                 // ================================
                 // 4. Số tiền trong ví
                 // ================================
-                var reviewer = await db.Set<ReviewerProfile>()
-                    .Include(r => r.User)
-                    .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+                var reviewerInfo = await db.Set<ReviewerProfile>()
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
 
                 var coinBalance = reviewer?.User?.CoinBalance ?? 0;
 
@@ -222,6 +261,22 @@ namespace AESP.Service.Implementation
                 var reviewer = await db.Set<ReviewerProfile>()
                     .Include(r => r.User)
                     .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                if (reviewer == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy reviewer.";
+                    return dto;
+                }
+
+                if (reviewer.Status != "Active" || reviewer.IsDeleted || reviewer.User.IsDeleted)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.ACCESS_DENIED;
+                    dto.Message = "Reviewer chưa được duyệt hoặc đã bị khóa, không thể xem ví.";
+                    return dto;
+                }
 
                 if (reviewer == null)
                 {
@@ -316,6 +371,8 @@ namespace AESP.Service.Implementation
 
             try
             {
+
+
                 if (reviewerProfileId == Guid.Empty)
                 {
                     dto.IsSucess = false;
@@ -325,6 +382,25 @@ namespace AESP.Service.Implementation
                 }
 
                 var db = _unitOfWork.GetDbContext();
+                var reviewer = await db.Set<ReviewerProfile>()
+    .Include(r => r.User)
+    .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                if (reviewer == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy reviewer.";
+                    return dto;
+                }
+
+                if (reviewer.Status != "Active" || reviewer.IsDeleted || reviewer.User.IsDeleted)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.ACCESS_DENIED;
+                    dto.Message = "Reviewer chưa được duyệt hoặc đã bị khóa, không thể xem lịch sử.";
+                    return dto;
+                }
 
                 var query = db.Set<Review>()
                  .Include(r => r.LearnerAnswer)
@@ -413,7 +489,34 @@ namespace AESP.Service.Implementation
 
             try
             {
-                
+                if (reviewerProfileId == Guid.Empty)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "ReviewerProfileId không hợp lệ.";
+                    return dto;
+                }
+
+                var reviewer = await db.Set<ReviewerProfile>()
+                    .Include(r => r.User)
+                    .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                if (reviewer == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy reviewer.";
+                    return dto;
+                }
+
+                if (reviewer.Status != "Active" || reviewer.IsDeleted || reviewer.User.IsDeleted)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.ACCESS_DENIED;
+                    dto.Message = "Reviewer chưa được duyệt hoặc đã bị khóa, không thể thực hiện review.";
+                    return dto;
+                }
+
 
                 // ================= VALIDATION =================
                 if ((learnerAnswerId == null || learnerAnswerId == Guid.Empty) &&
@@ -647,6 +750,17 @@ namespace AESP.Service.Implementation
 
             try
             {
+                var reviewerProfile = await db.ReviewerProfiles
+           .Include(r => r.User)
+           .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+
+                if (reviewerProfile == null || reviewerProfile.Status != "Active" || reviewerProfile.IsDeleted || reviewerProfile.User.IsDeleted)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.ACCESS_DENIED;
+                    response.Message = "Reviewer chưa được duyệt hoặc đã bị khóa, không thể thưởng coin.";
+                    return response;
+                }
                 // 1. Kiểm tra Review có tồn tại + đúng reviewer + đã Completed
                 var review = await db.Reviews
                     .Include(r => r.ReviewerProfile).ThenInclude(rp => rp.User)
