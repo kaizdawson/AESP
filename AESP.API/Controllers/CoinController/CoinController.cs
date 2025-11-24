@@ -282,6 +282,12 @@ namespace AESP.API.Controllers.CoinController
                 });
             }
         }
+        [HttpGet("export/transactions")]
+        public async Task<IActionResult> ExportTransactions()
+        {
+            var pdf = await _coinService.ExportTransactionPdfAsync();
+            return File(pdf, "application/pdf", "transaction-report.pdf");
+        }
 
 
 

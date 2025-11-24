@@ -4,11 +4,14 @@ using AESP.Repository.Contract;
 using AESP.Repository.Implementation;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
+using AESP.Service.Export;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using QuestPDF.Fluent;
 using System;
 using System.Text.Json;
 using System.Threading.Tasks;
+using static AESP.Service.Export.TransactionReportDocument;
 
 namespace AESP.Service.Implementation
 {
@@ -519,7 +522,34 @@ namespace AESP.Service.Implementation
                 };
             }
         }
+        public async Task<byte[]> ExportTransactionPdfAsync()
+        {
+            var db = _transactionRepository.GetDbContext();
 
+            var list = await db.Transactions
+                .Include(t => t.User)
+                .OrderByDescending(t => t.CreatedTransaction)
+                .Select(t => new TransactionReportItem
+                {
+                    TransactionId = t.TransactionId.ToString(),
+                    UserName = t.User != null ? t.User.FullName : "(đã xóa)",
+                    Type = t.Type,
+                    AmountMoney = t.AmountMoney,
+                    AmountCoin = t.AmountCoin,
+                    Status = t.Status,
+                    OrderCode = t.OrderCode,
+                    CreatedAt = t.CreatedTransaction
+                })
+                .ToListAsync();
+
+            var doc = new TransactionReportDocument
+            {
+                Items = list,
+                GeneratedAt = DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")
+            };
+
+            return doc.GeneratePdf();
+        }
 
 
 
