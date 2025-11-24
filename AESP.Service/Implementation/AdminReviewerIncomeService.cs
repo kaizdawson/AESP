@@ -132,6 +132,7 @@ namespace AESP.Service.Implementation
                         r.Score,
                         r.Comment,
                         r.Status,
+                        ReviewAudioUrl = r.RecordAudioUrl,
                         CreatedAt = r.CreatedAt,
                         Learner = r.LearnerAnswer?.LearnerProfile?.User?.FullName
                                   ?? r.Record?.LearnerRecord?.LearnerProfile?.User?.FullName
