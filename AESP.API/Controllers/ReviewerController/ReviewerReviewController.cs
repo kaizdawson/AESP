@@ -39,12 +39,14 @@ namespace AESP.API.Controllers.ReviewerController
                 });
             }
 
+
             var result = await _reviewService.SubmitReviewAsync(
                 dto.ReviewerProfileId,
                 dto.LearnerAnswerId,
                 dto.RecordId,
                 dto.Score,
-                dto.Comment
+                dto.Comment,
+                dto.RecordAudioUrl
             );
 
             // ✅ Format trả về chuẩn dự án (StatusCode 200/400)

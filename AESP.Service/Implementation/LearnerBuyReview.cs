@@ -215,6 +215,7 @@ namespace AESP.Service.Implementation
                         r.Score,
                         r.Comment,
                         r.Status,
+                        ReviewAudioUrl = r.RecordAudioUrl,
 
                         LearnerAnswerId = r.LearnerAnswerId,
                         RecordId = r.RecordId,

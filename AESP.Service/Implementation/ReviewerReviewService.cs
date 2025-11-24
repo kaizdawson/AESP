@@ -428,7 +428,7 @@ namespace AESP.Service.Implementation
                         r.Score,
                         r.Comment,
                         r.Status,
-
+                        RecordAudioUrl = r.RecordAudioUrl,
                         // Nếu là LearnerAnswer
                         LearnerAnswerId = r.LearnerAnswerId,
                         RecordId = r.RecordId,
@@ -481,7 +481,7 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> SubmitReviewAsync(Guid reviewerProfileId, Guid? learnerAnswerId, Guid? recordId, double score, string comment)
+        public async Task<ResponseDTO> SubmitReviewAsync(Guid reviewerProfileId, Guid? learnerAnswerId, Guid? recordId, double score, string comment, string? recordAudioUrl)
         {
             var dto = new ResponseDTO();
             var db = (AppDbContext)_unitOfWork.GetDbContext();
@@ -551,6 +551,23 @@ namespace AESP.Service.Implementation
                     dto.Message = "Nhận xét không được để trống.";
                     return dto;
                 }
+                if (!string.IsNullOrWhiteSpace(recordAudioUrl))
+                {
+                    // Nếu chỉ là "string" hoặc text không phải URL -> báo lỗi
+                    if (!Uri.TryCreate(recordAudioUrl, UriKind.Absolute, out var uriResult)
+                        || (uriResult.Scheme != Uri.UriSchemeHttp && uriResult.Scheme != Uri.UriSchemeHttps))
+                    {
+                        dto.IsSucess = false;
+                        dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                        dto.Message = "RecordAudioUrl phải là URL hợp lệ hoặc để trống.";
+                        return dto;
+                    }
+                }
+                else
+                {
+                    // FE không gửi hoặc gửi rỗng -> set null
+                    recordAudioUrl = null;
+                }
 
                 // ================= KHỞI TẠO REVIEW =================
                 var review = new Review
@@ -559,7 +576,8 @@ namespace AESP.Service.Implementation
                     ReviewerProfileId = reviewerProfileId,
                     Score = score,
                     Comment = comment,
-                    Status = "Completed"
+                    Status = "Completed",
+                    RecordAudioUrl = recordAudioUrl
                 };
 
                 int remainingReviews = 0;
@@ -726,6 +744,7 @@ namespace AESP.Service.Implementation
                     review.Score,
                     review.Comment,
                     review.Status,
+                    review.RecordAudioUrl,
                     RemainingReviews = remainingReviews
                 };
             }

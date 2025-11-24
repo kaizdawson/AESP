@@ -21,5 +21,8 @@ namespace AESP.Common.DTOs
 
         [Required(ErrorMessage = "Nhận xét không được để trống.")]
         public string Comment { get; set; } = string.Empty;
+
+        [Url(ErrorMessage = "RecordAudioUrl phải là URL hợp lệ.")]
+        public string? RecordAudioUrl { get; set; }
     }
 }

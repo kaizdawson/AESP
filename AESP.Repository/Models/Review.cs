@@ -27,8 +27,8 @@ namespace AESP.Repository.Models
         public double Score { get; set; }
         public string Status { get; set; } = string.Empty;
 
-        
 
+        public string? RecordAudioUrl { get; set; }
 
 
         public virtual ICollection<Feedback> Feedbacks { get; set; }
