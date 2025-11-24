@@ -195,7 +195,7 @@ namespace AESP.Service.Implementation
                 UserId = userId,
                 AmountCoin = payCoin,
                 AIConversationChargeId = aiChargeId,
-                Status = "Completed",
+                Status = "Success",
                 CreatedAt = DateTime.UtcNow
             };
 

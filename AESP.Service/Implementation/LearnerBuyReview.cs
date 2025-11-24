@@ -91,7 +91,7 @@ namespace AESP.Service.Implementation
             var purchase = new Purchase
             {
                 PurchaseId = Guid.NewGuid(),
-                Status = "Completed",
+                Status = "Success",
                 CreatedAt = DateTime.UtcNow,
                 UserId = userId,
                 ReviewFeeId = reviewFeeId,
@@ -149,7 +149,7 @@ namespace AESP.Service.Implementation
             var purchase = new Purchase
             {
                 PurchaseId = Guid.NewGuid(),
-                Status = "Completed",
+                Status = "Success",
                 CreatedAt = DateTime.UtcNow,
                 UserId = userId,
                 ReviewFeeId = reviewFeeId,
