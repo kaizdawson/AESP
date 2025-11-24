@@ -160,11 +160,11 @@ builder.Services.AddScoped<IAdminReviewFeeService, AdminReviewFeeService>();
 builder.Services.AddScoped<ILearnerBuyReview, LearnerBuyReview>();
 builder.Services.AddScoped<IRecordService, RecordService>();
 builder.Services.AddScoped<IRecordCategoryService, RecordCategoryService>();
+builder.Services.AddScoped<IReviewerFeedbackService, ReviewerFeedbackService>();
 
 builder.Services.AddScoped<IProgressAnalyticsService, ProgressAnalyticsService>(); 
 builder.Services.AddScoped<IProgressAnalyticsQueryService, ProgressAnalyticsQueryService>(); 
 builder.Services.AddHostedService<ProgressAnalyticsBackgroundService>();
-
 
 builder.Services.AddHttpClient<PayOSService>();
 builder.Services.Configure<PayOSConfig>(builder.Configuration.GetSection("PayOS"));
