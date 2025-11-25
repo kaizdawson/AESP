@@ -126,38 +126,41 @@ namespace AESP.Service.Implementation
         //    return dto;
         //}
 
-        //public async Task<ResponseDTO> GetSummaryAsync()
-        //{
-        //    var dto = new ResponseDTO();
-        //    try
-        //    {
-        //        var db = _userRepository.GetDbContext();
+        public async Task<ResponseDTO> GetSummaryAsync()
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                var db = _userRepository.GetDbContext();
 
-        //        int totalLearners = await db.Users.CountAsync(u => u.Role == "LEARNER");
-        //        int totalActiveLearners = await db.Users.CountAsync(u => u.Role == "LEARNER" && u.Status == "Active");
-        //        int totalPackages = await db.ServicePackages.CountAsync();
-        //        decimal totalRevenue = await db.Transactions
-        //            .Where(t => t.TransactionEnum == "Success")
-        //            .SumAsync(t => (decimal?)t.Amount) ?? 0;
+                int totalLearners = await db.Users.CountAsync(u => u.Role == "LEARNER");
+                int totalActiveLearners = await db.Users.CountAsync(u => u.Role == "LEARNER" && u.Status == "Active");
+                int totalPackages = await db.ServicePackages.CountAsync();
+                decimal totalRevenue = await db.Transactions
+    .Where(t => t.Status == "Paid" && t.Type == "Deposit")
+                    .SumAsync(t => (decimal?)t.AmountMoney) ?? 0;
 
-        //        dto.IsSucess = true;
-        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-        //        dto.Message = "Lấy dữ liệu tổng quan thành công.";
-        //        dto.Data = new DashboardSummaryDTO
-        //        {
-        //            TotalLearners = totalLearners,
-        //            TotalActiveLearners = totalActiveLearners,
-        //            TotalServicePackages = totalPackages,
-        //            TotalRevenue = totalRevenue
-        //        };
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        dto.IsSucess = false;
-        //        dto.BusinessCode = BusinessCode.EXCEPTION;
-        //        dto.Message = "Lỗi khi lấy tổng quan Dashboard: " + ex.Message;
-        //    }
-        //    return dto;
-        //}
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy dữ liệu tổng quan thành công.";
+                dto.Data = new DashboardSummaryDTO
+                {
+                    TotalLearners = totalLearners,
+                    TotalActiveLearners = totalActiveLearners,
+                    TotalServicePackages = totalPackages,
+                    TotalRevenue = totalRevenue
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy tổng quan Dashboard: " + ex.Message;
+            }
+            return dto;
+        }
+
+
+
     }
 }

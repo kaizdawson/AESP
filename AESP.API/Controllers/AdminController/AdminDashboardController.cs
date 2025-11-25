@@ -16,12 +16,12 @@ namespace AESP.API.Controllers.AdminController
         {
             _dashboardService = dashboardService;
         }
-        //[HttpGet("summary")]
-        //public async Task<IActionResult> GetSummary()
-        //{
-        //    var result = await _dashboardService.GetSummaryAsync();
-        //    return Ok(result);
-        //}
+        [HttpGet("summary")]
+        public async Task<IActionResult> GetSummary()
+        {
+            var result = await _dashboardService.GetSummaryAsync();
+            return Ok(result);
+        }
 
         //[HttpGet("packages")]
         //public async Task<IActionResult> GetPackagesByMonth([FromQuery] int year)
