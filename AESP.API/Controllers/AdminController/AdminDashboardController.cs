@@ -23,19 +23,21 @@ namespace AESP.API.Controllers.AdminController
             return Ok(result);
         }
 
-        //[HttpGet("packages")]
-        //public async Task<IActionResult> GetPackagesByMonth([FromQuery] int year)
-        //{
-        //    var result = await _dashboardService.GetPackagesByMonthAsync(year);
-        //    return Ok(result);
-        //}
+        [HttpGet("packages")]
+        public async Task<IActionResult> GetPackages([FromQuery] int year)
+        {
+            var result = await _dashboardService.GetPackagesByMonthAsync(year);
+            return Ok(result);
+        }
 
-        //[HttpGet("revenue")]
-        //public async Task<IActionResult> GetRevenueByMonth([FromQuery] int year)
-        //{
-        //    var result = await _dashboardService.GetRevenueByMonthAsync(year);
-        //    return Ok(result);
-        //}
+        [HttpGet("revenue")]
+        public async Task<IActionResult> GetRevenue([FromQuery] int year)
+        {
+            var result = await _dashboardService.GetRevenueByMonthAsync(year);
+            return Ok(result);
+        }
+
+
 
         //  Reviewer đang chờ duyệt
         [HttpGet("reviewers/pending")]

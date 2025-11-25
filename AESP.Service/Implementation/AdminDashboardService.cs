@@ -35,96 +35,102 @@ namespace AESP.Service.Implementation
             _adminReviewerService = adminReviewerService;
         }
 
-        //public async Task<ResponseDTO> GetPackagesByMonthAsync(int year)
-        //{
-        //    var dto = new ResponseDTO();
-        //    try
-        //    {
-        //        if (year <= 0) year = DateTime.UtcNow.Year;
+        public async Task<ResponseDTO> GetPackagesByMonthAsync(int year)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                if (year <= 0) year = DateTime.UtcNow.Year;
 
-        //        var db = _purchaseRepository.GetDbContext();
+                var db = _purchaseRepository.GetDbContext();
 
-        //        var monthlyData = await db.Purchases
-        //            .Where(p => p.PurchaseDate.Year == year)
-        //            .GroupBy(p => p.PurchaseDate.Month)
-        //            .Select(g => new
-        //            {
-        //                Month = g.Key,
-        //                Count = g.Count()
-        //            })
-        //            .ToListAsync();
+                var monthlyData = await db.Purchases
+                    .Where(p => p.CreatedAt.Year == year && p.Status == "Success")
+                    .GroupBy(p => p.CreatedAt.Month)
+                    .Select(g => new
+                    {
+                        Month = g.Key,
+                        Count = g.Count()
+                    })
+                    .ToListAsync();
 
-        //        // ✅ Trả về đủ 12 tháng (nếu thiếu tháng -> gán 0)
-        //        var result = Enumerable.Range(1, 12)
-        //            .Select(m => new MonthlyStatDTO
-        //            {
-        //                Month = m,
-        //                Count = monthlyData.FirstOrDefault(x => x.Month == m)?.Count ?? 0,
-        //                Revenue = 0 // chỉ thống kê số gói, doanh thu phần khác
-        //            })
-        //            .ToList();
+                var result = Enumerable.Range(1, 12)
+                    .Select(m => new MonthlyStatDTO
+                    {
+                        Month = m,
+                        Count = monthlyData.FirstOrDefault(x => x.Month == m)?.Count ?? 0,
+                        Revenue = 0
+                    })
+                    .ToList();
 
-        //        dto.IsSucess = true;
-        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-        //        dto.Message = $"Thống kê gói dịch vụ bán ra trong năm {year} thành công.";
-        //        dto.Data = result;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        dto.IsSucess = false;
-        //        dto.BusinessCode = BusinessCode.EXCEPTION;
-        //        dto.Message = "Lỗi khi lấy thống kê gói bán theo tháng: " + ex.Message;
-        //    }
-        //    return dto;
-        //}
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = $"Thống kê số gói bán trong năm {year} thành công.";
+                dto.Data = result;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy thống kê gói bán theo tháng: " + ex.Message;
+            }
+
+            return dto;
+        }
+
 
         public async Task<ResponseDTO> GetPendingReviewersAsync(int pageNumber, int pageSize)
         {
             return await _adminReviewerService.GetPendingReviewersAsync(pageNumber, pageSize);
         }
 
-        //public async Task<ResponseDTO> GetRevenueByMonthAsync(int year)
-        //{
-        //    var dto = new ResponseDTO();
-        //    try
-        //    {
-        //        if (year <= 0) year = DateTime.UtcNow.Year;
+        public async Task<ResponseDTO> GetRevenueByMonthAsync(int year)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                if (year <= 0) year = DateTime.UtcNow.Year;
 
-        //        var db = _transactionRepository.GetDbContext();
+                var db = _transactionRepository.GetDbContext();
 
-        //        var monthlyData = await db.Transactions
-        //            .Where(t => t.CreatedTransaction.Year == year && t.TransactionEnum == "Success")
-        //            .GroupBy(t => t.CreatedTransaction.Month)
-        //            .Select(g => new
-        //            {
-        //                Month = g.Key,
-        //                TotalRevenue = g.Sum(x => x.Amount)
-        //            })
-        //            .ToListAsync();
+                var monthlyData = await db.Transactions
+                    .Where(t =>
+                        t.CreatedTransaction.Year == year &&
+                        t.Status == "Paid" &&
+                        t.Type == "Deposit")
+                    .GroupBy(t => t.CreatedTransaction.Month)
+                    .Select(g => new
+                    {
+                        Month = g.Key,
+                        Revenue = g.Sum(x => x.AmountMoney)
+                    })
+                    .ToListAsync();
 
-        //        // ✅ Trả về đủ 12 tháng để FE vẽ biểu đồ liền mạch
-        //        var result = Enumerable.Range(1, 12)
-        //            .Select(m => new MonthlyStatDTO
-        //            {
-        //                Month = m,
-        //                Revenue = (decimal)(monthlyData.FirstOrDefault(x => x.Month == m)?.TotalRevenue ?? 0),
-        //                Count = 0
-        //            })
-        //            .ToList();
+                var result = Enumerable.Range(1, 12)
+                    .Select(m => new MonthlyStatDTO
+                    {
+                        Month = m,
+                        Count = 0,
+                        Revenue = monthlyData.FirstOrDefault(x => x.Month == m)?.Revenue ?? 0
+                    })
+                    .ToList();
 
-        //        dto.IsSucess = true;
-        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-        //        dto.Message = $"Thống kê doanh thu năm {year} thành công.";
-        //        dto.Data = result;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        dto.IsSucess = false;
-        //        dto.BusinessCode = BusinessCode.EXCEPTION;
-        //        dto.Message = "Lỗi khi lấy thống kê doanh thu: " + ex.Message;
-        //    }
-        //    return dto;
-        //}
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = $"Thống kê doanh thu năm {year} thành công.";
+                dto.Data = result;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy thống kê doanh thu: " + ex.Message;
+            }
+
+            return dto;
+        }
+
+
 
         public async Task<ResponseDTO> GetSummaryAsync()
         {
