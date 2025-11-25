@@ -89,20 +89,20 @@ namespace AESP.Service.Implementation
             var dto = new ResponseDTO();
             try
             {
-                if (year <= 0) year = DateTime.UtcNow.Year;
+                if (year <= 0)
+                    year = DateTime.UtcNow.Year;
 
-                var db = _transactionRepository.GetDbContext();
+                var db = _purchaseRepository.GetDbContext();
 
-                var monthlyData = await db.Transactions
-                    .Where(t =>
-                        t.CreatedTransaction.Year == year &&
-                        t.Status == "Paid" &&
-                        t.Type == "Deposit")
-                    .GroupBy(t => t.CreatedTransaction.Month)
+                var monthlyData = await db.Purchases
+                    .Where(p =>
+                        p.CreatedAt.Year == year &&
+                        p.Status == "Success")
+                    .GroupBy(p => p.CreatedAt.Month)
                     .Select(g => new
                     {
                         Month = g.Key,
-                        Revenue = g.Sum(x => x.AmountMoney)
+                        Revenue = g.Sum(x => x.AmountCoin)
                     })
                     .ToListAsync();
 
@@ -110,8 +110,8 @@ namespace AESP.Service.Implementation
                     .Select(m => new MonthlyStatDTO
                     {
                         Month = m,
-                        Count = 0,
-                        Revenue = monthlyData.FirstOrDefault(x => x.Month == m)?.Revenue ?? 0
+                        Revenue = monthlyData.FirstOrDefault(x => x.Month == m)?.Revenue ?? 0,
+                        Count = 0
                     })
                     .ToList();
 
