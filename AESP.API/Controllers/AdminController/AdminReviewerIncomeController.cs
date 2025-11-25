@@ -26,9 +26,9 @@ namespace AESP.API.Controllers.AdminController
         }
 
         [HttpGet("list")]
-        public async Task<IActionResult> GetList([FromQuery] string? search, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetList([FromQuery] string? search, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null)
         {
-            var result = await _service.GetReviewerListAsync(search, pageNumber, pageSize);
+            var result = await _service.GetReviewerListAsync(search, pageNumber, pageSize, fromDate, toDate);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
         [HttpGet("reviewer-detail/{reviewerProfileId}")]

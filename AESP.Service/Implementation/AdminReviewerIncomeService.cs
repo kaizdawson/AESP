@@ -152,9 +152,15 @@ namespace AESP.Service.Implementation
             }
         }
 
-        public async Task<ResponseDTO> GetReviewerListAsync(string? search, int pageNumber, int pageSize)
+        public async Task<ResponseDTO> GetReviewerListAsync(
+      string? search,
+      int pageNumber,
+      int pageSize,
+      DateTime? fromDate,
+      DateTime? toDate)
         {
             var dto = new ResponseDTO();
+
             try
             {
                 var db = _unitOfWork.GetDbContext();
@@ -163,9 +169,27 @@ namespace AESP.Service.Implementation
                     .Include(t => t.ReviewerProfile)
                         .ThenInclude(rp => rp.User)
                     .Where(t => t.Status == "Completed")
+                    .Where(t => t.TransactionType == "ReviewPayment")
                     .AsQueryable();
 
-                // Search theo tên hoặc email
+                // ============================
+                // 1) Filter theo ngày
+                // ============================
+                if (fromDate.HasValue)
+                {
+                    query = query.Where(t => t.CreatedAt >= fromDate.Value.Date);
+                }
+
+                if (toDate.HasValue)
+                {
+                    // Lấy hết cuối ngày
+                    DateTime to = toDate.Value.Date.AddDays(1).AddSeconds(-1);
+                    query = query.Where(t => t.CreatedAt <= to);
+                }
+
+                // ============================
+                // 2) Search theo tên hoặc email
+                // ============================
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     var keyword = search.Trim().ToLower();
@@ -175,13 +199,15 @@ namespace AESP.Service.Implementation
                     );
                 }
 
+                // ============================
+                // 3) Group dữ liệu
+                // ============================
                 var grouped = query
-                    .Where(t => t.TransactionType == "ReviewPayment")
-                    .GroupBy(t => new
+                    .GroupBy(g => new
                     {
-                        t.ReviewerProfileId,
-                        t.ReviewerProfile.User.FullName,
-                        t.ReviewerProfile.User.Email
+                        g.ReviewerProfileId,
+                        g.ReviewerProfile.User.FullName,
+                        g.ReviewerProfile.User.Email
                     })
                     .Select(g => new
                     {
@@ -220,6 +246,7 @@ namespace AESP.Service.Implementation
 
             return dto;
         }
+
 
         public async Task<ResponseDTO> GetSummaryAsync()
         {
