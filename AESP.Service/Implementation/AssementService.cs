@@ -560,13 +560,7 @@ namespace AESP.Service.Implementation
                     }
                 }
 
-                // 🧩 2️⃣ KIỂM TRA HỌC VIÊN ĐÃ LÀM TEST CHƯA
-                var existed = await _assessmentRepository.AsQueryable()
-                    .FirstOrDefaultAsync(x => x.LearnerProfileId == dto.LearnerProfileId);
-
-                // Nếu đã có và Score > 0 → không cho nộp lại
-                if (existed != null && existed.Score > 0)
-                    return Fail(BusinessCode.INVALID_ACTION, "Bạn đã hoàn thành bài test đầu vào. Không thể làm lại.");
+               
 
                 // 🧩 3️⃣ TÍNH TOÁN TRUNG BÌNH
                 double totalScore = 0;
@@ -582,6 +576,14 @@ namespace AESP.Service.Implementation
                 }
 
                 double averageScore = totalCount > 0 ? totalScore / totalCount : 0;
+
+                // 🧩 2️⃣ KIỂM TRA HỌC VIÊN ĐÃ LÀM TEST CHƯA
+                var existed = await _assessmentRepository.AsQueryable()
+                    .FirstOrDefaultAsync(x => x.LearnerProfileId == dto.LearnerProfileId);
+
+                // Nếu đã có và Score > 0 → không cho nộp lại
+                if (existed != null && existed.Score > 0 && averageScore > 0)
+                    return Fail(BusinessCode.INVALID_ACTION, "Bạn đã hoàn thành bài test đầu vào. Không thể làm lại.");
 
                 Assessment assessment;
                 if (existed != null)

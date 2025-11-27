@@ -325,9 +325,10 @@ namespace AESP.Service.Implementation
                 if (learnerProfile != null)
                 {
                     var assessment = await _assessmentRepository
-                     .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId && a.Score > 0);
+     .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
 
                     isPlacementTestDone = assessment != null;
+
 
                 }
             }
@@ -648,9 +649,10 @@ namespace AESP.Service.Implementation
                         learnerProfileId = learnerProfile.LearnerProfileId;
 
                         var assessment = await _assessmentRepository
-                        .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId && a.Score > 0);
+    .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId);
 
                         isPlacementTestDone = assessment != null;
+
 
                     }
                 }
