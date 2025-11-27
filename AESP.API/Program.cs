@@ -144,7 +144,7 @@ builder.Services.AddScoped<ILearnerReviewRequestService, LearnerReviewRequestSer
 builder.Services.AddScoped<ILearningPathQuestionService, LearningPathQuestionService>();
 builder.Services.AddScoped<IAdminWithdrawalService, AdminWithdrawalService>();
 builder.Services.AddScoped<IAdminPurchaseService, AdminPurchaseService>();
-
+builder.Services.AddScoped<ILearnerProfileService, LearnerProfileService>();
 builder.Services.AddScoped<ILearningPathChapterService, LearningPathChapterService>();
 
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));

@@ -164,49 +164,70 @@ namespace AESP.Service.Implementation
             return (true, "Mua gói review cho record thành công.");
         }
 
-        public async Task<ResponseDTO> GetLearnerReviewHistoryAsync(Guid learnerProfileId, int pageNumber = 1, int pageSize = 10)
+        public async Task<ResponseDTO> GetLearnerReviewHistoryAsync(Guid learnerProfileId, int pageNumber = 1, int pageSize = 10, string? status = null, string? keyword = null)
         {
             var dto = new ResponseDTO();
 
             try
             {
-                if (learnerProfileId == Guid.Empty)
-                {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
-                    dto.Message = "LearnerProfileId không hợp lệ.";
-                    return dto;
-                }
-
                 var db = _unitOfWork.GetDbContext();
 
-                // ================================
-                // Lấy tất cả review mà learner này là người submit
-                // ================================
-                var query = db.Set<Review>()
+                var baseQuery = db.Set<Review>()
+                    .Include(r => r.ReviewerProfile)
+                        .ThenInclude(rp => rp.User)
+                    .Include(r => r.Feedbacks)
                     .Include(r => r.LearnerAnswer)
                         .ThenInclude(la => la.LearningPathQuestion)
-                        .ThenInclude(lpq => lpq.Question)
-                    .Include(r => r.LearnerAnswer)
-                        .ThenInclude(la => la.LearnerProfile)
-                        .ThenInclude(lp => lp.User)
+                            .ThenInclude(lpq => lpq.Question)
                     .Include(r => r.Record)
                         .ThenInclude(rec => rec.LearnerRecord)
-                        .ThenInclude(lr => lr.LearnerProfile)
-                        .ThenInclude(lp => lp.User)
-                    .AsNoTracking()
-                   .Where(r =>
-                         (r.LearnerAnswer != null &&
-                         r.LearnerAnswer.LearnerProfileId == learnerProfileId)
-                         ||
-                         (r.Record != null &&
-                         r.Record.LearnerRecord.LearnerProfile.LearnerProfileId == learnerProfileId)
-                          );
+                            .ThenInclude(lr => lr.LearnerProfile)
+                    .Where(r =>
+                        (r.LearnerAnswer != null && r.LearnerAnswer.LearnerProfileId == learnerProfileId)
+                        || (r.Record != null && r.Record.LearnerRecord.LearnerProfile.LearnerProfileId == learnerProfileId)
+                    )
+                    .AsQueryable();
 
-                var totalItems = await query.CountAsync();
+                // ✅ FILTER THEO TRẠNG THÁI FEEDBACK (ĐÚNG NGHIỆP VỤ)
+                if (!string.IsNullOrWhiteSpace(status))
+                {
+                    status = status.ToLower();
 
-                var items = await query
-                    .OrderByDescending(r => r.ReviewId)
+                    if (status == "completed")
+                    {
+                        baseQuery = baseQuery.Where(r =>
+                            r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Active"));
+                    }
+                    else if (status == "pending")
+                    {
+                        baseQuery = baseQuery.Where(r =>
+                            !r.Feedbacks.Any(f => f.Type == "ReviewerFeedback")
+                            || r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Pending"));
+                    }
+                    else if (status == "rejected")
+                    {
+                        baseQuery = baseQuery.Where(r =>
+                            r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Rejected"));
+                    }
+                }
+
+                // ✅ SEARCH ĐÚNG NGHIỆP VỤ
+                if (!string.IsNullOrWhiteSpace(keyword))
+                {
+                    keyword = keyword.ToLower();
+
+                    baseQuery = baseQuery.Where(r =>
+                        (r.Comment != null && r.Comment.ToLower().Contains(keyword)) ||
+                        (r.LearnerAnswer != null &&
+                            r.LearnerAnswer.LearningPathQuestion.Question.Text.ToLower().Contains(keyword)) ||
+                        (r.Record != null && r.Record.Content.ToLower().Contains(keyword))
+                    );
+                }
+
+                var totalItems = await baseQuery.CountAsync();
+
+                var items = await baseQuery
+                    .OrderByDescending(r => r.CreatedAt)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
                     .Select(r => new
@@ -214,37 +235,67 @@ namespace AESP.Service.Implementation
                         r.ReviewId,
                         r.Score,
                         r.Comment,
-                        r.Status,
+
                         ReviewAudioUrl = r.RecordAudioUrl,
+                        r.LearnerAnswerId,
+                        r.RecordId,
 
-                        LearnerAnswerId = r.LearnerAnswerId,
-                        RecordId = r.RecordId,
-
-                        CreatedAt = r.LearnerAnswer != null
-                            ? r.LearnerAnswer.SubmittedAt
-                            : (r.Record != null ? r.Record.CreatedAt : DateTime.UtcNow),
+                        CreatedAt = r.CreatedAt,
 
                         QuestionContent = r.LearnerAnswer != null
                             ? r.LearnerAnswer.LearningPathQuestion.Question.Text
-                            : (r.Record != null ? r.Record.Content : null),
+                            : r.Record.Content,
 
-                        // Reviewer Name
                         ReviewerFullName = r.ReviewerProfile.User.FullName,
 
                         ReviewType = r.LearnerAnswerId != null ? "LearnerAnswer" : "Record",
 
-                        
+                        // ✅ FEEDBACK STATUS ĐÚNG 100%
+                        FeedbackStatus = r.Feedbacks
+                            .Where(f => f.Type == "ReviewerFeedback")
+                            .OrderByDescending(f => f.CreatedAt)
+                            .Select(f => f.Status)
+                            .FirstOrDefault() ?? "Pending",
+
+                        FeedbackRating = r.Feedbacks
+                            .Where(f => f.Type == "ReviewerFeedback")
+                            .OrderByDescending(f => f.CreatedAt)
+                            .Select(f => (int?)f.Rating)
+                            .FirstOrDefault(),
+
+                        FeedbackContent = r.Feedbacks
+                            .Where(f => f.Type == "ReviewerFeedback")
+                            .OrderByDescending(f => f.CreatedAt)
+                            .Select(f => f.Content)
+                            .FirstOrDefault()
                     })
                     .ToListAsync();
 
+                // ✅ DASHBOARD COUNT ĐÚNG NGHIỆP VỤ
+                var totalReview = await baseQuery.CountAsync();
+
+                var completed = await baseQuery.CountAsync(r =>
+                    r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Active")
+                );
+
+                var pending = await baseQuery.CountAsync(r =>
+                    !r.Feedbacks.Any(f => f.Type == "ReviewerFeedback")
+                    || r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Pending")
+                );
+
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy lịch sử học viên được review thành công.";
+                dto.Message = "Lấy lịch sử review của learner thành công.";
                 dto.Data = new
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
                     TotalItems = totalItems,
+
+                    TotalReview = totalReview,
+                    Completed = completed,
+                    Pending = pending,
+
                     Items = items
                 };
             }
@@ -252,7 +303,7 @@ namespace AESP.Service.Implementation
             {
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi lấy lịch sử review của học viên: " + ex.Message;
+                dto.Message = ex.Message;
             }
 
             return dto;

@@ -1,7 +1,5 @@
-﻿using AESP.Repository.DB;
-using AESP.Repository.Models;
+﻿using AESP.Common.DTOs;
 using AESP.Service.Contract;
-using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -12,49 +10,43 @@ namespace AESP.API.Controllers.LearnerController
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "LEARNER")]
-    public class LearnerReviewController : ControllerBase
+    public class LearnerProfileController : ControllerBase
     {
-        private readonly ILearnerBuyReview _service;
+        private readonly ILearnerProfileService _service;
 
-        public LearnerReviewController(ILearnerBuyReview service)
+        public LearnerProfileController(ILearnerProfileService service)
         {
             _service = service;
         }
-        [HttpGet("my-history")]
-        public async Task<IActionResult> GetLearnerReviewHistory(
-   [FromQuery] int pageNumber = 1,
-   [FromQuery] int pageSize = 10,
-   [FromQuery] string? status = null,    
-   [FromQuery] string? keyword = null)
+
+        [HttpPut("edit")]
+        public async Task<IActionResult> EditProfile([FromBody] EditLearnerProfileDto dto)
         {
             var learnerProfileId = GetLearnerProfileIdFromToken(User);
 
             if (learnerProfileId == null)
                 return Unauthorized(new { message = "Không xác định được learner từ token." });
 
-            var result = await _service.GetLearnerReviewHistoryAsync(
-                learnerProfileId.Value, pageNumber, pageSize, status, keyword);
+            var result = await _service.EditLearnerProfileAsync(
+                learnerProfileId.Value, dto);
 
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
+
         private Guid? GetLearnerProfileIdFromToken(ClaimsPrincipal user)
         {
             var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ??
                               user.FindFirst("sub")?.Value;
 
-            if (string.IsNullOrEmpty(userIdClaim))
-                return null;
-
             if (!Guid.TryParse(userIdClaim, out var userId))
                 return null;
 
-            var db = HttpContext.RequestServices.GetService<AppDbContext>();
-            var learner = db.Set<LearnerProfile>()
-                            .FirstOrDefault(r => r.UserId == userId);
+            var db = HttpContext.RequestServices.GetService<AESP.Repository.DB.AppDbContext>();
+            var learner = db.Set<AESP.Repository.Models.LearnerProfile>()
+                            .FirstOrDefault(x => x.UserId == userId);
 
             return learner?.LearnerProfileId;
         }
-
-
     }
 }
+
