@@ -635,21 +635,28 @@ namespace AESP.Service.Implementation
                 await _assessmentDetailRepository.InsertRange(details);
                 await _unitOfWork.SaveChangeAsync();
 
-                // 🧩 5️⃣ GÁN LEVEL MỚI THEO ĐIỂM
+                // 🧩 5️⃣ GÁN LEVEL MỚI THEO ĐIỂM (FIX CHUẨN)
                 string assignedLevel = "A1";
                 if (averageScore >= 90) assignedLevel = "C1";
                 else if (averageScore >= 75) assignedLevel = "B2";
                 else if (averageScore >= 60) assignedLevel = "B1";
                 else if (averageScore >= 45) assignedLevel = "A2";
 
+                // ✅ BẮT BUỘC PHẢI TỒN TẠI LEARNER
                 var learner = await _learnerProfileRepository.GetById(dto.LearnerProfileId);
-                if (learner != null)
+                if (learner == null)
                 {
-                    learner.Level = assignedLevel;
-                    learner.PronunciationScore = averageScore;
-                    await _learnerProfileRepository.Update(learner);
-                    await _unitOfWork.SaveChangeAsync();
+                    return Fail(BusinessCode.AUTH_NOT_FOUND, "Không tìm thấy LearnerProfile hợp lệ.");
                 }
+
+                // ✅ LUÔN UPDATE LEVEL — KỂ CẢ KHI = A1 (0 ĐIỂM)
+                learner.Level = assignedLevel;
+                learner.PronunciationScore = averageScore;
+                learner.UpdatedAt = DateTime.UtcNow;
+
+                await _learnerProfileRepository.Update(learner);
+                await _unitOfWork.SaveChangeAsync();
+
 
                 // 🧩 6️⃣ TRẢ KẾT QUẢ
                 return Success(BusinessCode.UPDATE_SUCESSFULLY, "Đã ghi kết quả bài test đầu vào thành công.", new
