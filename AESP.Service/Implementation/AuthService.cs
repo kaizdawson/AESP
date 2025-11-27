@@ -210,7 +210,7 @@ namespace AESP.Service.Implementation
                     claims.Add(new Claim("LearnerProfileId", learnerProfile.LearnerProfileId.ToString()));
 
                     var assessment = await _assessmentRepository
-                     .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId && a.Score > 0);
+                     .GetByExpression(a => a.LearnerProfileId == learnerProfile.LearnerProfileId );
 
                     isPlacementTestDone = assessment != null;
 
