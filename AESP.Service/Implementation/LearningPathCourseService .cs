@@ -155,15 +155,51 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.DUPLICATE_DATA,
      $"OrderIndex {orderIndex} đã được sử dụng trong level {course.Level} này.");
 
-                // 4️⃣ KIỂM TRA KHÓA TRƯỚC ĐÃ HOÀN THÀNH CHƯA
+                //// 4️⃣ KIỂM TRA KHÓA TRƯỚC ĐÃ HOÀN THÀNH CHƯA
+                //if (orderIndex > 1)
+                //{
+                //    var prev = await _repo.AsQueryable().FirstOrDefaultAsync(x =>
+                //        x.LearnerCourseId == dto.LearnerCourseId && x.OrderIndex == orderIndex - 1);
+
+                //    if (prev == null || !prev.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                //        return Fail(BusinessCode.INVALID_ACTION, "Bạn cần hoàn thành khóa học trước đó trước khi mở khóa tiếp theo.");
+                //}
+                // ⭐ 4.1 CHECK ĐIỂM TRUNG BÌNH COURSE TRƯỚC >= 60%
                 if (orderIndex > 1)
                 {
-                    var prev = await _repo.AsQueryable().FirstOrDefaultAsync(x =>
-                        x.LearnerCourseId == dto.LearnerCourseId && x.OrderIndex == orderIndex - 1);
+                    var prevCourse = await _repo.AsQueryable()
+                        .Include(x => x.LearningPathChapters)
+                            .ThenInclude(c => c.LearningPathExercises)
+                        .FirstOrDefaultAsync(x =>
+                            x.LearnerCourseId == dto.LearnerCourseId &&
+                            x.OrderIndex == orderIndex - 1);
 
-                    if (prev == null || !prev.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
-                        return Fail(BusinessCode.INVALID_ACTION, "Bạn cần hoàn thành khóa học trước đó trước khi mở khóa tiếp theo.");
+                    if (prevCourse == null)
+                        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trước đó để kiểm tra điểm.");
+
+                    double totalScore = 0;
+                    int exerciseCount = 0;
+
+                    foreach (var chapter in prevCourse.LearningPathChapters)
+                    {
+                        foreach (var ex in chapter.LearningPathExercises)
+                        {
+                            totalScore += ex.ScoreAchieved;
+                            exerciseCount++;
+                        }
+                    }
+
+                    double avgScore = exerciseCount == 0 ? 0 : totalScore / exerciseCount;
+
+                    if (avgScore < 60)
+                    {
+                        return Fail(
+                            BusinessCode.INVALID_ACTION,
+                            $"Điểm trung bình khóa trước chỉ đạt {Math.Round(avgScore, 2)}%. Cần tối thiểu 60% để mở khóa học tiếp theo."
+                        );
+                    }
                 }
+
 
                 //// 5️⃣ XÁC ĐỊNH MIỄN PHÍ & XỬ LÝ XU
                 //var levelCourses = await _courseRepo.AsQueryable()
