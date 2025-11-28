@@ -11,6 +11,9 @@ namespace AESP.Common.DTOs
         public string AudioRecordingURL { get; set; }
         public int Score { get; set; }
         public string AIFeedback { get; set; }
+
+
+        public string TranscribedText { get; set; }
     }
 
 }

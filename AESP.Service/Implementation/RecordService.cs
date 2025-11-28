@@ -144,6 +144,7 @@ public class RecordService : IRecordService
                     r.AudioRecordingURL,
                     r.Score,
                     r.AIFeedback,
+                    r.TranscribedText,
                     r.Status,
                     r.CreatedAt,
                     r.NumberOfReview,
@@ -213,6 +214,7 @@ public class RecordService : IRecordService
                 AudioRecordingURL = string.Empty,
                 Score = 0,
                 AIFeedback = string.Empty,
+                TranscribedText = string.Empty,
                 Status = "Draft",
                 CreatedAt = DateTime.UtcNow,
                 NumberOfReview = 0,
@@ -295,6 +297,7 @@ public class RecordService : IRecordService
             record.AudioRecordingURL = dto.AudioRecordingURL;
             record.Score = dto.Score;
             record.AIFeedback = dto.AIFeedback;
+            record.TranscribedText = dto.TranscribedText;
             record.Status = "Submitted";
 
             await _recordRepo.Update(record);
@@ -307,6 +310,7 @@ public class RecordService : IRecordService
                 record.AudioRecordingURL,
                 record.Score,
                 record.AIFeedback,
+                record.TranscribedText,
                 record.Status
             });
         }
