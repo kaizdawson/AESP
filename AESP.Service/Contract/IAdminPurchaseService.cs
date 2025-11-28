@@ -12,5 +12,6 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize, string? keyword, string? type);
         Task<ResponseDTO> GetDetailAsync(Guid purchaseId);
         Task<byte[]> ExportPdfAsync();
+        Task<ResponseDTO> GetDashboardAsync();
     }
 }

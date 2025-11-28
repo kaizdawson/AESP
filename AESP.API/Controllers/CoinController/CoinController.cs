@@ -258,6 +258,7 @@ namespace AESP.API.Controllers.CoinController
     [FromQuery] int pageNumber = 1,
     [FromQuery] int pageSize = 10,
     [FromQuery] string? status = null,      // Pending, Completed, Rejected...     
+    [FromQuery] string? type = null,
     [FromQuery] string? search = null)
         {
             try
@@ -267,6 +268,7 @@ namespace AESP.API.Controllers.CoinController
                     pageNumber: pageNumber,
                     pageSize: pageSize,
                     status: status,
+                    type: type,
                     search: search);
 
                 return StatusCode(result.IsSucess ? StatusCodes.Status200OK
@@ -288,7 +290,16 @@ namespace AESP.API.Controllers.CoinController
             var pdf = await _coinService.ExportTransactionPdfAsync();
             return File(pdf, "application/pdf", "transaction-report.pdf");
         }
+        [HttpGet("dashboard")]
+        public async Task<IActionResult> GetTransactionDashboard()
+        {
+            var result = await _coinService.GetTransactionDashboardAsync();
 
+            if (!result.IsSucess)
+                return BadRequest(result);
+
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
 
 
     }

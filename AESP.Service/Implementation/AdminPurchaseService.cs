@@ -305,5 +305,45 @@ namespace AESP.Service.Implementation
 
             return pdf.GeneratePdf();
         }
+
+        public async Task<ResponseDTO> GetDashboardAsync()
+        {
+            var dto = new ResponseDTO();
+
+            try
+            {
+                var db = _purchaseRepository.GetDbContext();
+
+                // ✅ CHỈ TÍNH NHỮNG GIAO DỊCH THÀNH CÔNG
+                var successQuery = db.Purchases
+                    .Where(p => p.Status == "Success");
+
+                var totalSuccessTransaction = await successQuery.CountAsync();
+
+                var totalRevenueCoin = await successQuery
+                    .SumAsync(p => (int?)p.AmountCoin) ?? 0;
+
+                //  QUY ĐỔI: 1 coin = 1000 VND
+                var totalRevenue = totalRevenueCoin * 1000;
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy dashboard purchase thành công.";
+                dto.Data = new
+                {
+                    TotalSuccessTransaction = totalSuccessTransaction,
+                    TotalRevenue = totalRevenue
+                };
+
+                return dto;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy dashboard purchase: " + ex.Message;
+                return dto;
+            }
+        }
     }
 }
