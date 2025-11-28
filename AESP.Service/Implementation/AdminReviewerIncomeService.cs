@@ -137,6 +137,12 @@ namespace AESP.Service.Implementation
                         Learner = r.LearnerAnswer?.LearnerProfile?.User?.FullName
                                   ?? r.Record?.LearnerRecord?.LearnerProfile?.User?.FullName
                                   ?? "Không xác định",
+                        Question = r.LearnerAnswer != null
+                                  ? r.LearnerAnswer.LearningPathQuestion.Question.Text
+                                 : r.Record != null
+                                 ? r.Record.Content
+            :                        null,
+
                         EarnedFromThisReview = incomePerReview   // mỗi bài kiếm được bao nhiêu
                     }).ToList()
                 };
