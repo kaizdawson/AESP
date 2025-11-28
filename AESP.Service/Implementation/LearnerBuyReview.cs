@@ -278,9 +278,8 @@ namespace AESP.Service.Implementation
                     r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Active")
                 );
 
-                var pending = await baseQuery.CountAsync(r =>
-                    !r.Feedbacks.Any(f => f.Type == "ReviewerFeedback")
-                    || r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Pending")
+                var rejected = await baseQuery.CountAsync(r =>
+                    r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Rejected")
                 );
 
                 dto.IsSucess = true;
@@ -294,7 +293,7 @@ namespace AESP.Service.Implementation
 
                     TotalReview = totalReview,
                     Completed = completed,
-                    Pending = pending,
+                    Rejected = rejected,
 
                     Items = items
                 };
