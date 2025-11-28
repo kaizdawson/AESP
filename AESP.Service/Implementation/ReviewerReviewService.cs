@@ -83,11 +83,13 @@ namespace AESP.Service.Implementation
                         Type = "LearnerAnswer",
                         Id = la.LearnerAnswerId,
                         SubmittedAt = la.SubmittedAt,
-                        Content = la.TranscribedText,
+
+                        QuestionText = la.LearningPathQuestion.Question.Text,
+                        TranscribedText = la.TranscribedText,
+
                         AudioUrl = la.AudioRecordingUrl,
                         NumberOfReview = la.NumberofReview,
-                        LearnerFullName = la.LearnerProfile.User.FullName,
-                        QuestionText = la.LearningPathQuestion.Question.Text
+                        LearnerFullName = la.LearnerProfile.User.FullName
                     });
 
                 // ============================
@@ -109,11 +111,14 @@ namespace AESP.Service.Implementation
                         Type = "Record",
                         Id = r.RecordId,
                         SubmittedAt = r.CreatedAt,
-                        Content = r.Content,
+
+                        QuestionText = r.Content,
+                        TranscribedText = r.TranscribedText,
+
                         AudioUrl = r.AudioRecordingURL,
                         NumberOfReview = r.NumberOfReview,
                         LearnerFullName = r.LearnerRecord.LearnerProfile.User.FullName,
-                        QuestionText = (string?)null  // Record không có Question
+                       
                     });
 
                 // ============================
