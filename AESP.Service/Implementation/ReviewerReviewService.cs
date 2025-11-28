@@ -428,7 +428,13 @@ namespace AESP.Service.Implementation
                         r.Score,
                         r.Comment,
                         r.Status,
-                        RecordAudioUrl = r.RecordAudioUrl,
+
+                        LearnerAudioUrl = r.LearnerAnswer != null
+            ? r.LearnerAnswer.AudioRecordingUrl
+            : (r.Record != null ? r.Record.AudioRecordingURL : null),
+
+                        ReviewerAudioUrl = r.RecordAudioUrl,
+
                         // Nếu là LearnerAnswer
                         LearnerAnswerId = r.LearnerAnswerId,
                         RecordId = r.RecordId,
@@ -798,19 +804,7 @@ namespace AESP.Service.Implementation
                     return response;
                 }
 
-                // 2. Kiểm tra đã từng donate cho review này chưa (chống donate nhiều lần)
-                bool alreadyTipped = await db.TransferTransactions
-                .AnyAsync(t => t.ReviewId == dto.ReviewId
-                 && t.ReviewerProfileId == reviewerProfileId
-                 && t.TransactionType == "ReviewerTip");
-
-                if (alreadyTipped)
-                {
-                    response.IsSucess = false;
-                    response.BusinessCode = BusinessCode.INVALID_ACTION;
-                    response.Message = "Bạn đã thưởng cho bài này rồi.";
-                    return response;
-                }
+           
 
                 // 3. Kiểm tra số dư reviewer
                 var reviewerUser = review.ReviewerProfile.User;
