@@ -443,7 +443,7 @@ namespace AESP.Service.Implementation
 
 
 
-        public async Task<ResponseDTO> GetAllTransactionsAsync(int pageNumber = 1, int pageSize = 10, string? status = null, string? search = null)
+        public async Task<ResponseDTO> GetAllTransactionsAsync(int pageNumber = 1, int pageSize = 10, string? status = null, string? type = null, string? search = null)
         {
             var dto = new ResponseDTO();
 
@@ -460,9 +460,30 @@ namespace AESP.Service.Implementation
             .AsQueryable();
 
                 // === FILTER ===
-                if (!string.IsNullOrWhiteSpace(status))
-                    query = query.Where(t => t.Status == status.Trim());
 
+                if (!string.IsNullOrWhiteSpace(type))
+                {
+                    type = type.Trim();
+                    query = query.Where(t => t.Type == type);
+                }
+                if (!string.IsNullOrWhiteSpace(status))
+                {
+                    status = status.Trim();
+
+                    query = query.Where(t =>
+                        // NẠP
+                        (t.Type == "Deposit" &&
+                            (status == "Pending" || status == "Paid" || status == "Cancelled") &&
+                            t.Status == status)
+
+                        ||
+
+                        // RÚT
+                        (t.Type == "Withdrawal" &&
+                            (status == "Pending" || status == "Approved" || status == "Rejected") &&
+                            t.Status == status)
+                    );
+                }
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     var keyword = search.Trim().ToLower();
@@ -551,7 +572,53 @@ namespace AESP.Service.Implementation
             return doc.GeneratePdf();
         }
 
+        public async Task<ResponseDTO> GetTransactionDashboardAsync()
+        {
+            var dto = new ResponseDTO();
 
+            try
+            {
+                var db = _transactionRepository.GetDbContext();
 
+                // ✅ Thành công:
+                // - Deposit: Paid
+                // - Withdrawal: Approved
+                var totalSuccessTransaction = await db.Transactions.CountAsync(t =>
+                    (t.Type == "Deposit" && t.Status == "Paid") ||
+                    (t.Type == "Withdrawal" && t.Status == "Approved")
+                );
+
+                // ❌ Thất bại:
+                // - Deposit: Cancelled
+                // - Withdrawal: Rejected
+                var totalFailTransaction = await db.Transactions.CountAsync(t =>
+                    (t.Type == "Deposit" && t.Status == "Cancelled") ||
+                    (t.Type == "Withdrawal" && t.Status == "Rejected")
+                );
+
+                // ⏳ Đang xử lý: Pending
+                var totalPendingTransaction = await db.Transactions.CountAsync(t =>
+                    t.Status == "Pending"
+                );
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy dashboard giao dịch thành công.";
+                dto.Data = new
+                {
+                    totalSuccessTransaction = totalSuccessTransaction,
+                    totalFailTransaction = totalFailTransaction,
+                    totalPendingTransaction = totalPendingTransaction
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = ex.Message;
+            }
+
+            return dto;
+        }
     }
 }

@@ -1,4 +1,7 @@
-﻿using AESP.Service.Contract;
+﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
+using AESP.Service.Contract;
+using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -36,6 +39,27 @@ namespace AESP.API.Controllers.AdminController
         {
             var bytes = await _service.ExportPdfAsync();
             return File(bytes, "application/pdf", "purchase-report.pdf");
+        }
+        [HttpGet("purchases/dashboard")]
+        public async Task<IActionResult> GetDashboard()
+        {
+            try
+            {
+                var result = await _service.GetDashboardAsync();
+
+                return StatusCode(result.IsSucess
+                    ? StatusCodes.Status200OK
+                    : StatusCodes.Status400BadRequest, result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new ResponseDTO
+                {
+                    IsSucess = false,
+                    BusinessCode = BusinessCode.EXCEPTION,
+                    Message = ex.Message
+                });
+            }
         }
     }
 }
