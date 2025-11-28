@@ -20,6 +20,7 @@ namespace AESP.Repository.Models
         public string AudioRecordingURL { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public string TranscribedText { get; set; } = string.Empty;
         public string AIFeedback { get; set; } = string.Empty;
         public double Score { get; set; }
         public int NumberOfReview { get; set; }
