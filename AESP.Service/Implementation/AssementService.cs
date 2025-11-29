@@ -78,14 +78,14 @@ namespace AESP.Service.Implementation
                 {
                     AssessmentId = a.AssessmentId,
                     CreatedAt = a.CreatedAt,
-                    Score = a.Score,
+                    Score = (double)a.Score,
                     Feedback = a.Feedback,
                     NumberOfQuestion = a.NumberOfQuestion,
                     LearnerProfileId = a.LearnerProfileId,
                     AssessmentDetails = a.AssessmentDetails?.Select(d => new ReadAssessmentDetailInAssessmentDTO
                     {
                         AssessmentDetailId = d.AssessmentDetailId,
-                        Score = d.Score,
+                        Score = (double)d.Score,
                         Type = d.Type,
                         AI_Feedback = d.AI_Feedback,
                         AnswerAudio = d.AnswerAudio,
@@ -131,14 +131,14 @@ namespace AESP.Service.Implementation
                 {
                     AssessmentId = assessment.AssessmentId,
                     CreatedAt = assessment.CreatedAt,
-                    Score = assessment.Score,
+                    Score = (double)assessment.Score,
                     Feedback = assessment.Feedback,
                     NumberOfQuestion = assessment.NumberOfQuestion,
                     LearnerProfileId = assessment.LearnerProfileId,
                     AssessmentDetails = assessment.AssessmentDetails?.Select(d => new ReadAssessmentDetailInAssessmentDTO
                     {
                         AssessmentDetailId = d.AssessmentDetailId,
-                        Score = d.Score,
+                        Score = (double)d.Score,
                         Type = d.Type,
                         AI_Feedback = d.AI_Feedback,
                         AnswerAudio = d.AnswerAudio,
@@ -221,14 +221,14 @@ namespace AESP.Service.Implementation
                 {
                     AssessmentId = newAssessment.AssessmentId,
                     CreatedAt = newAssessment.CreatedAt,
-                    Score = newAssessment.Score,
+                    Score = (double)newAssessment.Score,
                     Feedback = newAssessment.Feedback,
                     NumberOfQuestion = newAssessment.NumberOfQuestion,
                     LearnerProfileId = newAssessment.LearnerProfileId,
                     AssessmentDetails = createdDetails.Select(d => new ReadAssessmentDetailInAssessmentDTO
                     {
                         AssessmentDetailId = d.AssessmentDetailId,
-                        Score = d.Score,
+                        Score = (double)d.Score,
                         Type = d.Type,
                         AI_Feedback = d.AI_Feedback,
                         AnswerAudio = d.AnswerAudio,
@@ -349,14 +349,14 @@ namespace AESP.Service.Implementation
                     {
                         AssessmentId = updated.AssessmentId,
                         CreatedAt = updated.CreatedAt,
-                        Score = updated.Score,
+                        Score = (double)updated.Score,
                         Feedback = updated.Feedback,
                         NumberOfQuestion = updated.NumberOfQuestion,
                         LearnerProfileId = updated.LearnerProfileId,
                         AssessmentDetails = updated.AssessmentDetails.Select(d => new ReadAssessmentDetailInAssessmentDTO
                         {
                             AssessmentDetailId = d.AssessmentDetailId,
-                            Score = d.Score,
+                            Score = (double)d.Score,
                             Type = d.Type,
                             AI_Feedback = d.AI_Feedback,
                             AnswerAudio = d.AnswerAudio,
@@ -457,8 +457,9 @@ namespace AESP.Service.Implementation
                         AssessmentId = Guid.NewGuid(),
                         LearnerProfileId = learnerProfileId,
                         CreatedAt = DateTime.UtcNow,
-                        Score = 0,
                         Feedback = string.Empty,
+                        Score = null,
+
                         NumberOfQuestion = activeQuestions.Count
                     };
 
@@ -470,7 +471,7 @@ namespace AESP.Service.Implementation
                         AssessmentId = newAssessment.AssessmentId,
                         QuestionAssessmentId = q.QuestionAssessmentId,
                         Type = q.Type,
-                        Score = 0,
+                        Score = null,
                         AI_Feedback = string.Empty,
                         AnswerAudio = string.Empty
                     }).ToList();
