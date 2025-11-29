@@ -583,10 +583,11 @@ namespace AESP.Service.Implementation
                 // ✅ Thành công:
                 // - Deposit: Paid
                 // - Withdrawal: Approved
-                var totalSuccessTransaction = await db.Transactions.CountAsync(t =>
-                    (t.Type == "Deposit" && t.Status == "Paid") ||
-                    (t.Type == "Withdrawal" && t.Status == "Approved")
-                );
+                var totalPaid = await db.Transactions
+           .CountAsync(t => t.Type == "Deposit" && t.Status == "Paid");
+
+                var totalApproved = await db.Transactions
+            .CountAsync(t => t.Type == "Withdrawal" && t.Status == "Approved");
 
                 // ❌ Thất bại:
                 // - Deposit: Cancelled
@@ -606,7 +607,8 @@ namespace AESP.Service.Implementation
                 dto.Message = "Lấy dashboard giao dịch thành công.";
                 dto.Data = new
                 {
-                    totalSuccessTransaction = totalSuccessTransaction,
+                    totalPaid = totalPaid,
+                    totalApproved = totalApproved,
                     totalFailTransaction = totalFailTransaction,
                     totalPendingTransaction = totalPendingTransaction
                 };
