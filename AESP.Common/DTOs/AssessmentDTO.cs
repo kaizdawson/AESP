@@ -97,6 +97,8 @@ namespace AESP.Common.DTOs
         public Guid QuestionAssessmentId { get; set; }
         public double Score { get; set; }
         public string? AI_Feedback { get; set; }
+        public string AnswerAudio { get; set; } 
+
     }
 
 }

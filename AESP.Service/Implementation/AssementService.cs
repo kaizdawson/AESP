@@ -556,6 +556,9 @@ namespace AESP.Service.Implementation
                         if (detail.Score < 0 || detail.Score > 100)
                             return Fail(BusinessCode.VALIDATION_FAILED, "Điểm Score phải nằm trong khoảng 0 - 100.");
 
+                        if (string.IsNullOrWhiteSpace(detail.AnswerAudio))
+                            return Fail(BusinessCode.VALIDATION_FAILED, "AnswerAudio không được để trống.");
+
                         detail.AI_Feedback ??= string.Empty;
                     }
                 }
@@ -629,6 +632,8 @@ namespace AESP.Service.Implementation
                         Type = string.Empty,
                         Score = d.Score,
                         AI_Feedback = d.AI_Feedback ?? string.Empty,
+                        AnswerAudio = d.AnswerAudio ?? string.Empty 
+
                     }))
                     .ToList();
 
