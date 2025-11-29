@@ -12,7 +12,7 @@ namespace AESP.Repository.Models
     {
         [Key]
         public Guid AssessmentDetailId { get; set; }
-        public double Score { get; set; }
+        public double? Score { get; set; }
         public string Type { get; set; } = string.Empty;
         public string AI_Feedback { get; set; } = string.Empty;
         public string AnswerAudio { get; set; } = string.Empty;

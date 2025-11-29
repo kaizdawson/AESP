@@ -379,7 +379,7 @@ Trân trọng,
                     LastActiveAt = learner.User.LastActiveAt,
                     Courses = allCourses,
                     AssessmentCount = learner.Assessments.Count,
-                    AvgScore = learner.Assessments.Any() ? learner.Assessments.Average(a => a.Score) : 0
+                    AvgScore = learner.Assessments.Any() ? learner.Assessments.Average(a => (double)a.Score) : 0
                 };
 
                 dto.IsSucess = true;

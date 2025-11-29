@@ -54,7 +54,7 @@ namespace AESP.Service.Implementation
                         AssessmentDetailId = d.AssessmentDetailId,
                         AssessmentId = d.AssessmentId,
                         QuestionAssessmentId = d.QuestionAssessmentId,
-                        Score = d.Score,
+                        Score = (double)d.Score,
                         Type = d.Type,
                         AI_Feedback = d.AI_Feedback,
                         AnswerAudio = d.AnswerAudio
@@ -96,7 +96,7 @@ namespace AESP.Service.Implementation
                     AssessmentDetailId = detail.AssessmentDetailId,
                     AssessmentId = detail.AssessmentId,
                     QuestionAssessmentId = detail.QuestionAssessmentId,
-                    Score = detail.Score,
+                    Score = (double)detail.Score,
                     Type = detail.Type,
                     AI_Feedback = detail.AI_Feedback,
                     AnswerAudio = detail.AnswerAudio
@@ -172,7 +172,7 @@ namespace AESP.Service.Implementation
                     AssessmentDetailId = created.AssessmentDetailId,
                     AssessmentId = created.AssessmentId,
                     QuestionAssessmentId = created.QuestionAssessmentId,
-                    Score = created.Score,
+                    Score = (double)created.Score,
                     Type = created.Type,
                     AI_Feedback = created.AI_Feedback,
                     AnswerAudio = created.AnswerAudio
@@ -237,7 +237,7 @@ namespace AESP.Service.Implementation
                     AssessmentDetailId = updated.AssessmentDetailId,
                     AssessmentId = updated.AssessmentId,
                     QuestionAssessmentId = updated.QuestionAssessmentId,
-                    Score = updated.Score,
+                    Score = (double)updated.Score,
                     Type = updated.Type,
                     AI_Feedback = updated.AI_Feedback,
                     AnswerAudio = updated.AnswerAudio
