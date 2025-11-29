@@ -260,11 +260,11 @@ namespace AESP.Service.Implementation
             // 1️⃣ Lấy tất cả feedback thuộc những review mà reviewer này chấm
             var feedbacks = await db.Feedbacks
                 .Include(f => f.Review)
-                .Where(f =>
-                    f.Review.ReviewerProfileId == reviewerProfileId &&
-                    f.Type == "ReviewerFeedback" &&
-                    f.Status == "Active")
-                .ToListAsync();
+               .Where(f =>
+                  f.Review.ReviewerProfileId == reviewerProfileId &&
+                  f.Type == "LearnerFeedback" &&
+                  f.Status == "Active")
+                  .ToListAsync();
 
             if (feedbacks.Count == 0)
                 return;

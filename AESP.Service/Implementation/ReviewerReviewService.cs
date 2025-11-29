@@ -78,7 +78,7 @@ namespace AESP.Service.Implementation
                         !db.Set<Review>().Any(r =>
                             r.LearnerAnswerId == la.LearnerAnswerId &&
                             r.ReviewerProfileId == reviewerProfileId))
-                    .Select(la => new
+                    .Select(la => new PendingReviewItemDto
                     {
                         Type = "LearnerAnswer",
                         Id = la.LearnerAnswerId,
@@ -86,6 +86,9 @@ namespace AESP.Service.Implementation
 
                         QuestionText = la.LearningPathQuestion.Question.Text,
                         TranscribedText = la.TranscribedText,
+
+                        AIFeedback = la.ExplainTheWrongForVoiceAI,
+                        AIScore = la.ScoreForVoice,
 
                         AudioUrl = la.AudioRecordingUrl,
                         NumberOfReview = la.NumberofReview,
@@ -106,14 +109,17 @@ namespace AESP.Service.Implementation
                         !db.Set<Review>().Any(rv =>
                             rv.RecordId == r.RecordId &&
                             rv.ReviewerProfileId == reviewerProfileId))
-                    .Select(r => new
+                    .Select(r => new PendingReviewItemDto
                     {
                         Type = "Record",
                         Id = r.RecordId,
                         SubmittedAt = r.CreatedAt,
 
                         QuestionText = r.Content,
+
                         TranscribedText = r.TranscribedText,
+                        AIFeedback = r.AIFeedback,           // ✅ chuẩn
+                        AIScore = r.Score,
 
                         AudioUrl = r.AudioRecordingURL,
                         NumberOfReview = r.NumberOfReview,
