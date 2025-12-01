@@ -8,7 +8,7 @@ namespace AESP.Common.DTOs
     public class CreateAssessmentDTO
     {
         public Guid LearnerProfileId { get; set; }               // ✅ ID học viên
-        public double Score { get; set; }                        // ✅ Tổng điểm
+        public double? Score { get; set; }                        // ✅ Tổng điểm
         public string Type { get; set; } = string.Empty;          // ✅ Loại đánh giá (ví dụ: Speaking, Listening)
         public string Feedback { get; set; } = string.Empty;      // ✅ Nhận xét tổng thể
         public double NumberOfQuestion { get; set; }              // ✅ Tổng số câu hỏi
@@ -31,7 +31,7 @@ namespace AESP.Common.DTOs
     {
         public Guid AssessmentId { get; set; }
         public DateTime CreatedAt { get; set; }
-        public double Score { get; set; }
+        public double? Score { get; set; }
         public string Type { get; set; } = string.Empty;
         public string Feedback { get; set; } = string.Empty;
         public double NumberOfQuestion { get; set; }
@@ -44,7 +44,7 @@ namespace AESP.Common.DTOs
     // ----------- AssessmentDetail (used inside Assessment) -----------
     public class CreateAssessmentDetailInAssessmentDTO
     {
-        public double Score { get; set; }                         // ✅ Điểm câu hỏi
+        public double? Score { get; set; }                         // ✅ Điểm câu hỏi
         public string Type { get; set; } = string.Empty;           // ✅ Loại câu hỏi
         public string AI_Feedback { get; set; } = string.Empty;    // ✅ Feedback của AI
         public string AnswerAudio { get; set; } = string.Empty;    // ✅ Link audio trả lời
@@ -65,7 +65,7 @@ namespace AESP.Common.DTOs
     public class ReadAssessmentDetailInAssessmentDTO
     {
         public Guid AssessmentDetailId { get; set; }
-        public double Score { get; set; }
+        public double? Score { get; set; }
         public string Type { get; set; } = string.Empty;
         public string AI_Feedback { get; set; } = string.Empty;
         public string AnswerAudio { get; set; } = string.Empty;
