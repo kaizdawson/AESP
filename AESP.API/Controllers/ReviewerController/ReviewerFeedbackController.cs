@@ -1,5 +1,6 @@
 ﻿using AESP.Repository.DB;
 using AESP.Service.Contract;
+using Azure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -43,7 +44,7 @@ namespace AESP.API.Controllers.ReviewerController
             var result = await _reviewerFeedbackService.GetReviewerFeedbackAsync(
                 reviewer.ReviewerProfileId, pageNumber, pageSize);
 
-            return StatusCode(result.IsSucess ? 200 : 400, result);
+            return Ok(Response);
         }
     }
 }

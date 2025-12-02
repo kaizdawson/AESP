@@ -141,7 +141,29 @@ namespace AESP.Service.Implementation
                         f.Status,
                         f.CreatedAt,
                         f.ReviewId,
-                        ReviewerName = f.Review != null ? f.Review.ReviewerProfile.User.FullName : null
+                        ReviewerName = f.Review != null ? f.Review.ReviewerProfile.User.FullName : null,
+                        ReviewScore = f.Review.Score,
+                        ReviewComment = f.Review.Comment,
+
+                        // ✅ AUDIO PHẢN HỒI CỦA REVIEWER (CHÍNH XÁC)
+                        ReviewerRecordAudioUrl = f.Review.RecordAudioUrl,
+
+                        // ===== BÀI GỐC CỦA LEARNER =====
+                        ReviewType =
+            f.Review.LearnerAnswerId != null ? "LearnerAnswer" :
+            f.Review.RecordId != null ? "Record" : "Unknown",
+
+                        // ✅ CÂU HỎI (NẾU LÀ LEARNERANSWER)
+                        QuestionContent =
+            f.Review.LearnerAnswerId != null
+                ? f.Review.LearnerAnswer.LearningPathQuestion.Question.Text
+                : null,
+
+                        // ✅ AUDIO BÀI NÓI CỦA LEARNER (NẾU LÀ RECORD)
+                        LearnerRecordAudioUrl =
+            f.Review.RecordId != null
+                ? f.Review.Record.AudioRecordingURL
+                : null
                     })
                     .ToListAsync();
 
@@ -220,7 +242,9 @@ namespace AESP.Service.Implementation
             try
             {
                 var db = _feedbackRepository.GetDbContext();
-                var feedback = await db.Feedbacks.FirstOrDefaultAsync(f => f.FeedbackId == feedbackId);
+                var feedback = await db.Feedbacks
+            .Include(f => f.User)
+            .FirstOrDefaultAsync(f => f.FeedbackId == feedbackId);
 
                 if (feedback == null)
                 {
@@ -239,9 +263,35 @@ namespace AESP.Service.Implementation
                 await _feedbackRepository.Update(feedback);
                 await _unitOfWork.SaveChangeAsync();
 
+                // ✅ 2. ĐẾM SỐ LẦN BỊ TỪ CHỐI CỦA USER NÀY
+                var totalRejected = await db.Feedbacks
+                    .Where(f =>
+                        f.UserId == feedback.UserId &&
+                        f.Type == "ReviewerFeedback" &&
+                        f.Status == "Rejected")
+                    .CountAsync();
+
+                // ✅ 3. NẾU >= 3 → KHÓA TÀI KHOẢN
+                if (totalRejected >= 3)
+                {
+                    var user = await db.Users
+                        .FirstOrDefaultAsync(u => u.UserId == feedback.UserId);
+
+                    if (user != null)
+                    {
+                        user.Status = "Banned";   // ✅ ĐÚNG LOGIC HỆ THỐNG BẠN
+                        user.IsDeleted = false;     // không phải xóa, chỉ khóa
+
+                        db.Users.Update(user);
+                        await db.SaveChangesAsync();
+                    }
+                }
+
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                dto.Message = "Từ chối phản hồi thành công.";
+                dto.Message = totalRejected >= 3
+           ? "Từ chối phản hồi thành công. Tài khoản learner đã bị khóa."
+           : "Từ chối phản hồi thành công.";
             }
             catch (Exception ex)
             {
