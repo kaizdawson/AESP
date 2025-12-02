@@ -86,6 +86,57 @@ namespace AESP.Service.Implementation
                     response.BusinessCode = BusinessCode.INVALID_DATA;
                     return response;
                 }
+                var existedFeedback = await _feedbackRepository.AsQueryable()
+                 .Where(f => f.ReviewId == dto.ReviewId && f.Type == "ReviewerFeedback")
+                 .OrderByDescending(f => f.CreatedAt)
+                 .FirstOrDefaultAsync();
+
+                if (existedFeedback != null)
+                {
+                    if (existedFeedback.Status == "Pending")
+                    {
+                        return new ResponseDTO
+                        {
+                            IsSucess = false,
+                            BusinessCode = BusinessCode.INVALID_ACTION,
+                            Message = "Feedback đang chờ admin duyệt, không thể gửi lại."
+                        };
+                    }
+
+                    if (existedFeedback.Status == "Active")
+                    {
+                        return new ResponseDTO
+                        {
+                            IsSucess = false,
+                            BusinessCode = BusinessCode.INVALID_ACTION,
+                            Message = "Feedback đã được duyệt, không thể gửi lại."
+                        };
+                    }
+
+                    if (existedFeedback.Status == "Rejected")
+                    {
+                        return new ResponseDTO
+                        {
+                            IsSucess = false,
+                            BusinessCode = BusinessCode.INVALID_ACTION,
+                            Message = "Feedback đã bị từ chối, không được gửi lại."
+                        };
+                    }
+
+                }
+                if (review.LearnerAnswer != null)
+                {
+                    var learner = review.LearnerAnswer.LearnerProfile.User;
+                    if (learner.Status == "Inactive")
+                    {
+                        return new ResponseDTO
+                        {
+                            IsSucess = false,
+                            BusinessCode = BusinessCode.ACCESS_DENIED,
+                            Message = "Tài khoản của bạn đã bị khóa do vi phạm nhiều lần."
+                        };
+                    }
+                }
 
                 // 4️⃣ Tạo Feedback
                 var feedback = new Feedback
