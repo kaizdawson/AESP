@@ -581,7 +581,7 @@ namespace AESP.Service.Implementation
                         FirebaseUid = firebaseUid,
                         FullName = string.IsNullOrEmpty(name) ? "New Learner" : name,
                         Email = email,
-                        PhoneNumber = "",
+                        PhoneNumber = null,
                         AvatarUrl = avatar,
                         PasswordHash = "",
                         Role = "LEARNER",
@@ -767,7 +767,9 @@ namespace AESP.Service.Implementation
                         FirebaseUid = firebaseUid,
                         FullName = string.IsNullOrEmpty(name) ? "New Reviewer" : name,
                         Email = email,
+                        PhoneNumber = null,
                         AvatarUrl = avatar,
+                        PasswordHash = "",
                         Role = "REVIEWER",
                         Status = "Active",
                         CoinBalance = 0
