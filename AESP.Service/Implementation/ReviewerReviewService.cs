@@ -914,31 +914,68 @@ namespace AESP.Service.Implementation
                 if (reviewerProfile == null || reviewerProfile.User == null)
                     return;
 
-                // =============================
-                // 2. Lấy cấu hình giá mới nhất
-                // =============================
-                var now = DateTime.UtcNow;
+                var learnerProfile = await db.Set<LearnerProfile>()
+           .Include(lp => lp.User)
+           .FirstOrDefaultAsync(lp => lp.LearnerProfileId == learnerProfileId);
 
-                var feeDetail = await db.Set<ReviewFeeDetail>()
-                    .Where(f => f.AppliedDate <= now)
-                    .OrderByDescending(f => f.AppliedDate)
+                if (learnerProfile == null || learnerProfile.User == null)
+                    return;
+
+                var learnerUserId = learnerProfile.User.UserId;
+
+                // =============================
+                // 2. ƯU TIÊN LẤY GIÁ TỪ PURCHASE (ĐÃ ĐÓNG BĂNG)
+                // =============================
+                var purchase = await db.Set<Purchase>()
+                    .Where(p =>
+                        p.UserId == learnerUserId &&
+                        p.Status == "Success" &&
+                        p.PricePerReviewAtPurchase > 0 &&
+                        p.PercentOfReviewerAtPurchase > 0)
+                    .OrderByDescending(p => p.CreatedAt)
                     .FirstOrDefaultAsync();
 
-                if (feeDetail == null)
+                decimal pricePerReview;
+                decimal percentOfReviewer;
+                decimal percentOfSystem;
+
+                if (purchase != null)
                 {
-                    feeDetail = new ReviewFeeDetail
+                    // ✅ CASE CHUẨN - DÙNG GIÁ ĐÃ CHỐT KHI LEARNER MUA GÓI
+                    pricePerReview = purchase.PricePerReviewAtPurchase;
+                    percentOfReviewer = purchase.PercentOfReviewerAtPurchase;
+                    percentOfSystem = 1 - percentOfReviewer;
+                }
+                else
+                {
+                    // ⚠️ BACKUP CHO DATA CŨ - GIỮ LUỒNG CŨ ĐỂ KHÔNG LỖI
+                    var now = DateTime.UtcNow;
+
+                    var feeDetail = await db.Set<ReviewFeeDetail>()
+                        .Where(f => f.AppliedDate <= now)
+                        .OrderByDescending(f => f.AppliedDate)
+                        .FirstOrDefaultAsync();
+
+                    if (feeDetail == null)
                     {
-                        PricePerReviewFee = 1,
-                        PercentOfReviewer = 1,
-                        PercentOfSystem = 0
-                    };
+                        feeDetail = new ReviewFeeDetail
+                        {
+                            PricePerReviewFee = 1,
+                            PercentOfReviewer = 1,
+                            PercentOfSystem = 0
+                        };
+                    }
+
+                    pricePerReview = feeDetail.PricePerReviewFee;
+                    percentOfReviewer = feeDetail.PercentOfReviewer;
+                    percentOfSystem = feeDetail.PercentOfSystem;
                 }
 
                 // =============================
                 // 3. Tính coin chia cho Reviewer + Hệ thống
                 // =============================
-                var reviewerCoinDec = feeDetail.PricePerReviewFee * feeDetail.PercentOfReviewer;
-                var adminCoinDec = feeDetail.PricePerReviewFee * feeDetail.PercentOfSystem;
+                var reviewerCoinDec = pricePerReview * percentOfReviewer;
+                var adminCoinDec = pricePerReview * percentOfSystem;
 
                 var reviewerCoin = (int)Math.Round(reviewerCoinDec, MidpointRounding.AwayFromZero);
                 var adminCoin = (int)Math.Round(adminCoinDec, MidpointRounding.AwayFromZero);
@@ -950,7 +987,6 @@ namespace AESP.Service.Implementation
                 // =============================
                 reviewerProfile.User.CoinBalance += reviewerCoin;
                 db.Set<User>().Update(reviewerProfile.User);
-
 
                 // =============================
                 // 5. Cộng coin cho Admin (User có ROLE = ADMIN)
