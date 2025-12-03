@@ -41,6 +41,25 @@ namespace AESP.API.Controllers
 
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
+        [HttpPost("report-review")]
+        public async Task<IActionResult> ReportReview([FromBody] ReportReviewDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new
+                {
+                    isSucess = false,
+                    message = "Dữ liệu không hợp lệ.",
+                });
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "Không xác định được người dùng." });
+            }
+            var result = await _feedbackService.ReportReviewAsync(dto, userId);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
     }
 
 }

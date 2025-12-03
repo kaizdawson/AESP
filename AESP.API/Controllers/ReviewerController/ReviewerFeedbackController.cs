@@ -26,7 +26,8 @@ namespace AESP.API.Controllers.ReviewerController
         [HttpGet("my-feedback")]
         public async Task<IActionResult> GetMyFeedback(
             [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10)
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? feedbackType = null)
         {
             // 1) Lấy UserId từ token
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
@@ -42,9 +43,9 @@ namespace AESP.API.Controllers.ReviewerController
 
             // 3) Gọi service
             var result = await _reviewerFeedbackService.GetReviewerFeedbackAsync(
-                reviewer.ReviewerProfileId, pageNumber, pageSize);
+                reviewer.ReviewerProfileId, pageNumber, pageSize, feedbackType);
 
-            return Ok(Response);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }
 }

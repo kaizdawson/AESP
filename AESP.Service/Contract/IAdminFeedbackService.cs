@@ -17,5 +17,7 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetFeedbackDetailAsync(Guid feedbackId);
         Task<ResponseDTO> RejectFeedbackAsync(Guid feedbackId, string reason);
         Task<ResponseDTO> ApproveFeedbackAsync(Guid feedbackId);
+        Task<ResponseDTO> ApproveReviewReportAsync(Guid feedbackId);
+        Task<ResponseDTO> RejectReviewReportAsync(Guid feedbackId, string reason);
     }
 }

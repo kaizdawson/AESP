@@ -9,6 +9,6 @@ namespace AESP.Service.Contract
 {
     public interface IReviewerFeedbackService
     {
-        Task<ResponseDTO> GetReviewerFeedbackAsync(Guid reviewerProfileId, int pageNumber, int pageSize);
+        Task<ResponseDTO> GetReviewerFeedbackAsync(Guid reviewerProfileId, int pageNumber, int pageSize, string? feedbackType = null);
     }
 }
