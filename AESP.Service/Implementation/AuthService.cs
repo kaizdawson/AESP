@@ -820,16 +820,30 @@ namespace AESP.Service.Implementation
                 }
 
                 // 5️⃣ Check trạng thái reviewer
+                // 5️⃣ Đảm bảo reviewerProfile luôn tồn tại + lấy trạng thái
                 bool isReviewerActive = false;
-                string? reviewerStatus = null;
+                string reviewerStatus;
 
                 var reviewer = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
-                if (reviewer != null)
+
+                if (reviewer == null)
                 {
-                    reviewerStatus = reviewer.Status;
-                    var st = reviewer.Status?.ToUpperInvariant();
-                    isReviewerActive = st == "PENDING" || st == "ACTIVE";
+                    reviewer = new ReviewerProfile
+                    {
+                        ReviewerProfileId = Guid.NewGuid(),
+                        UserId = user.UserId,
+                        Status = "Draft"
+                    };
+
+                    await _reviewerProfileRepository.Insert(reviewer);
+                    await _unitOfWork.SaveChangeAsync();
                 }
+
+                // 🔥 TỪ ĐÂY TRỞ XUỐNG → reviewerStatus KHÔNG BAO GIỜ NULL
+                reviewerStatus = reviewer.Status;
+                var st = reviewerStatus?.ToUpperInvariant();
+                isReviewerActive = st == "PENDING" || st == "ACTIVE";
+
 
                 // 6️⃣ Tạo Access + Refresh token
                 var accessToken = _jwtService.GenerateAccessToken(user, null, isReviewerActive, null, reviewerStatus);
