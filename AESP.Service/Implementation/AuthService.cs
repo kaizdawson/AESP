@@ -317,7 +317,7 @@ namespace AESP.Service.Implementation
 
             bool? isPlacementTestDone = null;
             bool? isReviewerActive = null;
-
+            string? reviewerStatus = null;
 
             if (user.Role.Equals("LEARNER", StringComparison.OrdinalIgnoreCase))
             {
@@ -338,13 +338,14 @@ namespace AESP.Service.Implementation
                 var reviewerProfile = await _reviewerProfileRepository.GetByExpression(r => r.UserId == user.UserId);
                 if (reviewerProfile != null)
                 {
+                    reviewerStatus = reviewerProfile.Status;
                     var st = reviewerProfile.Status?.ToUpperInvariant();
                     isReviewerActive = st == "PENDING" || st == "ACTIVE";
                 }
             }
 
 
-            var newAccessToken = _jwtService.GenerateAccessToken(user, isPlacementTestDone, isReviewerActive);
+            var newAccessToken = _jwtService.GenerateAccessToken(user, isPlacementTestDone, isReviewerActive,null, reviewerStatus);
 
             await _unitOfWork.SaveChangeAsync();
 
