@@ -64,25 +64,10 @@ namespace AESP.API.Controllers.ManagerController
         //}
 
 
-
         [HttpPost("courses")]
-        public async Task<IActionResult> CreateCourse([FromBody] CreateSimpleCourseDTO dto)
+        public async Task<IActionResult> CreateCourse([FromBody] CreateCourseFullDTO dto)
         {
-            var fullDto = new CreateCourseFullDTO
-            {
-                Title = dto.Title,
-                NumberOfChapter = dto.NumberOfChapter,
-                OrderIndex = dto.OrderIndex,
-                Level = dto.Level,
-                Price = dto.Price,
-                Duration = dto.Duration,
-                Status = dto.Status,
-                Description = dto.Description,   // 🆕 thêm dòng này
-                Chapters = new List<CreateCourseChapterForCourseDTO>()
-            };
-
-
-            var result = await _courseService.CreateFullCourseAsync(fullDto);
+            var result = await _courseService.CreateFullCourseAsync(dto);
             return StatusFromResult(result);
         }
 

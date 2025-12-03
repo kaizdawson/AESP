@@ -109,14 +109,14 @@ namespace AESP.Common.DTOs
     {
         public string Title { get; set; } = string.Empty;
         public int NumberOfChapter { get; set; }
-        public int OrderIndex { get; set; }
+        
         public CourseLevel Level { get; set; }
         public decimal Price { get; set; }
         public int Duration { get; set; } = 30;
         public string Status { get; set; } = "Active";
         public string Description { get; set; }
 
-        public List<CreateCourseChapterForCourseDTO>? Chapters { get; set; }
+        
 
     }
 

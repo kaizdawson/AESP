@@ -144,9 +144,7 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "ChapterId không hợp lệ.");
                 if (request.NumberOfQuestion <= 0)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Mỗi bài tập phải có ít nhất 1 câu hỏi.");
-                if (request.OrderIndex <= 0)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Thứ tự bài tập (OrderIndex) phải lớn hơn 0.");
-
+               
                 // --- KIỂM TRA CHAPTER CÓ TỒN TẠI ---
                 var chapter = await _chapterRepository.GetById(chapterId);
                 if (chapter == null)
@@ -167,6 +165,12 @@ namespace AESP.Service.Implementation
                 if (duplicateTitle)
                     return Fail(BusinessCode.DUPLICATE_DATA,
                         $"Đã tồn tại bài tập '{request.Title}' trong chương này.");
+                var maxOrder = await _exerciseRepository.AsQueryable()
+                 .Where(x => x.ChapterId == chapterId)
+                 .Select(x => (int?)x.OrderIndex)
+                 .MaxAsync() ?? 0;
+
+                int newOrderIndex = maxOrder + 1;
 
                 // --- TẠO EXERCISE ---
                 var exercise = new Exercise
@@ -175,7 +179,7 @@ namespace AESP.Service.Implementation
                     ChapterId = chapterId,
                     Title = request.Title.Trim(),
                     Description = request.Description.Trim(),
-                    OrderIndex = request.OrderIndex,
+                    OrderIndex = newOrderIndex,
                     NumberOfQuestion = request.NumberOfQuestion
                 };
 

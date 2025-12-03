@@ -160,26 +160,15 @@ namespace AESP.Service.Implementation
                         $"Chỉ có thể thêm tối đa {availableSlots} câu hỏi nữa cho bài tập '{exercise.Title}'.");
 
                 // ===== RÀNG BUỘC: ORDERINDEX TRÙNG TRONG DANH SÁCH GỬI LÊN =====
-                var orderIndexes = requests.Select(r => r.OrderIndex).ToList();
-                if (orderIndexes.Distinct().Count() != orderIndexes.Count)
-                    return Fail(BusinessCode.DUPLICATE_DATA, "OrderIndex bị trùng trong danh sách câu hỏi gửi lên.");
-
-                // ===== RÀNG BUỘC: ORDERINDEX TRÙNG TRONG DB =====
-                var dbOrderIndexes = await _questionRepository.AsQueryable()
-                    .Where(q => q.ExerciseId == exerciseId)
-                    .Select(q => q.OrderIndex)
-                    .ToListAsync();
-
-                var duplicateIndex = orderIndexes.Intersect(dbOrderIndexes).ToList();
-                if (duplicateIndex.Any())
-                    return Fail(BusinessCode.DUPLICATE_DATA,
-                        $"OrderIndex {string.Join(", ", duplicateIndex)} đã tồn tại trong bài tập.");
+               
+                
 
 
-                if (orderIndexes.Any(i => i <= 0))
-                    return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex phải lớn hơn 0.");
-
-
+                var currentMax = await _questionRepository.AsQueryable()
+                 .Where(q => q.ExerciseId == exerciseId)
+                 .Select(q => (int?)q.OrderIndex)
+                 .MaxAsync() ?? 0;
+                int nextOrder = currentMax + 1;
                 // ===== TẠO DANH SÁCH CÂU HỎI =====
                 var questions = new List<Question>();
                 int index = 1;
@@ -199,7 +188,7 @@ namespace AESP.Service.Implementation
                         ExerciseId = exerciseId,
                         Text = req.Text.Trim(),
                         Type = req.Type.ToString(),
-                        OrderIndex = req.OrderIndex,
+                        OrderIndex = nextOrder++,
                         PhonemeJson = req.PhonemeJson?.Trim() ?? string.Empty
                     });
 
