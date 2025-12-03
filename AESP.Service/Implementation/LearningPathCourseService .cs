@@ -164,7 +164,7 @@ namespace AESP.Service.Implementation
                 //    if (prev == null || !prev.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                 //        return Fail(BusinessCode.INVALID_ACTION, "Bạn cần hoàn thành khóa học trước đó trước khi mở khóa tiếp theo.");
                 //}
-                // ⭐ 4.1 CHECK ĐIỂM TRUNG BÌNH COURSE TRƯỚC >= 60%
+                // ⭐ 4.1 CHECK ĐIỂM TRUNG BÌNH COURSE TRƯỚC >= 50%
                 if (orderIndex > 1)
                 {
                     var prevCourse = await _repo.AsQueryable()
@@ -191,11 +191,11 @@ namespace AESP.Service.Implementation
 
                     double avgScore = exerciseCount == 0 ? 0 : totalScore / exerciseCount;
 
-                    if (avgScore < 60)
+                    if (avgScore < 50)
                     {
                         return Fail(
                             BusinessCode.INVALID_ACTION,
-                            $"Điểm trung bình khóa trước chỉ đạt {Math.Round(avgScore, 2)}%. Cần tối thiểu 60% để mở khóa học tiếp theo."
+                            $"Điểm trung bình khóa trước chỉ đạt {Math.Round(avgScore, 2)}%. Cần tối thiểu 50% để mở khóa học tiếp theo."
                         );
                     }
                 }
@@ -500,9 +500,9 @@ namespace AESP.Service.Implementation
 
 
         public async Task<ResponseDTO> GetFullLearningPathCourseAsync(
-     Guid? learningPathCourseId,
-     Guid? courseId,
-     string? status)
+            Guid? learningPathCourseId,
+            Guid? courseId,
+            string? status)
         {
             // =============================================
             // 1️⃣ Xác định learningPathCourseId
@@ -520,10 +520,9 @@ namespace AESP.Service.Implementation
                 lpCourse = await _repo.AsQueryable()
                     .Include(x => x.Course)
                     .Where(x => x.CourseId == courseId.Value)
-                    .OrderBy(x => x.OrderIndex)  // tránh lấy sai course nếu có nhiều
+                    .OrderBy(x => x.OrderIndex)
                     .FirstOrDefaultAsync();
             }
-
 
             if (lpCourse == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy LearningPathCourse.");
@@ -633,33 +632,36 @@ namespace AESP.Service.Implementation
                 .ToListAsync();
 
             // =============================================
+            // ✅ 3️⃣.1 TÍNH ĐIỂM TRUNG BÌNH TOÀN COURSE (KHÔNG ẢNH HƯỞNG CODE CŨ)
+            // =============================================
+            var allExerciseScores = chapters
+                .SelectMany(c => c.Exercises)
+                .Select(e => e.ScoreAchieved)
+                .ToList();
+
+            double? averageScore = allExerciseScores.Any()
+                ? Math.Round(allExerciseScores.Average(), 2)
+                : null;
+
+            double totalScore = allExerciseScores.Sum();
+            int totalExerciseScored = allExerciseScores.Count;
+
+            // =============================================
             // 4️⃣ TÍNH DURATION theo đúng giờ Việt Nam
             // =============================================
-
-            // Lấy giờ VN (UTC+7)
             var vnNow = DateTime.UtcNow.AddHours(7);
 
-            // Duration của course
-            var duration = lpCourse.Course.Duration; // số ngày
-
-            // Ngày kích hoạt (theo giờ VN)
+            var duration = lpCourse.Course.Duration;
             var activatedAt = lpCourse.CreatedAt.AddHours(7).Date;
-
-            // Ngày hiện tại (theo giờ VN)
             var today = vnNow.Date;
 
-            // Số ngày đã dùng
             var usedDays = (today - activatedAt).Days;
-
-            // Ngày còn lại
             var remainingDays = Math.Max(duration - usedDays, 0);
 
-            // ❗ Free course (OrderIndex = 1) → không show duration
             bool showDuration = lpCourse.Course.OrderIndex > 1;
 
-
             // =============================================
-            // 5️⃣ Trả kết quả
+            // 5️⃣ Trả kết quả (GIỮ NGUYÊN + THÊM ĐIỂM)
             // =============================================
             return Success(BusinessCode.GET_DATA_SUCCESSFULLY,
                 "Lấy đầy đủ LearningPathCourse thành công.",
@@ -683,7 +685,12 @@ namespace AESP.Service.Implementation
                         lpCourse.Course.Duration,
 
                         ShowDuration = showDuration,
-                        RemainingDays = showDuration ? remainingDays : 0
+                        RemainingDays = showDuration ? remainingDays : 0,
+
+                        // ✅ THÊM ĐIỂM COURSE (KHÔNG PHÁ CẤU TRÚC CŨ)
+                        AverageScore = averageScore,
+                        TotalScore = totalScore,
+                        TotalExerciseScored = totalExerciseScored
                     },
 
                     Chapters = chapters
