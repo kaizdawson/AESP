@@ -91,11 +91,40 @@ namespace AESP.Service.Implementation
 
                 var completed = allLpQuestions.Count(q => q.Status == "Completed");
 
-                lpExercise.Status = completed == lpExercise.NumberOfQuestion ? "Completed" : "InProgress";
-                lpExercise.ScoreAchieved = allLpQuestions.Average(q => q.Score);
+                // ✅ TÍNH ĐIỂM TRUNG BÌNH EXERCISE
+                lpExercise.ScoreAchieved = allLpQuestions.Any()
+                    ? allLpQuestions.Average(q => q.Score)
+                    : 0;
+
+                // ✅ MẶC ĐỊNH: CHƯA ĐỦ CÂU → IN PROGRESS
+                lpExercise.Status = "InProgress";
 
                 await _lpExerciseRepo.Update(lpExercise);
                 await _unitOfWork.SaveChangeAsync();
+
+                // ✅ CHỈ KHI LÀM XONG TẤT CẢ CÂU → MỚI XÉT COMPLETED QUA RULE 50%
+                if (completed == lpExercise.NumberOfQuestion)
+                {
+                    // ✅ ÁP DỤNG RULE 50% Ở ĐÂY
+                    if (lpExercise.ScoreAchieved < 50)
+                    {
+                        // ❌ Dưới 50 → BẮT BUỘC GIỮ InProgress
+                        lpExercise.Status = "InProgress";
+                        await _lpExerciseRepo.Update(lpExercise);
+                        await _unitOfWork.SaveChangeAsync();
+
+                        return Fail(
+                            BusinessCode.INVALID_ACTION,
+                            $"Điểm trung bình hiện tại là {Math.Round(lpExercise.ScoreAchieved, 2)}%. Cần tối thiểu 50% để hoàn thành bài tập."
+                        );
+                    }
+
+                    // ✅ >= 50 → CHO PHÉP COMPLETED
+                    lpExercise.Status = "Completed";
+                    await _lpExerciseRepo.Update(lpExercise);
+                    await _unitOfWork.SaveChangeAsync();
+                }
+
 
 
                 // ⭐⭐⭐ 4.1️⃣ UPDATE CHAPTER ⭐⭐⭐
@@ -262,12 +291,12 @@ namespace AESP.Service.Implementation
 
                 double avgScore = exerciseCount == 0 ? 0 : totalScore / exerciseCount;
 
-                // ❌ Nếu TBC < 60 → không cho lên level
-                if (avgScore < 60)
+                // ❌ Nếu TBC < 50 → không cho lên level
+                if (avgScore < 50)
                 {
                     return Fail(
                         BusinessCode.INVALID_ACTION,
-                        $"Điểm trung bình Level {currentLevel} là {Math.Round(avgScore, 2)}. Cần đạt >= 60 để lên Level tiếp theo."
+                        $"Điểm trung bình Level {currentLevel} là {Math.Round(avgScore, 2)}. Cần đạt >= 50 để lên Level tiếp theo."
                     );
                 }
 
