@@ -345,8 +345,7 @@ namespace AESP.Service.Implementation
                 if (request.NumberOfChapter <= 0)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng chương phải lớn hơn 0.");
 
-                if (request.OrderIndex <= 0)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex phải lớn hơn 0.");
+               
 
                 if (request.Price < 0)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Giá khóa học không thể âm.");
@@ -357,8 +356,7 @@ namespace AESP.Service.Implementation
 
 
                 // ✅ Thêm validate: nếu OrderIndex = 1 thì Price phải = 0
-                if (request.OrderIndex == 1 && request.Price > 0)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Khóa học đầu tiên (OrderIndex = 1) phải miễn phí, giá phải bằng 0.");
+               
 
                 // ===== CHECK TRÙNG TITLE TRONG CÙNG LEVEL =====
                 var duplicateTitle = await _courseRepository.AsQueryable()
@@ -369,14 +367,17 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.DUPLICATE_DATA,
                         $"Đã tồn tại khóa học '{request.Title}' ở cấp độ {request.Level}.");
 
-                // ===== CHECK TRÙNG ORDERINDEX TRONG CÙNG LEVEL =====
-                var duplicateOrder = await _courseRepository.AsQueryable()
-                    .AnyAsync(x => x.Level == request.Level.ToString()
-                                && x.OrderIndex == request.OrderIndex);
+                var maxOrder = await _courseRepository.AsQueryable()
+      .Where(x => x.Level == request.Level.ToString())
+      .Select(x => (int?)x.OrderIndex)
+      .MaxAsync() ?? 0;
 
-                if (duplicateOrder)
-                    return Fail(BusinessCode.DUPLICATE_DATA,
-                        $"Đã tồn tại khóa học có OrderIndex {request.OrderIndex} trong level {request.Level}.");
+                int newOrderIndex = maxOrder + 1;
+
+                // ✅ Rule: Course đầu tiên FREE
+                if (newOrderIndex == 1 && request.Price > 0)
+                    return Fail(BusinessCode.VALIDATION_FAILED,
+                        "Khóa học đầu tiên trong level phải miễn phí.");
 
                 // ===== CREATE COURSE =====
                 var course = new Course
@@ -384,9 +385,9 @@ namespace AESP.Service.Implementation
                     CourseId = Guid.NewGuid(),
                     Title = request.Title.Trim(),
                     NumberOfChapter = request.NumberOfChapter,
-                    OrderIndex = request.OrderIndex,
+                    OrderIndex = newOrderIndex,
                     Level = request.Level.ToString(),
-                    Price = request.Price,
+                    Price = newOrderIndex == 1 ? 0 : request.Price,
                     Duration = request.Duration,
                     Status = string.IsNullOrEmpty(request.Status) ? "Active" : request.Status.Trim(),
                     // 🆕 thêm mới

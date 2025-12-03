@@ -16,7 +16,6 @@ namespace AESP.Common.DTOs
     {
         public string Text { get; set; } = string.Empty;
         public QuestionType Type { get; set; }
-        public int OrderIndex { get; set; }
         public string PhonemeJson { get; set; } = string.Empty;
     }
 
