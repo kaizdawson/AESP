@@ -25,7 +25,8 @@ namespace AESP.API.Controllers.LearnerController
    [FromQuery] int pageNumber = 1,
    [FromQuery] int pageSize = 10,
    [FromQuery] string? status = null,    
-   [FromQuery] string? keyword = null)
+   [FromQuery] string? keyword = null,
+   [FromQuery] string? feedbackType = null)
         {
             var learnerProfileId = GetLearnerProfileIdFromToken(User);
 
@@ -33,7 +34,7 @@ namespace AESP.API.Controllers.LearnerController
                 return Unauthorized(new { message = "Không xác định được learner từ token." });
 
             var result = await _service.GetLearnerReviewHistoryAsync(
-                learnerProfileId.Value, pageNumber, pageSize, status, keyword);
+                learnerProfileId.Value, pageNumber, pageSize, status, keyword, feedbackType);
 
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }

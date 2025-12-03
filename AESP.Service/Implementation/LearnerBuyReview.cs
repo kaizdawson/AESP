@@ -178,7 +178,7 @@ namespace AESP.Service.Implementation
             return (true, "Mua gói review cho record thành công.");
         }
 
-        public async Task<ResponseDTO> GetLearnerReviewHistoryAsync(Guid learnerProfileId, int pageNumber = 1, int pageSize = 10, string? status = null, string? keyword = null)
+        public async Task<ResponseDTO> GetLearnerReviewHistoryAsync(Guid learnerProfileId, int pageNumber = 1, int pageSize = 10, string? status = null, string? keyword = null, string? feedbackType = null)
         {
             var dto = new ResponseDTO();
 
@@ -210,23 +210,38 @@ namespace AESP.Service.Implementation
                     if (status == "approved")
                     {
                         baseQuery = baseQuery.Where(r =>
-                            r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Active"));
+                            r.Feedbacks.Any(f =>
+                                (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport") &&
+                                f.Status == "Active"));
                     }
                     else if (status == "pending")
                     {
                         baseQuery = baseQuery.Where(r =>
-                            r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Pending"));
+                            r.Feedbacks.Any(f =>
+                                (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport") &&
+                                f.Status == "Pending"));
                     }
                     else if (status == "rejected")
                     {
                         baseQuery = baseQuery.Where(r =>
-                            r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Rejected"));
+                            r.Feedbacks.Any(f =>
+                                (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport") &&
+                                f.Status == "Rejected"));
                     }
                     else if (status == "notsent")
                     {
                         baseQuery = baseQuery.Where(r =>
-                            !r.Feedbacks.Any(f => f.Type == "ReviewerFeedback"));
+                            !r.Feedbacks.Any(f =>
+                                f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport"));
                     }
+                }
+                // ✅ FILTER THEO TYPE FEEDBACK (ReviewerFeedback / ReviewerReport)
+                if (!string.IsNullOrWhiteSpace(feedbackType))
+                {
+                    feedbackType = feedbackType.Trim().ToLower();
+
+                    baseQuery = baseQuery.Where(r =>
+                        r.Feedbacks.Any(f => f.Type == feedbackType));
                 }
 
                 // ✅ SEARCH ĐÚNG NGHIỆP VỤ
@@ -267,26 +282,29 @@ namespace AESP.Service.Implementation
                         ReviewerFullName = r.ReviewerProfile.User.FullName,
 
                         ReviewType = r.LearnerAnswerId != null ? "LearnerAnswer" : "Record",
+                        FeedbackType = r.Feedbacks
+                        .Where(f => f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport")
+                        .OrderByDescending(f => f.CreatedAt)
+                        .Select(f => f.Type)
+                         .FirstOrDefault(),
 
                         FeedbackStatus = r.Feedbacks
-                     .Where(f => f.Type == "ReviewerFeedback")
-                     .OrderByDescending(f => f.CreatedAt)   // ✅ lấy feedback mới nhất
-                     .Select(f =>
-                     f.Status == "Active" ? "Approved" :
-                       f.Status == "Pending" ? "Pending" :
-                        f.Status == "Rejected" ? "Rejected" :
-                                "NotSent"
-    )
-    .FirstOrDefault() ?? "NotSent",
+                        .Where(f => f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport")
+                        .OrderByDescending(f => f.CreatedAt)
+                        .Select(f =>
+                            f.Status == "Active" ? "Approved" :
+                            f.Status == "Pending" ? "Pending" :
+                            f.Status == "Rejected" ? "Rejected" : string.IsNullOrWhiteSpace(f.Status) ? "NotSent" : f.Status)
+                            .FirstOrDefault() ?? "NotSent",
 
                         FeedbackRating = r.Feedbacks
-                    .Where(f => f.Type == "ReviewerFeedback")
-                    .OrderByDescending(f => f.CreatedAt)
-                    .Select(f => (int?)f.Rating)
-                    .FirstOrDefault(),
+                        .Where(f => f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport")
+                        .OrderByDescending(f => f.CreatedAt)
+                        .Select(f => (int?)f.Rating)
+                        .FirstOrDefault(),
 
                         FeedbackContent = r.Feedbacks
-                    .Where(f => f.Type == "ReviewerFeedback")
+                    .Where(f => f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport")
                     .OrderByDescending(f => f.CreatedAt)
                     .Select(f => f.Content)
                     .FirstOrDefault()
@@ -297,11 +315,13 @@ namespace AESP.Service.Implementation
                 var totalReview = await baseQuery.CountAsync();
 
                 var completed = await baseQuery.CountAsync(r =>
-                    r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Active")
+                    r.Feedbacks.Any(f => (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport") && f.Status == "Active")
                 );
 
                 var rejected = await baseQuery.CountAsync(r =>
-                    r.Feedbacks.Any(f => f.Type == "ReviewerFeedback" && f.Status == "Rejected")
+                    r.Feedbacks.Any(f =>
+                    (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport") &&
+                         f.Status == "Rejected")
                 );
 
                 dto.IsSucess = true;

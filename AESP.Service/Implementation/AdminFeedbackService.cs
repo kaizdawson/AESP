@@ -1,6 +1,7 @@
 ﻿using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
+using AESP.Repository.DB;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.EntityFrameworkCore;
@@ -17,15 +18,18 @@ namespace AESP.Service.Implementation
         private readonly IGenericRepository<Feedback> _feedbackRepository;
         private readonly IGenericRepository<User> _userRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IEmailService _emailService;
 
         public AdminFeedbackService(
             IGenericRepository<Feedback> feedbackRepository,
             IGenericRepository<User> userRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IEmailService emailService)
         {
             _feedbackRepository = feedbackRepository;
             _userRepository = userRepository;
             _unitOfWork = unitOfWork;
+            _emailService = emailService;
         }
 
         public async Task<ResponseDTO> ApproveFeedbackAsync(Guid feedbackId)
@@ -75,6 +79,211 @@ namespace AESP.Service.Implementation
             }
             return dto;
         }
+
+        public async Task<ResponseDTO> ApproveReviewReportAsync(Guid feedbackId)
+        {
+            var dto = new ResponseDTO();
+            var db = (AppDbContext)_feedbackRepository.GetDbContext();
+
+            await using var transaction = await db.Database.BeginTransactionAsync();
+
+            try
+            {
+                var feedback = await db.Feedbacks
+                    .Include(f => f.Review)
+                        .ThenInclude(r => r.ReviewerProfile)
+                            .ThenInclude(rp => rp.User)
+                    .Include(f => f.Review)
+                        .ThenInclude(r => r.LearnerAnswer)
+                            .ThenInclude(la => la.LearnerProfile)
+                                .ThenInclude(lp => lp.User)
+                    .Include(f => f.Review)
+                        .ThenInclude(r => r.Record)
+                            .ThenInclude(rec => rec.LearnerRecord)
+                                .ThenInclude(lr => lr.LearnerProfile)
+                                    .ThenInclude(lp => lp.User)
+                    .FirstOrDefaultAsync(f => f.FeedbackId == feedbackId && f.Type == "ReviewerReport");
+
+                if (feedback == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy report.";
+                    return dto;
+                }
+
+                if (feedback.Status == "Active" || feedback.Status == "Rejected")
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_ACTION;
+                    dto.Message = "Report này đã được xử lý trước đó.";
+                    return dto;
+                }
+
+                var review = feedback.Review;
+                if (review == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy bản chấm liên quan.";
+                    return dto;
+                }
+
+                var reviewerProfile = review.ReviewerProfile;
+                var reviewerUser = reviewerProfile?.User;
+                if (reviewerUser == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy thông tin reviewer.";
+                    return dto;
+                }
+
+                // Lấy learner
+                User learnerUser;
+                Guid learnerProfileId;
+                if (review.LearnerAnswer != null)
+                {
+                    learnerUser = review.LearnerAnswer.LearnerProfile.User;
+                    learnerProfileId = review.LearnerAnswer.LearnerProfileId;
+                }
+                else if (review.Record != null)
+                {
+                    learnerUser = review.Record.LearnerRecord.LearnerProfile.User;
+                    learnerProfileId = review.Record.LearnerRecord.LearnerProfile.LearnerProfileId;
+                }
+                else
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Review không gắn với learner nào.";
+                    return dto;
+                }
+
+                // 1) Đánh dấu report đã được duyệt
+                feedback.Status = "Active";
+                db.Feedbacks.Update(feedback);
+
+                // 2) Đổi trạng thái Review
+                review.Status = "Reported_Approved"; // hoặc "ReportedApproved"
+                db.Reviews.Update(review);
+
+                // 3) Hoàn lại 1 lượt review cho learner (không hoàn coin)
+                if (review.LearnerAnswer != null)
+                {
+                    var ans = review.LearnerAnswer;
+                    ans.NumberofReview += 1;
+                    ans.IsNeededReviewed = true;
+                    ans.Status = "InReview";
+                    db.LearnerAnswers.Update(ans);
+                }
+                else if (review.Record != null)
+                {
+                    var rec = review.Record;
+                    rec.NumberOfReview += 1;
+                    rec.IsNeedReviewed = true;
+                    rec.Status = "InReview";
+                    db.Records.Update(rec);
+                }
+
+                // 4) Thu hồi coin reviewer – dựa trên TransferTransaction ReviewPayment
+                var reviewPayment = await db.TransferTransactions
+                    .Where(t =>
+                        t.ReviewId == review.ReviewId &&
+                        t.ReviewerProfileId == reviewerProfile.ReviewerProfileId &&
+                        t.TransactionType == "ReviewPayment" &&
+                        t.Status == "Completed")
+                    .OrderByDescending(t => t.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                int refundCoin = reviewPayment != null ? (int)Math.Floor(reviewPayment.AmountCoin): 0;
+
+                if (refundCoin > 0)
+                {
+                    // Không cho âm quá sâu – trừ tối đa bằng số coin hiện tại
+                    var actualDeduct = Math.Min(refundCoin, reviewerUser.CoinBalance);
+                    reviewerUser.CoinBalance -= actualDeduct;
+                    var systemAdminId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+                    var systemAdmin = await db.Users
+                        .FirstOrDefaultAsync(u => u.UserId == systemAdminId);
+
+                    if (systemAdmin != null)
+                    {
+                        systemAdmin.CoinBalance += actualDeduct;
+                        db.Users.Update(systemAdmin);
+                    }
+                    db.Users.Update(reviewerUser);
+
+                    // Log thêm 1 dòng TransferTransaction thể hiện thu hồi
+                    var penaltyTransaction = new TransferTransaction
+                    {
+                        TransferTransactionId = Guid.NewGuid(),
+                        LearnerProfileId = learnerProfileId,
+                        ReviewerProfileId = reviewerProfile.ReviewerProfileId,
+                        ReviewId = review.ReviewId,
+                        AmountCoin = actualDeduct,
+                        Comment = $"Thu hồi {actualDeduct} coin do review bị learner report và được admin chấp nhận.",
+                        Status = "Completed",
+                        CreatedAt = DateTime.UtcNow,
+                        TransactionType = "ReviewPenalty"
+                    };
+                    await db.TransferTransactions.AddAsync(penaltyTransaction);
+                }
+
+                await _unitOfWork.SaveChangeAsync();
+                await transaction.CommitAsync();
+
+                // 5) Gửi email cho Learner
+                if (!string.IsNullOrEmpty(learnerUser.Email))
+                {
+                    string subject = "AESP - Report của bạn đã được chấp nhận";
+                    string body =
+        $@"Xin chào {learnerUser.FullName},
+
+Report của bạn đối với bài chấm đã được admin xem xét và CHẤP NHẬN.
+
+- Bạn đã được cộng lại 1 lượt review cho bài nói đó.
+- Bài chấm của reviewer đã được ghi nhận là có vấn đề và hệ thống đã thu hồi coin tương ứng.
+
+Cảm ơn bạn đã giúp chúng tôi cải thiện chất lượng hệ thống.
+
+Trân trọng,
+Đội ngũ AESP.";
+                    await _emailService.SendEmailAsync(learnerUser.Email, subject, body);
+                }
+
+                // 6) Gửi email cho Reviewer
+                if (!string.IsNullOrEmpty(reviewerUser.Email))
+                {
+                    string subject = "AESP - Bài chấm của bạn bị report và đã được chấp nhận";
+                    string body =
+        $@"Xin chào {reviewerUser.FullName},
+
+Một bài chấm của bạn đã bị learner report và report đó đã được admin xác nhận là HỢP LÝ.
+
+Hệ thống đã thu hồi coin tương ứng cho bài chấm này. Vui lòng chú ý hơn trong các lần review tiếp theo.
+
+Trân trọng,
+Đội ngũ AESP.";
+                    await _emailService.SendEmailAsync(reviewerUser.Email, subject, body);
+                }
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                dto.Message = "Duyệt report thành công. Đã thu hồi coin của reviewer và hoàn lượt review cho learner.";
+                return dto;
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi duyệt report: " + ex.Message;
+                return dto;
+            }
+        }
+        
 
         public async Task<ResponseDTO> GetAllFeedbackAsync(
               string? keyword,
@@ -272,7 +481,7 @@ namespace AESP.Service.Implementation
                     .CountAsync();
 
                 // ✅ 3. NẾU >= 3 → KHÓA TÀI KHOẢN
-                if (totalRejected >= 3)
+                if (totalRejected >= 5)
                 {
                     var user = await db.Users
                         .FirstOrDefaultAsync(u => u.UserId == feedback.UserId);
@@ -289,7 +498,7 @@ namespace AESP.Service.Implementation
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
-                dto.Message = totalRejected >= 3
+                dto.Message = totalRejected >= 5
            ? "Từ chối phản hồi thành công. Tài khoản learner đã bị khóa."
            : "Từ chối phản hồi thành công.";
             }
@@ -303,6 +512,88 @@ namespace AESP.Service.Implementation
             return dto;
 
         }
+
+        public async Task<ResponseDTO> RejectReviewReportAsync(Guid feedbackId, string reason)
+        {
+            var dto = new ResponseDTO();
+            var db = (AppDbContext)_feedbackRepository.GetDbContext();
+
+            try
+            {
+                var feedback = await db.Feedbacks
+                    .Include(f => f.User)
+                    .Include(f => f.Review)
+                    .FirstOrDefaultAsync(f => f.FeedbackId == feedbackId && f.Type == "ReviewerReport");
+
+                if (feedback == null)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    dto.Message = "Không tìm thấy report.";
+                    return dto;
+                }
+
+                if (feedback.Status == "Active" || feedback.Status == "Rejected")
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_ACTION;
+                    dto.Message = "Report này đã được xử lý trước đó.";
+                    return dto;
+                }
+
+                var review = feedback.Review;
+
+                // 1) Đánh dấu report bị từ chối
+                feedback.Status = "Rejected";
+                if (!string.IsNullOrWhiteSpace(reason))
+                {
+                    feedback.Content += $"\n\n[Lý do từ chối report: {reason}]";
+                }
+                db.Feedbacks.Update(feedback);
+
+                // 2) Trả trạng thái Review về Completed (nếu đang Reported_Pending)
+                if (review != null && review.Status == "Reported_Pending")
+                {
+                    review.Status = "Completed";
+                    db.Reviews.Update(review);
+                }
+
+                await _unitOfWork.SaveChangeAsync();
+
+                // 3) Gửi mail cho learner
+                var learnerUser = feedback.User;
+                if (!string.IsNullOrEmpty(learnerUser?.Email))
+                {
+                    string subject = "AESP - Report của bạn không được chấp nhận";
+                    string body =
+        $@"Xin chào {learnerUser.FullName},
+
+Report của bạn đối với bài chấm vừa rồi đã được admin xem xét, 
+và kết quả là KHÔNG được chấp nhận.
+
+Lý do (nếu có): {reason}
+
+Nếu bạn còn thắc mắc, vui lòng liên hệ bộ phận hỗ trợ để được giải đáp thêm.
+
+Trân trọng,
+Đội ngũ AESP.";
+                    await _emailService.SendEmailAsync(learnerUser.Email, subject, body);
+                }
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                dto.Message = "Từ chối report thành công.";
+                return dto;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi từ chối report: " + ex.Message;
+                return dto;
+            }
+        }
+
         private async Task RecalculateReviewerRatingAsync(Guid reviewerProfileId)
         {
             var db = _feedbackRepository.GetDbContext();

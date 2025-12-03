@@ -29,16 +29,15 @@ namespace AESP.Service.Implementation
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<ResponseDTO> GetReviewerFeedbackAsync(Guid reviewerProfileId, int pageNumber, int pageSize)
+        public async Task<ResponseDTO> GetReviewerFeedbackAsync(Guid reviewerProfileId, int pageNumber, int pageSize, string? feedbackType = null)
         {
             var dto = new ResponseDTO();
 
             try
             {
-                // Lấy đúng AppDbContext từ generic repo (GIỐNG HỆT FeedbackService)
                 var db = _feedbackRepository.GetDbContext();
 
-                // 1) Kiểm tra reviewer hợp lệ + Active
+                // 1) Check reviewer hợp lệ + Active
                 var reviewer = await db.ReviewerProfiles
                     .Include(r => r.User)
                     .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
@@ -51,9 +50,9 @@ namespace AESP.Service.Implementation
                     return dto;
                 }
 
-                // 2) Lấy feedback đã được Admin duyệt (Status = Active)
-                var query = db.Feedbacks
-                    .Include(f => f.User)      // Learner gửi feedback
+                // 2) Base query: CHỈ lấy feedback/report đã được admin duyệt (Status = Active)
+                var baseQuery = db.Feedbacks
+                    .Include(f => f.User) // learner gửi
                     .Include(f => f.Review)
                         .ThenInclude(r => r.LearnerAnswer)
                             .ThenInclude(a => a.LearnerProfile)
@@ -64,48 +63,78 @@ namespace AESP.Service.Implementation
                             .ThenInclude(lr => lr.LearnerProfile)
                             .ThenInclude(lp => lp.User)
                     .Where(f =>
-                        f.Status == "Active" &&
-                        f.Type == "ReviewerFeedback" &&
-                        f.Review.ReviewerProfileId == reviewerProfileId)
-                    .OrderByDescending(f => f.CreatedAt);
+                        (f.Status == "Active" || f.Status == "Rejected") &&                            // ✅ chỉ approved
+                        f.Review != null &&
+                        f.Review.ReviewerProfileId == reviewerProfileId &&
+                        (f.Type == "ReviewerFeedback" ||                   // ✅ cả feedback...
+                         f.Type == "ReviewerReport"))                      //    ... và report
+                    .AsQueryable();
 
-                var totalItems = await query.CountAsync();
-                if (totalItems == 0)
+                // 3) Filter theo TYPE (feedback / report) – vẫn nằm trong tập Approved
+                if (!string.IsNullOrWhiteSpace(feedbackType))
                 {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.DATA_NOT_FOUND;
-                    dto.Message = "Reviewer chưa có feedback nào.";
-                    dto.Data = new
+                    var ft = feedbackType.Trim().ToLower();
+
+                    if (ft == "feedback")
                     {
-                        PageNumber = pageNumber,
-                        PageSize = pageSize,
-                        TotalItems = 0,
-                        Items = new List<object>()
-                    };
-                    return dto;
+                        baseQuery = baseQuery.Where(f => f.Type == "ReviewerFeedback");
+                    }
+                    else if (ft == "report")
+                    {
+                        baseQuery = baseQuery.Where(f => f.Type == "ReviewerReport");
+                    }
+                    else
+                    {
+                        // Nếu FE truyền đúng "ReviewerFeedback" / "ReviewerReport"
+                        baseQuery = baseQuery.Where(f => f.Type == feedbackType);
+                    }
                 }
-                    var items = await query
+
+                var totalItems = await baseQuery.CountAsync();
+
+                var items = await baseQuery
+                    .OrderByDescending(f => f.CreatedAt)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
                     .Select(f => new
                     {
                         f.FeedbackId,
-                        f.Content,
+                        FeedbackType = f.Type,        // ReviewerFeedback / ReviewerReport
+                        FeedbackStatus = f.Status == "Active" ? "Approved" : f.Status == "Rejected" ? "Rejected" : "Pending", // luôn là Approved vì mình đã filter Status = Active
                         f.Rating,
+                        f.Content,
                         f.CreatedAt,
+
+                        LearnerId = f.UserId,
                         LearnerName = f.User.FullName,
                         LearnerEmail = f.User.Email,
+
                         ReviewId = f.ReviewId,
-                        ReviewType = f.Review.LearnerAnswerId != null ? "LearnerAnswer" : "Record",
-                        QuestionOrContent = f.Review.LearnerAnswer != null
+                        ReviewScore = f.Review.Score,
+                        ReviewComment = f.Review.Comment,
+                        ReviewStatus = f.Review.Status,
+                        ReviewCreatedAt = f.Review.CreatedAt,
+
+                        ReviewType = f.Review.LearnerAnswerId != null
+                            ? "LearnerAnswer"
+                            : (f.Review.RecordId != null ? "Record" : "Unknown"),
+
+                        QuestionContent = f.Review.LearnerAnswer != null
                             ? f.Review.LearnerAnswer.LearningPathQuestion.Question.Text
-                            : (f.Review.Record != null ? f.Review.Record.Content : null)
+                            : (f.Review.Record != null ? f.Review.Record.Content : null),
+
+                        LearnerRecordAudioUrl = f.Review.Record != null
+                            ? f.Review.Record.AudioRecordingURL
+                            : null,
+
+                        ReviewerRecordAudioUrl = f.Review.RecordAudioUrl
                     })
                     .ToListAsync();
 
+                // Với API list, không nên trả 400 khi không có data
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy danh sách feedback thành công.";
+                dto.Message = "Lấy danh sách feedback/report của reviewer thành công.";
                 dto.Data = new
                 {
                     PageNumber = pageNumber,

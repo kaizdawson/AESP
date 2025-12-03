@@ -1,4 +1,5 @@
-﻿using AESP.Service.Contract;
+﻿using AESP.Common.DTOs;
+using AESP.Service.Contract;
 using AESP.Service.Implementation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -44,6 +45,20 @@ namespace AESP.API.Controllers.AdminController
         public async Task<IActionResult> ApproveFeedback(Guid feedbackId)
         {
             var result = await _service.ApproveFeedbackAsync(feedbackId);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
+        [HttpPut("reports/{feedbackId:guid}/approve")]
+        public async Task<IActionResult> ApproveReviewReport(Guid feedbackId)
+        {
+            var result = await _service.ApproveReviewReportAsync(feedbackId);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
+        [HttpPut("reports/{feedbackId:guid}/reject")]
+        public async Task<IActionResult> RejectReviewReport(
+            Guid feedbackId,
+            [FromBody] RejectReportRequest request)
+        {
+            var result = await _service.RejectReviewReportAsync(feedbackId, request?.Reason);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }

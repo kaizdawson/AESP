@@ -256,6 +256,104 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
+        public async Task<ResponseDTO> GetBuyersOfServicePackageAsync(Guid servicePackageId)
+        {
+            var dto = new ResponseDTO();
+
+            try
+            {
+                var db = _servicePackageRepository.GetDbContext();
+
+                var buyers = await db.Transactions
+                    .Include(t => t.User)
+                    .Where(t =>
+                        t.ServicePackageId == servicePackageId &&
+                        t.Type == "Deposit" &&
+                        t.Status == "Paid")
+                    .OrderByDescending(t => t.CreatedTransaction)
+                    .Select(t => new
+                    {
+                        t.UserId,
+                        t.User.FullName,
+                        t.User.Email,
+                        t.AmountMoney,
+                        t.AmountCoin,
+                        t.OrderCode,
+                        t.CreatedTransaction
+                    })
+                    .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy danh sách người mua gói thành công.";
+                dto.Data = buyers;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi lấy danh sách người mua: " + ex.Message;
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> GetServicePackageStatisticAsync()
+        {
+            var dto = new ResponseDTO();
+
+            try
+            {
+                var db = _servicePackageRepository.GetDbContext();
+
+                var data = await db.ServicePackages
+                    .Where(sp => !sp.IsDeleted)
+                    .Select(sp => new
+                    {
+                        sp.ServicePackageId,
+                        sp.Name,
+                        sp.Price,
+
+                        TotalBuyer = db.Transactions
+                            .Where(t =>
+                                t.ServicePackageId == sp.ServicePackageId &&
+                                t.Type == "Deposit" &&
+                                t.Status == "Paid")
+                            .Select(t => t.UserId)
+                            .Distinct()
+                            .Count(),
+
+                        TotalRevenueMoney = db.Transactions
+                            .Where(t =>
+                                t.ServicePackageId == sp.ServicePackageId &&
+                                t.Type == "Deposit" &&
+                                t.Status == "Paid")
+                            .Sum(t => (decimal?)t.AmountMoney) ?? 0,
+
+                        TotalRevenueCoin = db.Transactions
+                            .Where(t =>
+                                t.ServicePackageId == sp.ServicePackageId &&
+                                t.Type == "Deposit" &&
+                                t.Status == "Paid")
+                            .Sum(t => (decimal?)t.AmountCoin) ?? 0
+                    })
+                    .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy thống kê Service Package thành công.";
+                dto.Data = data;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = "Lỗi khi thống kê Service Package: " + ex.Message;
+            }
+
+            return dto;
+        }
+
         public async Task<ResponseDTO> ToggleStatusAsync(Guid id)
         {
             var dto = new ResponseDTO();

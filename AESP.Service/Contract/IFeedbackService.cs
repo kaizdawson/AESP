@@ -10,5 +10,7 @@ namespace AESP.Service.Contract
     public interface IFeedbackService
     {
         Task<ResponseDTO> AddFeedbackAsync(FeedbackDTO dto, Guid userId);
+        Task<ResponseDTO> ReportReviewAsync(ReportReviewDto dto, Guid userId);
+
     }
 }
