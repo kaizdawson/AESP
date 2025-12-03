@@ -105,18 +105,33 @@ namespace AESP.Service.Implementation
                         "Bạn phải hoàn thành bài tập đang làm dở trước khi bắt đầu bài mới.");
                 }
 
-                // 2️⃣ Chặn nếu có bài nằm trước nó mà chưa Completed
-                bool previousNotCompleted = allExercises
-                    .Any(x => x.OrderIndex < lpExercise.OrderIndex &&
-                              x.Status != "Completed");
+                // 2️⃣ Lấy bài trước (nếu có)
+                var previousExercise = allExercises
+                    .Where(x => x.OrderIndex < lpExercise.OrderIndex)
+                    .OrderByDescending(x => x.OrderIndex)
+                    .FirstOrDefault();
 
-                if (previousNotCompleted)
+                if (previousExercise != null)
                 {
-                    return Fail(BusinessCode.INVALID_ACTION,
-                        "Bạn phải hoàn thành các bài trước trong chương trước khi làm bài tiếp theo.");
+                    // ❌ Nếu CHƯA Completed → chặn
+                    if (previousExercise.Status != "Completed")
+                    {
+                        return Fail(BusinessCode.INVALID_ACTION,
+                            "Bạn phải hoàn thành bài trước trong chương trước khi làm bài tiếp theo.");
+                    }
+
+                    // ❌ Nếu Completed nhưng < 50% → chặn
+                    if (previousExercise.ScoreAchieved < 50)
+                    {
+                        return Fail(
+                            BusinessCode.INVALID_ACTION,
+                            $"Điểm bài trước chỉ đạt {Math.Round(previousExercise.ScoreAchieved, 2)}%. Cần tối thiểu 50% để mở bài tiếp theo."
+                        );
+                    }
+
                 }
 
-                // 🚀 Đến đây là hợp lệ → ĐƯỢC SINH LPQ
+                // 🚀 Đến đây mới hợp lệ → ĐƯỢC SINH LPQ
                 var existed = await _lpQuestionRepo.AsQueryable()
                     .AnyAsync(q => q.LearningPathExerciseId == learningPathExerciseId);
 
@@ -141,6 +156,7 @@ namespace AESP.Service.Implementation
                     await _unitOfWork.SaveChangeAsync();
                 }
             }
+
 
             // ❗ Nếu muốn Completed → phải hoàn tất hết câu hỏi + điểm TB >= 50%
             if (status == "Completed")
@@ -189,7 +205,7 @@ namespace AESP.Service.Implementation
                 if (chapter.Status == "NotStarted" && status == "InProgress")
                 {
                     chapter.Status = "InProgress";
-                    chapter.Progress = 1;
+                    chapter.Progress = (double)1 / chapter.NumberOfModule * 100;
                     await _lpChapterRepo.Update(chapter);
                     await _unitOfWork.SaveChangeAsync();
                 }
