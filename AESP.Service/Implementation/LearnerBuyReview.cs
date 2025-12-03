@@ -70,9 +70,14 @@ namespace AESP.Service.Implementation
             if (fee == null)
                 return (false, "Không tìm thấy gói review.");
 
-            var detail = await _reviewfeeDetailRepo.GetFirstByExpression(x => x.ReviewFeeId == reviewFeeId);
+            var detail = await _reviewfeeDetailRepo
+         .AsQueryable()
+         .Where(x => x.ReviewFeeId == reviewFeeId && x.AppliedDate <= DateTime.UtcNow)
+         .OrderByDescending(x => x.AppliedDate)
+         .FirstOrDefaultAsync();
+
             if (detail == null)
-                return (false, "Không tìm thấy chi tiết gói review.");
+                return (false, "Không tìm thấy chi tiết gói review đang áp dụng.");
 
             int numberOfReview = (int)fee.NumberOfReview;
             int amount = (int)(fee.NumberOfReview * detail.PricePerReviewFee);
@@ -95,7 +100,10 @@ namespace AESP.Service.Implementation
                 CreatedAt = DateTime.UtcNow,
                 UserId = userId,
                 ReviewFeeId = reviewFeeId,
-                AmountCoin = amount
+                AmountCoin = amount,
+                // ✅ ĐÓNG BĂNG GIÁ TẠI THỜI ĐIỂM MUA
+                PricePerReviewAtPurchase = detail.PricePerReviewFee,
+                PercentOfReviewerAtPurchase = detail.PercentOfReviewer
             };
 
             await _purchaseRepo.Insert(purchase);
@@ -124,10 +132,15 @@ namespace AESP.Service.Implementation
             if (fee == null)
                 return (false, "Không tìm thấy gói review.");
 
-          
-            var detail = await _reviewfeeDetailRepo.GetFirstByExpression(x => x.ReviewFeeId == reviewFeeId);
+
+            var detail = await _reviewfeeDetailRepo
+       .AsQueryable()
+       .Where(x => x.ReviewFeeId == reviewFeeId && x.AppliedDate <= DateTime.UtcNow)
+       .OrderByDescending(x => x.AppliedDate)
+       .FirstOrDefaultAsync();
+
             if (detail == null)
-                return (false, "Không tìm thấy chi tiết gói review.");
+                return (false, "Không tìm thấy chi tiết gói review đang áp dụng.");
 
             int numberOfReview = (int)fee.NumberOfReview;
             int amount = (int)(fee.NumberOfReview * detail.PricePerReviewFee);
@@ -153,8 +166,9 @@ namespace AESP.Service.Implementation
                 CreatedAt = DateTime.UtcNow,
                 UserId = userId,
                 ReviewFeeId = reviewFeeId,
-                AmountCoin = amount
-
+                AmountCoin = amount,
+                PricePerReviewAtPurchase = detail.PricePerReviewFee,
+                PercentOfReviewerAtPurchase = detail.PercentOfReviewer
             };
 
             await _purchaseRepo.Insert(purchase);

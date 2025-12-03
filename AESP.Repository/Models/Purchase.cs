@@ -25,6 +25,10 @@ namespace AESP.Repository.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        public decimal PricePerReviewAtPurchase { get; set; }
+        public decimal PercentOfReviewerAtPurchase { get; set; }
+
+
 
         // FK đến ReviewFee
         public Guid? ReviewFeeId { get; set; }

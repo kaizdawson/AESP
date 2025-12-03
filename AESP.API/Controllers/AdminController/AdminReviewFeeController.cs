@@ -13,28 +13,28 @@ namespace AESP.API.Controllers.AdminController
     [Authorize(Roles = "ADMIN")]
     public class AdminReviewFeeController : ControllerBase
     {
-        private readonly IAdminReviewFeeService __adminReviewerFeeService;
+        private readonly IAdminReviewFeeService _adminReviewerFeeService;
 
         public AdminReviewFeeController(IAdminReviewFeeService adminReviewerFeeService)
         {
-            __adminReviewerFeeService = adminReviewerFeeService;
+            _adminReviewerFeeService = adminReviewerFeeService;
         }
         [HttpPost("review-fee-package")]
         public async Task<IActionResult> CreateReviewFeePackage([FromBody] CreateReviewFeePackageDto dto)
         {
-            var result = await __adminReviewerFeeService.CreateReviewFeePackageAndDetailAsync(dto);
+            var result = await _adminReviewerFeeService.CreateReviewFeePackageAndDetailAsync(dto);
             return StatusCode(result.IsSucess ? 201 : 400, result);
         }
         [HttpPost("review-fee-policy")]
         public async Task<IActionResult> ScheduleNewReviewFeePolicy([FromBody] UpdateReviewFeeDetailDto dto)
         {
-            var result = await __adminReviewerFeeService.ScheduleNewReviewFeeDetailAsync(dto);
+            var result = await _adminReviewerFeeService.ScheduleNewReviewFeeDetailAsync(dto);
             return StatusCode(result.IsSucess ? 201 : 400, result);
         }
         [HttpGet("review-fee-packages")]
         public async Task<IActionResult> GetAllReviewFeePackages(int pageNumber = 1, int pageSize = 10)
         {
-            var result = await __adminReviewerFeeService.GetAllReviewFeePackagesAsync(pageNumber, pageSize);
+            var result = await _adminReviewerFeeService.GetAllReviewFeePackagesAsync(pageNumber, pageSize);
             return StatusCode(result.IsSucess ? 201 : 400, result);
         }
         [HttpGet("package/{reviewFeeId}")]
@@ -42,7 +42,7 @@ namespace AESP.API.Controllers.AdminController
         {
             try
             {
-                var result = await __adminReviewerFeeService.GetReviewFeePackageDetailAsync(reviewFeeId);
+                var result = await _adminReviewerFeeService.GetReviewFeePackageDetailAsync(reviewFeeId);
                 return result.IsSucess ? Ok(result) : NotFound(result);
             }
             catch (Exception ex)
@@ -59,7 +59,14 @@ namespace AESP.API.Controllers.AdminController
         [AllowAnonymous]  
         public async Task<IActionResult> GetAllReviewFeePackages()
         {
-            var result = await __adminReviewerFeeService.GetAllReviewFeePackagesAsync();
+            var result = await _adminReviewerFeeService.GetAllReviewFeePackagesAsync();
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
+
+        [HttpPut("review-fee-policy/upcoming")]
+        public async Task<IActionResult> UpdateUpcomingPolicy([FromBody] UpdateUpcomingReviewFeeDetailDto dto)
+        {
+            var result = await _adminReviewerFeeService.UpdateUpcomingReviewFeeDetailAsync(dto);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
     }

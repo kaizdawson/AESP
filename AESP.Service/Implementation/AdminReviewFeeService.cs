@@ -381,6 +381,47 @@ namespace AESP.Service.Implementation
                     response.Message = "Gói Review Fee không tồn tại.";
                     return response;
                 }
+                var now = DateTime.UtcNow;
+
+                // 🚫✅ CHẶN TUYỆT ĐỐI: KHÔNG CHO ĐỤNG LỊCH SỬ (AppliedDate < NOW)
+                if (dto.AppliedDate < now)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.VALIDATION_ERROR;
+                    response.Message =
+                        $"Không thể tạo chính sách cho thời điểm quá khứ ({dto.AppliedDate:dd/MM/yyyy HH:mm}).";
+                    return response;
+                }
+
+                // 🔹 2.1 LẤY CHÍNH SÁCH ĐANG ÁP DỤNG HIỆN TẠI (mới nhất <= now)
+                var currentPolicy = await _reviewFeeDetailRepository.AsQueryable()
+                    .Where(x => x.ReviewFeeId == dto.ReviewFeeId && x.AppliedDate <= now)
+                    .OrderByDescending(x => x.AppliedDate)
+                    .FirstOrDefaultAsync();
+                // 🔹 2.2 CHẶN: AppliedDate MỚI < AppliedDate CỦA CHÍNH SÁCH HIỆN TẠI
+                if (currentPolicy != null && dto.AppliedDate < currentPolicy.AppliedDate)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.VALIDATION_ERROR;
+                    response.Message =
+                        $"Ngày áp dụng mới ({dto.AppliedDate:dd/MM/yyyy HH:mm}) " +
+                        $"không được nhỏ hơn ngày áp dụng hiện tại ({currentPolicy.AppliedDate:dd/MM/yyyy HH:mm}).";
+                    return response;
+                }
+                // 🔹 2.3 CHẶN: TRÙNG NGÀY APPLIEDDATE TRONG CÙNG REVIEWFEE
+                var isDuplicateDate = await _reviewFeeDetailRepository.AsQueryable()
+                    .AnyAsync(x =>
+                        x.ReviewFeeId == dto.ReviewFeeId &&
+                        x.AppliedDate == dto.AppliedDate);
+
+                if (isDuplicateDate)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.DUPLICATE_DATA;
+                    response.Message =
+                        $"Đã tồn tại chính sách giá với ngày áp dụng {dto.AppliedDate:dd/MM/yyyy HH:mm}.";
+                    return response;
+                }
 
                 // 🔹 3. TẠO REVIEW FEE DETAIL MỚI (Chính sách giá mới)
                 var newReviewFeeDetail = new ReviewFeeDetail
@@ -414,6 +455,130 @@ namespace AESP.Service.Implementation
                 response.BusinessCode = BusinessCode.EXCEPTION;
                 response.Message = "Lỗi khi lên lịch chính sách giá: " + ex.Message;
             }
+            return response;
+        }
+
+        public async Task<ResponseDTO> UpdateUpcomingReviewFeeDetailAsync(UpdateUpcomingReviewFeeDetailDto dto)
+        {
+            var response = new ResponseDTO();
+
+            try
+            {
+                // ==============================
+                // 1. VALIDATION CƠ BẢN
+                // ==============================
+                if (dto.PricePerReviewFee <= 0 || (dto.PercentOfSystem + dto.PercentOfReviewer) != 1)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.VALIDATION_ERROR;
+                    response.Message = "Giá gói phải > 0 và tổng phần trăm chia phải bằng 1.";
+                    return response;
+                }
+
+                var now = DateTime.UtcNow;
+
+                // ==============================
+                // 2. LẤY POLICY THEO ID
+                // ==============================
+                var policy = await _reviewFeeDetailRepository.GetById(dto.ReviewFeeDetailId);
+
+                if (policy == null)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    response.Message = "Không tìm thấy chính sách giá cần cập nhật.";
+                    return response;
+                }
+
+                // ==============================
+                // 🚫 3. CHẶN: KHÔNG SỬA POLICY ĐÃ / ĐANG ÁP DỤNG
+                // ==============================
+                if (policy.AppliedDate <= now)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.INVALID_ACTION;
+                    response.Message = "Không được chỉnh sửa chính sách đã hoặc đang áp dụng.";
+                    return response;
+                }
+
+                // ==============================
+                // 🚫 4. CHẶN: KHÔNG CHO ĐỔI NGÀY VỀ QUÁ KHỨ
+                // ==============================
+                if (dto.AppliedDate < now)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.VALIDATION_ERROR;
+                    response.Message = $"Ngày áp dụng mới ({dto.AppliedDate:dd/MM/yyyy HH:mm}) không được nhỏ hơn thời điểm hiện tại.";
+                    return response;
+                }
+
+                // ==============================
+                // 🚫 5. CHẶN: TRÙNG APPLIEDDATE TRONG CÙNG GÓI
+                // ==============================
+                var isDuplicateDate = await _reviewFeeDetailRepository.AsQueryable()
+                    .AnyAsync(x =>
+                        x.ReviewFeeId == policy.ReviewFeeId &&
+                        x.ReviewFeeDetailId != dto.ReviewFeeDetailId &&
+                        x.AppliedDate == dto.AppliedDate);
+
+                if (isDuplicateDate)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.DUPLICATE_DATA;
+                    response.Message = $"Đã tồn tại chính sách giá khác với ngày {dto.AppliedDate:dd/MM/yyyy HH:mm}.";
+                    return response;
+                }
+
+                // ==============================
+                // 🚫 6. CHẶN: KHÔNG ĐƯỢC ĐÈ LÊN CURRENT POLICY
+                // ==============================
+                var currentPolicy = await _reviewFeeDetailRepository.AsQueryable()
+                    .Where(x => x.ReviewFeeId == policy.ReviewFeeId && x.AppliedDate <= now)
+                    .OrderByDescending(x => x.AppliedDate)
+                    .FirstOrDefaultAsync();
+
+                if (currentPolicy != null && dto.AppliedDate <= currentPolicy.AppliedDate)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.VALIDATION_ERROR;
+                    response.Message =
+                        $"Ngày áp dụng mới ({dto.AppliedDate:dd/MM/yyyy HH:mm}) phải lớn hơn chính sách hiện tại ({currentPolicy.AppliedDate:dd/MM/yyyy HH:mm}).";
+                    return response;
+                }
+
+                // ==============================
+                // ✅ 7. UPDATE POLICY (VÌ NÓ LÀ UPCOMING)
+                // ==============================
+                policy.PricePerReviewFee = dto.PricePerReviewFee;
+                policy.AppliedDate = dto.AppliedDate;
+                policy.PercentOfSystem = dto.PercentOfSystem;
+                policy.PercentOfReviewer = dto.PercentOfReviewer;
+
+                await _reviewFeeDetailRepository.Update(policy);
+                await _unitOfWork.SaveChangeAsync();
+
+                // ==============================
+                // ✅ 8. RESPONSE
+                // ==============================
+                response.IsSucess = true;
+                response.BusinessCode = BusinessCode.UPDATE_SUCESSFULLY;
+                response.Message = "Cập nhật chính sách giá tương lai thành công.";
+                response.Data = new
+                {
+                    policy.ReviewFeeDetailId,
+                    policy.ReviewFeeId,
+                    policy.PricePerReviewFee,
+                    policy.PercentOfReviewer,
+                    policy.AppliedDate
+                };
+            }
+            catch (Exception ex)
+            {
+                response.IsSucess = false;
+                response.BusinessCode = BusinessCode.EXCEPTION;
+                response.Message = "Lỗi khi cập nhật chính sách giá: " + ex.Message;
+            }
+
             return response;
         }
     }
