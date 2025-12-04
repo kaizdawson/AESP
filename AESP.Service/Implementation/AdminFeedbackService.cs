@@ -165,7 +165,7 @@ namespace AESP.Service.Implementation
                 db.Feedbacks.Update(feedback);
 
                 // 2) Đổi trạng thái Review
-                review.Status = "Reported_Approved"; // hoặc "ReportedApproved"
+                review.Status = "Reported"; // hoặc "ReportedApproved"
                 db.Reviews.Update(review);
 
                 // 3) Hoàn lại 1 lượt review cho learner (không hoàn coin)

@@ -1,4 +1,4 @@
-﻿using AESP.Common.DTOs;
+﻿ using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.DB;
@@ -44,9 +44,9 @@ namespace AESP.Service.Implementation
                 // 1) Lấy giá review mới nhất
                 // ========================================
                 var feeDetail = await db.Set<ReviewFeeDetail>()
-                 .Where(x => x.AppliedDate <= now)
-                 .OrderByDescending(x => x.AppliedDate)
-                 .FirstOrDefaultAsync();
+                    .Where(x => x.AppliedDate <= now)
+                    .OrderByDescending(x => x.AppliedDate)
+                    .FirstOrDefaultAsync();
 
                 if (feeDetail == null)
                 {
@@ -65,10 +65,10 @@ namespace AESP.Service.Implementation
 
                 decimal pricePerReview = feeDetail.PricePerReviewFee;
                 decimal reviewerPercent = feeDetail.PercentOfReviewer;
-                decimal incomePerReview = pricePerReview * reviewerPercent; // ❗ không chia 100 nữa
+                decimal incomePerReview = pricePerReview * reviewerPercent;
 
                 // ========================================
-                // 2) Lấy tất cả bài review Completed
+                // 2) Lấy tất cả review liên quan reviewer (KHÔNG CHỈ Completed)
                 // ========================================
                 var query = db.Set<Review>()
                     .Include(r => r.LearnerAnswer)
@@ -79,7 +79,10 @@ namespace AESP.Service.Implementation
                             .ThenInclude(lr => lr.LearnerProfile)
                                 .ThenInclude(lp => lp.User)
                     .Where(r => r.ReviewerProfileId == reviewerProfileId &&
-                                r.Status == "Completed")
+                               (r.Status == "Completed"
+                             || r.Status == "Reported"
+                             || r.Status == "Reported_Pending"
+                             || r.Status == "Rejected"))
                     .AsQueryable();
 
                 if (fromDate != null)
@@ -91,10 +94,9 @@ namespace AESP.Service.Implementation
                 var reviews = await query.ToListAsync();
 
                 // ========================================
-                // 3) Mapping data
+                // 3) Thống kê tài chính từ TransferTransaction (CHUẨN KẾ TOÁN)
                 // ========================================
-                int totalReviews = reviews.Count;
-                // Lấy thực tế từ TransferTransaction (chính xác tuyệt đối)
+
                 var totalEarnedFromSystem = await db.Set<TransferTransaction>()
                     .Where(t => t.ReviewerProfileId == reviewerProfileId
                              && t.Status == "Completed"
@@ -103,7 +105,14 @@ namespace AESP.Service.Implementation
                              && (toDate == null || t.CreatedAt <= toDate))
                     .SumAsync(t => (decimal?)t.AmountCoin) ?? 0m;
 
-                // Tiền reviewer đã tip cho learner (nếu có)
+                var totalPenalty = await db.Set<TransferTransaction>()
+                    .Where(t => t.ReviewerProfileId == reviewerProfileId
+                             && t.Status == "Completed"
+                             && t.TransactionType == "ReviewPenalty"
+                             && (fromDate == null || t.CreatedAt >= fromDate)
+                             && (toDate == null || t.CreatedAt <= toDate))
+                    .SumAsync(t => (decimal?)t.AmountCoin) ?? 0m;
+
                 var totalSpentOnTips = await db.Set<TransferTransaction>()
                     .Where(t => t.ReviewerProfileId == reviewerProfileId
                              && t.Status == "Completed"
@@ -112,20 +121,33 @@ namespace AESP.Service.Implementation
                              && (toDate == null || t.CreatedAt <= toDate))
                     .SumAsync(t => (decimal?)t.AmountCoin) ?? 0m;
 
+                var totalCompletedReviews = reviews.Count(x => x.Status == "Completed");
+                var totalReportedReviews = reviews.Count(x => x.Status == "Reported" || x.Status == "Reported_Pending");
+                var totalRejectedReviews = reviews.Count(x => x.Status == "Rejected");
+
+                // ========================================
+                // 4) Trả dữ liệu cho Admin
+                // ========================================
+
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy chi tiết reviewer thành công.";
                 dto.Data = new
-                {// Thông tin cơ bản
-                    TotalReviews = totalReviews,
-                    IncomePerReview = incomePerReview,                    // 8.0 nếu price=10, percent=0.80
+                {
+                    TotalReviews = reviews.Count,
+                    Completed = totalCompletedReviews,
+                    Reported = totalReportedReviews,
+                    Rejected = totalRejectedReviews,
 
-                    // Tiền reviewer thực tế nhận & chi
-                    TotalEarnedFromSystem = totalEarnedFromSystem,        // tiền hệ thống trả (8 coin/bài)
-                    TotalSpentOnTips = totalSpentOnTips,                  // tiền reviewer đã thưởng cho học viên
-                    NetIncome = totalEarnedFromSystem - totalSpentOnTips, // còn lại trong ví (nếu muốn)
+                    PricePerReview = pricePerReview,
+                    IncomePerReview = incomePerReview,
 
-                    // Danh sách các bài đã review
+                    TotalEarnedFromSystem = totalEarnedFromSystem,
+                    TotalPenalty = totalPenalty,
+                    TotalSpentOnTips = totalSpentOnTips,
+
+                    NetIncome = totalEarnedFromSystem - totalPenalty - totalSpentOnTips,
+
                     Items = reviews.Select(r => new
                     {
                         r.ReviewId,
@@ -134,16 +156,22 @@ namespace AESP.Service.Implementation
                         r.Status,
                         ReviewAudioUrl = r.RecordAudioUrl,
                         CreatedAt = r.CreatedAt,
-                        Learner = r.LearnerAnswer?.LearnerProfile?.User?.FullName
-                                  ?? r.Record?.LearnerRecord?.LearnerProfile?.User?.FullName
-                                  ?? "Không xác định",
-                        Question = r.LearnerAnswer != null
-                                  ? r.LearnerAnswer.LearningPathQuestion.Question.Text
-                                 : r.Record != null
-                                 ? r.Record.Content
-            :                        null,
 
-                        EarnedFromThisReview = incomePerReview   // mỗi bài kiếm được bao nhiêu
+                        Learner = r.LearnerAnswer?.LearnerProfile?.User?.FullName
+                               ?? r.Record?.LearnerRecord?.LearnerProfile?.User?.FullName
+                               ?? "Không xác định",
+
+                        Question = r.LearnerAnswer != null
+                             && r.LearnerAnswer.LearningPathQuestion != null
+                             && r.LearnerAnswer.LearningPathQuestion.Question != null
+                            ? r.LearnerAnswer.LearningPathQuestion.Question.Text
+                            : r.Record != null
+                            ? r.Record.Content
+                            : "Không xác định",
+
+                        EarnedFromThisReview =
+                            r.Status == "Completed" ? incomePerReview :
+                            (r.Status == "Reported" || r.Status == "Rejected") ? 0 : 0
                     }).ToList()
                 };
 
