@@ -216,11 +216,41 @@ namespace AESP.Service.Implementation
                 var totalItems = await query.CountAsync();
 
                 // 🔹 Phân trang
-                var items = await query
+                var baseItems = await query
                     .OrderBy(p => p.Price)
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
-                    .Select(p => new
+                    .ToListAsync();
+
+                var resultItems = new List<object>();
+
+                foreach (var p in baseItems)
+                {
+                    // ✅ GỘP LUÔN THỐNG KÊ TẠI ĐÂY
+                    var totalBuyer = await db.Transactions
+                        .Where(t =>
+                            t.ServicePackageId == p.ServicePackageId &&
+                            t.Type == "Deposit" &&
+                            t.Status == "Paid")
+                        .Select(t => t.UserId)
+                        .Distinct()
+                        .CountAsync();
+
+                    var totalRevenueMoney = await db.Transactions
+                        .Where(t =>
+                            t.ServicePackageId == p.ServicePackageId &&
+                            t.Type == "Deposit" &&
+                            t.Status == "Paid")
+                        .SumAsync(t => (decimal?)t.AmountMoney) ?? 0;
+
+                    var totalRevenueCoin = await db.Transactions
+                        .Where(t =>
+                            t.ServicePackageId == p.ServicePackageId &&
+                            t.Type == "Deposit" &&
+                            t.Status == "Paid")
+                        .SumAsync(t => (decimal?)t.AmountCoin) ?? 0;
+
+                    resultItems.Add(new
                     {
                         p.ServicePackageId,
                         p.Name,
@@ -230,20 +260,25 @@ namespace AESP.Service.Implementation
                         p.BonusPercent,
                         p.Status,
                         p.CreatedAt,
-                        p.UpdatedAt
-                    })
-                    .ToListAsync();
+                        p.UpdatedAt,
+
+                        // ✅ THỐNG KÊ ĐÃ GỘP
+                        TotalBuyer = totalBuyer,
+                        TotalRevenueMoney = totalRevenueMoney,
+                        TotalRevenueCoin = totalRevenueCoin
+                    });
+                }
 
                 // 🔹 Kết quả trả về
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy danh sách gói dịch vụ thành công.";
+                dto.Message = "Lấy danh sách gói dịch vụ + thống kê thành công.";
                 dto.Data = new
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
                     TotalItems = totalItems,
-                    Items = items
+                    Items = resultItems
                 };
             }
             catch (Exception ex)
@@ -298,61 +333,61 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> GetServicePackageStatisticAsync()
-        {
-            var dto = new ResponseDTO();
+        //public async Task<ResponseDTO> GetServicePackageStatisticAsync()
+        //{
+        //    var dto = new ResponseDTO();
 
-            try
-            {
-                var db = _servicePackageRepository.GetDbContext();
+        //    try
+        //    {
+        //        var db = _servicePackageRepository.GetDbContext();
 
-                var data = await db.ServicePackages
-                    .Where(sp => !sp.IsDeleted)
-                    .Select(sp => new
-                    {
-                        sp.ServicePackageId,
-                        sp.Name,
-                        sp.Price,
+        //        var data = await db.ServicePackages
+        //            .Where(sp => !sp.IsDeleted)
+        //            .Select(sp => new
+        //            {
+        //                sp.ServicePackageId,
+        //                sp.Name,
+        //                sp.Price,
 
-                        TotalBuyer = db.Transactions
-                            .Where(t =>
-                                t.ServicePackageId == sp.ServicePackageId &&
-                                t.Type == "Deposit" &&
-                                t.Status == "Paid")
-                            .Select(t => t.UserId)
-                            .Distinct()
-                            .Count(),
+        //                TotalBuyer = db.Transactions
+        //                    .Where(t =>
+        //                        t.ServicePackageId == sp.ServicePackageId &&
+        //                        t.Type == "Deposit" &&
+        //                        t.Status == "Paid")
+        //                    .Select(t => t.UserId)
+        //                    .Distinct()
+        //                    .Count(),
 
-                        TotalRevenueMoney = db.Transactions
-                            .Where(t =>
-                                t.ServicePackageId == sp.ServicePackageId &&
-                                t.Type == "Deposit" &&
-                                t.Status == "Paid")
-                            .Sum(t => (decimal?)t.AmountMoney) ?? 0,
+        //                TotalRevenueMoney = db.Transactions
+        //                    .Where(t =>
+        //                        t.ServicePackageId == sp.ServicePackageId &&
+        //                        t.Type == "Deposit" &&
+        //                        t.Status == "Paid")
+        //                    .Sum(t => (decimal?)t.AmountMoney) ?? 0,
 
-                        TotalRevenueCoin = db.Transactions
-                            .Where(t =>
-                                t.ServicePackageId == sp.ServicePackageId &&
-                                t.Type == "Deposit" &&
-                                t.Status == "Paid")
-                            .Sum(t => (decimal?)t.AmountCoin) ?? 0
-                    })
-                    .ToListAsync();
+        //                TotalRevenueCoin = db.Transactions
+        //                    .Where(t =>
+        //                        t.ServicePackageId == sp.ServicePackageId &&
+        //                        t.Type == "Deposit" &&
+        //                        t.Status == "Paid")
+        //                    .Sum(t => (decimal?)t.AmountCoin) ?? 0
+        //            })
+        //            .ToListAsync();
 
-                dto.IsSucess = true;
-                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy thống kê Service Package thành công.";
-                dto.Data = data;
-            }
-            catch (Exception ex)
-            {
-                dto.IsSucess = false;
-                dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi thống kê Service Package: " + ex.Message;
-            }
+        //        dto.IsSucess = true;
+        //        dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+        //        dto.Message = "Lấy thống kê Service Package thành công.";
+        //        dto.Data = data;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        dto.IsSucess = false;
+        //        dto.BusinessCode = BusinessCode.EXCEPTION;
+        //        dto.Message = "Lỗi khi thống kê Service Package: " + ex.Message;
+        //    }
 
-            return dto;
-        }
+        //    return dto;
+        //}
 
         public async Task<ResponseDTO> ToggleStatusAsync(Guid id)
         {

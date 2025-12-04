@@ -106,12 +106,12 @@ namespace AESP.API.Controllers.AdminController
             var result = await _service.ToggleStatusAsync(id);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
-        [HttpGet("statistic")]
-        public async Task<IActionResult> GetServicePackageStatistic()
-        {
-            var result = await _service.GetServicePackageStatisticAsync();
-            return StatusCode(result.IsSucess ? 200 : 400, result);
-        }
+        //[HttpGet("statistic")]
+        //public async Task<IActionResult> GetServicePackageStatistic()
+        //{
+        //    var result = await _service.GetServicePackageStatisticAsync();
+        //    return StatusCode(result.IsSucess ? 200 : 400, result);
+        //}
 
         [HttpGet("{id}/buyers")]
         public async Task<IActionResult> GetBuyersOfServicePackage(Guid id)
