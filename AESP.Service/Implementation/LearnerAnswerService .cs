@@ -36,9 +36,9 @@ namespace AESP.Service.Implementation
         }
 
         public async Task<ResponseDTO> SubmitAnswerAsync(
-       Guid learnerProfileId,
-       Guid learningPathQuestionId,
-       SubmitLearnerAnswerDTO dto)
+      Guid learnerProfileId,
+      Guid learningPathQuestionId,
+      SubmitLearnerAnswerDTO dto)
         {
             try
             {
@@ -47,8 +47,7 @@ namespace AESP.Service.Implementation
                     .Include(q => q.Question)
                     .Include(q => q.LearningPathExercise)
                         .ThenInclude(e => e.LearningPathChapter)
-                                    .ThenInclude(ch => ch.LearningPathCourse)  // ⭐ BẮT BUỘC
-
+                            .ThenInclude(ch => ch.LearningPathCourse) // ⭐ BẮT BUỘC
                     .FirstOrDefaultAsync(q => q.LearningPathQuestionId == learningPathQuestionId);
 
                 if (lpQuestion == null)
@@ -81,6 +80,7 @@ namespace AESP.Service.Implementation
                 lpQuestion.Status = "Completed";
                 lpQuestion.Score = dto.ScoreForVoice;
                 lpQuestion.NumberOfRetake += 1;
+
                 await _lpQuestionRepo.Update(lpQuestion);
                 await _unitOfWork.SaveChangeAsync();
 
@@ -91,40 +91,23 @@ namespace AESP.Service.Implementation
 
                 var completed = allLpQuestions.Count(q => q.Status == "Completed");
 
-                // ✅ TÍNH ĐIỂM TRUNG BÌNH EXERCISE
+                // ✅ TÍNH ĐIỂM TRUNG BÌNH
                 lpExercise.ScoreAchieved = allLpQuestions.Any()
                     ? allLpQuestions.Average(q => q.Score)
                     : 0;
 
-                // ✅ MẶC ĐỊNH: CHƯA ĐỦ CÂU → IN PROGRESS
-                lpExercise.Status = "InProgress";
+                // ✅ LOGIC TRẠNG THÁI ĐÚNG
+                if (completed == lpExercise.NumberOfQuestion && lpExercise.ScoreAchieved >= 50)
+                {
+                    lpExercise.Status = "Completed";
+                }
+                else
+                {
+                    lpExercise.Status = "InProgress";
+                }
 
                 await _lpExerciseRepo.Update(lpExercise);
                 await _unitOfWork.SaveChangeAsync();
-
-                // ✅ CHỈ KHI LÀM XONG TẤT CẢ CÂU → MỚI XÉT COMPLETED QUA RULE 50%
-                if (completed == lpExercise.NumberOfQuestion)
-                {
-                    // ✅ ÁP DỤNG RULE 50% Ở ĐÂY
-                    if (lpExercise.ScoreAchieved < 50)
-                    {
-                        // ❌ Dưới 50 → BẮT BUỘC GIỮ InProgress
-                        lpExercise.Status = "InProgress";
-                        await _lpExerciseRepo.Update(lpExercise);
-                        await _unitOfWork.SaveChangeAsync();
-
-                        return Fail(
-                            BusinessCode.INVALID_ACTION,
-                            $"Điểm trung bình hiện tại là {Math.Round(lpExercise.ScoreAchieved, 2)}%. Cần tối thiểu 50% để hoàn thành bài tập."
-                        );
-                    }
-
-                    // ✅ >= 50 → CHO PHÉP COMPLETED
-                    lpExercise.Status = "Completed";
-                    await _lpExerciseRepo.Update(lpExercise);
-                    await _unitOfWork.SaveChangeAsync();
-                }
-
 
 
                 // ⭐⭐⭐ 4.1️⃣ UPDATE CHAPTER ⭐⭐⭐
@@ -136,7 +119,9 @@ namespace AESP.Service.Implementation
 
                 var chapterCompletedCount = chapterExercises.Count(e => e.Status == "Completed");
 
-                lpChapter.Status = chapterCompletedCount == lpChapter.NumberOfModule ? "Completed" : "InProgress";
+                lpChapter.Status = chapterCompletedCount == lpChapter.NumberOfModule
+                    ? "Completed"
+                    : "InProgress";
 
                 lpChapter.Progress = lpChapter.NumberOfModule == 0
                     ? 0
@@ -144,7 +129,6 @@ namespace AESP.Service.Implementation
 
                 await _lpChapterRepo.Update(lpChapter);
                 await _unitOfWork.SaveChangeAsync();
-
 
                 // ⭐⭐⭐ 4.2️⃣ UPDATE COURSE ⭐⭐⭐
                 var lpCourse = lpChapter.LearningPathCourse;
@@ -155,7 +139,9 @@ namespace AESP.Service.Implementation
 
                 var courseCompletedCount = courseChapters.Count(c => c.Status == "Completed");
 
-                lpCourse.Status = courseCompletedCount == lpCourse.NumberOfChapter ? "Completed" : "InProgress";
+                lpCourse.Status = courseCompletedCount == lpCourse.NumberOfChapter
+                    ? "Completed"
+                    : "InProgress";
 
                 lpCourse.Progress = lpCourse.NumberOfChapter == 0
                     ? 0
@@ -164,12 +150,12 @@ namespace AESP.Service.Implementation
                 await _lpCourseRepo.Update(lpCourse);
                 await _unitOfWork.SaveChangeAsync();
 
-
                 // 5️⃣ Next question
                 var nextQuestion = await _lpQuestionRepo.AsQueryable()
                     .Include(x => x.Question)
-                    .Where(x => x.LearningPathExerciseId == lpExercise.LearningPathExerciseId &&
-                                x.Question.OrderIndex > question.OrderIndex)
+                    .Where(x =>
+                        x.LearningPathExerciseId == lpExercise.LearningPathExerciseId &&
+                        x.Question.OrderIndex > question.OrderIndex)
                     .OrderBy(x => x.Question.OrderIndex)
                     .FirstOrDefaultAsync();
 
@@ -181,7 +167,7 @@ namespace AESP.Service.Implementation
                     isLast ? "Hoàn thành bài tập." : "Nộp câu trả lời thành công.",
                     new
                     {
-                        LearnerAnswerId = answer.LearnerAnswerId,   
+                        LearnerAnswerId = answer.LearnerAnswerId,
                         LearningPathExerciseId = lpExercise.LearningPathExerciseId,
                         ExerciseId = exerciseId,
                         SubmittedScore = dto.ScoreForVoice,
@@ -189,14 +175,16 @@ namespace AESP.Service.Implementation
                         TotalQuestions = lpExercise.NumberOfQuestion,
                         NumberDone = completed,
                         ExerciseStatus = lpExercise.Status,
-                        NextQuestion = isLast ? null : new
-                        {
-                            LearningPathQuestionId = nextQuestion.LearningPathQuestionId,
-                            QuestionId = nextQuestion.QuestionId,
-                            nextQuestion.Question.Text,
-                            nextQuestion.Question.Type,
-                            nextQuestion.Question.OrderIndex
-                        }
+                        NextQuestion = isLast
+                            ? null
+                            : new
+                            {
+                                LearningPathQuestionId = nextQuestion.LearningPathQuestionId,
+                                QuestionId = nextQuestion.QuestionId,
+                                nextQuestion.Question.Text,
+                                nextQuestion.Question.Type,
+                                nextQuestion.Question.OrderIndex
+                            }
                     }
                 );
             }
@@ -205,6 +193,7 @@ namespace AESP.Service.Implementation
                 return Fail(BusinessCode.EXCEPTION, ex.Message);
             }
         }
+
 
 
 
