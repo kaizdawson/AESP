@@ -175,8 +175,18 @@ namespace AESP.Service.Implementation
                             x.OrderIndex == orderIndex - 1);
 
                     if (prevCourse == null)
-                        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trước đó để kiểm tra điểm.");
+                        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trước đó.");
 
+                    // ✅ 1. BẮT BUỘC COURSE TRƯỚC PHẢI COMPLETED 100%
+                    if (!prevCourse.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return Fail(
+                            BusinessCode.INVALID_ACTION,
+                            "Bạn phải hoàn thành 100% khóa học trước thì mới được mở khóa học tiếp theo."
+                        );
+                    }
+
+                    // ✅ 2. TÍNH ĐIỂM TRUNG BÌNH TOÀN COURSE
                     double totalScore = 0;
                     int exerciseCount = 0;
 
@@ -191,6 +201,7 @@ namespace AESP.Service.Implementation
 
                     double avgScore = exerciseCount == 0 ? 0 : totalScore / exerciseCount;
 
+                    // ✅ 3. BẮT BUỘC ĐIỂM TB ≥ 50%
                     if (avgScore < 50)
                     {
                         return Fail(
@@ -199,6 +210,7 @@ namespace AESP.Service.Implementation
                         );
                     }
                 }
+
 
 
                 //// 5️⃣ XÁC ĐỊNH MIỄN PHÍ & XỬ LÝ XU

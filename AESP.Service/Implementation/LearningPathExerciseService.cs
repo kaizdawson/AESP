@@ -80,58 +80,59 @@ namespace AESP.Service.Implementation
 
             var lpExercise = await _repo.AsQueryable()
                 .Include(x => x.LearningPathQuestions)
+                .Include(x => x.LearningPathChapter)
+                    .ThenInclude(c => c.LearningPathCourse)
                 .FirstOrDefaultAsync(x => x.LearningPathExerciseId == learningPathExerciseId);
 
             if (lpExercise == null)
                 return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy LearningPathExercise.");
 
-            // ❗ Lấy toàn bộ exercise trong cùng chapter
-            var allExercises = await _repo.AsQueryable()
-                .Where(x => x.LearningPathChapterId == lpExercise.LearningPathChapterId)
+            // ✅✅✅ LẤY TOÀN BỘ EXERCISE TRONG CÙNG COURSE (KHÔNG THEO CHAPTER)
+            var allExercisesInCourse = await _repo.AsQueryable()
+                .Where(x => x.LearningPathChapter.LearningPathCourseId
+                         == lpExercise.LearningPathChapter.LearningPathCourseId)
                 .OrderBy(x => x.OrderIndex)
                 .ToListAsync();
 
-            // ❗ Nếu muốn chuyển sang InProgress
+            // ✅ CHỈ CHẶN "InProgress"
             if (status == "InProgress")
             {
-                // 1️⃣ Chặn nếu có bài khác đang InProgress
-                bool hasOtherInProgress = allExercises
-                    .Any(x => x.LearningPathExerciseId != learningPathExerciseId &&
-                              x.Status == "InProgress");
+                // 1️⃣ CHẶN nếu có bài KHÁC đang InProgress trong CÙNG CHAPTER
+                bool hasOtherInProgressSameChapter = allExercisesInCourse.Any(x =>
+                    x.LearningPathChapterId == lpExercise.LearningPathChapterId &&
+                    x.LearningPathExerciseId != learningPathExerciseId &&
+                    x.Status == "InProgress");
 
-                if (hasOtherInProgress)
+                if (hasOtherInProgressSameChapter)
                 {
                     return Fail(BusinessCode.INVALID_ACTION,
                         "Bạn phải hoàn thành bài tập đang làm dở trước khi bắt đầu bài mới.");
                 }
 
-                // 2️⃣ Lấy bài trước (nếu có)
-                var previousExercise = allExercises
+                // 2️⃣ LẤY BÀI TRƯỚC THEO TOÀN COURSE (KỂ CẢ KHÁC CHAPTER)
+                var previousExercise = allExercisesInCourse
                     .Where(x => x.OrderIndex < lpExercise.OrderIndex)
                     .OrderByDescending(x => x.OrderIndex)
                     .FirstOrDefault();
 
                 if (previousExercise != null)
                 {
-                    // ❌ Nếu CHƯA Completed → chặn
-                    if (previousExercise.Status != "Completed")
-                    {
-                        return Fail(BusinessCode.INVALID_ACTION,
-                            "Bạn phải hoàn thành bài trước trong chương trước khi làm bài tiếp theo.");
-                    }
+                    bool isCompleted = previousExercise.Status == "Completed";
+                    bool isScoreValid = previousExercise.ScoreAchieved >= 50;
 
-                    // ❌ Nếu Completed nhưng < 50% → chặn
-                    if (previousExercise.ScoreAchieved < 50)
+                    if (!isCompleted || !isScoreValid)
                     {
                         return Fail(
                             BusinessCode.INVALID_ACTION,
-                            $"Điểm bài trước chỉ đạt {Math.Round(previousExercise.ScoreAchieved, 2)}%. Cần tối thiểu 50% để mở bài tiếp theo."
+                            $"Bài trước CHƯA ĐẠT yêu cầu.\n" +
+                            $"- Trạng thái: {previousExercise.Status}\n" +
+                            $"- Điểm: {Math.Round(previousExercise.ScoreAchieved, 2)}%\n" +
+                            $"Yêu cầu: Completed + ≥ 50%"
                         );
                     }
-
                 }
 
-                // 🚀 Đến đây mới hợp lệ → ĐƯỢC SINH LPQ
+                // 3️⃣ SINH LPQ NẾU CHƯA CÓ
                 var existed = await _lpQuestionRepo.AsQueryable()
                     .AnyAsync(q => q.LearningPathExerciseId == learningPathExerciseId);
 
@@ -157,72 +158,32 @@ namespace AESP.Service.Implementation
                 }
             }
 
-
-            // ❗ Nếu muốn Completed → phải hoàn tất hết câu hỏi + điểm TB >= 50%
+            // ✅ CHẶN "Completed" NẾU CHƯA ĐẠT 50%
             if (status == "Completed")
             {
-                // 1️⃣ Check đã hoàn thành hết câu hỏi chưa
                 bool allDone = lpExercise.LearningPathQuestions
                     .All(q => q.Status == "Completed");
 
                 if (!allDone)
-                {
-                    return Fail(BusinessCode.INVALID_ACTION,
-                        "Bạn chưa hoàn thành tất cả câu hỏi.");
-                }
+                    return Fail(BusinessCode.INVALID_ACTION, "Bạn chưa hoàn thành tất cả câu hỏi.");
 
-                // 2️⃣ Tính điểm trung bình của exercise
                 var avgScore = lpExercise.LearningPathQuestions.Any()
                     ? lpExercise.LearningPathQuestions.Average(q => q.Score)
                     : 0;
 
-                // 3️⃣ Nếu < 50% → KHÔNG cho Completed
                 if (avgScore < 50)
                 {
                     return Fail(
                         BusinessCode.INVALID_ACTION,
-                        $"Điểm trung bình hiện tại là {Math.Round(avgScore, 2)}%. Cần tối thiểu 50% để hoàn thành bài tập."
+                        $"Điểm trung bình hiện tại là {Math.Round(avgScore, 2)}%. Cần tối thiểu 50%."
                     );
                 }
             }
 
-            // ============================
-            // ✅ UPDATE EXERCISE STATUS
-            // ============================
+            // ✅ UPDATE STATUS
             lpExercise.Status = status;
             await _repo.Update(lpExercise);
             await _unitOfWork.SaveChangeAsync();
-
-            // ============================
-            // ✅ AUTO UPDATE CHAPTER STATUS
-            // ============================
-            var chapter = await _lpChapterRepo.AsQueryable()
-                .FirstOrDefaultAsync(x => x.LearningPathChapterId == lpExercise.LearningPathChapterId);
-
-            if (chapter != null)
-            {
-                // Nếu vừa vào bài đầu tiên → Chapter = InProgress
-                if (chapter.Status == "NotStarted" && status == "InProgress")
-                {
-                    chapter.Status = "InProgress";
-                    chapter.Progress = (double)1 / chapter.NumberOfModule * 100;
-                    await _lpChapterRepo.Update(chapter);
-                    await _unitOfWork.SaveChangeAsync();
-                }
-
-                // Nếu tất cả exercise trong chapter đều Completed → Chapter = Completed
-                var allExercisesOfChapter = await _repo.AsQueryable()
-                    .Where(x => x.LearningPathChapterId == lpExercise.LearningPathChapterId)
-                    .ToListAsync();
-
-                if (allExercisesOfChapter.All(x => x.Status == "Completed"))
-                {
-                    chapter.Status = "Completed";
-                    chapter.Progress = 100;
-                    await _lpChapterRepo.Update(chapter);
-                    await _unitOfWork.SaveChangeAsync();
-                }
-            }
 
             return Success(BusinessCode.UPDATE_SUCESSFULLY, "Cập nhật trạng thái thành công.");
         }
