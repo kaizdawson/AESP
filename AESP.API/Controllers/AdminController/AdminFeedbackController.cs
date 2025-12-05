@@ -22,9 +22,14 @@ namespace AESP.API.Controllers.AdminController
 
         //  Lấy danh sách Feedback
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] string? keyword, [FromQuery] string? status = "all", [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAll(
+      [FromQuery] string? keyword,
+      [FromQuery] string? status = "all",
+      [FromQuery] string? type = "all",     // ✅ THÊM TYPE
+      [FromQuery] int pageNumber = 1,
+      [FromQuery] int pageSize = 10)
         {
-            var result = await _service.GetAllFeedbackAsync(keyword, status, pageNumber, pageSize);
+            var result = await _service.GetAllFeedbackAsync(keyword, status, type, pageNumber, pageSize);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 

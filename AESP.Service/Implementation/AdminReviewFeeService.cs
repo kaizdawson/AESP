@@ -87,6 +87,68 @@ namespace AESP.Service.Implementation
             return response;
         }
 
+        public async Task<ResponseDTO> DeleteUpcomingReviewFeeDetailAsync(Guid reviewFeeDetailId)
+        {
+            var response = new ResponseDTO();
+
+            try
+            {
+                var now = DateTime.UtcNow;
+
+                // ==============================
+                // 1. LẤY POLICY THEO ID
+                // ==============================
+                var policy = await _reviewFeeDetailRepository.GetById(reviewFeeDetailId);
+
+                if (policy == null)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    response.Message = "Không tìm thấy chính sách giá cần xóa.";
+                    return response;
+                }
+
+                // ==============================
+                // 🚫 2. CHẶN: KHÔNG ĐƯỢC XÓA POLICY ĐÃ / ĐANG ÁP DỤNG
+                // ==============================
+                if (policy.AppliedDate <= now)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.INVALID_ACTION;
+                    response.Message = "Không được xóa chính sách đã hoặc đang áp dụng.";
+                    return response;
+                }
+
+                // ==============================
+                // ✅ 3. CHỈ XÓA KHI LÀ UPCOMING
+                // ==============================
+                await _reviewFeeDetailRepository.Delete(policy);
+                await _unitOfWork.SaveChangeAsync();
+
+                // ==============================
+                // ✅ 4. RESPONSE
+                // ==============================
+                response.IsSucess = true;
+                response.BusinessCode = BusinessCode.DELETE_SUCESSFULLY;
+                response.Message = "Xóa chính sách giá sắp áp dụng thành công.";
+                response.Data = new
+                {
+                    policy.ReviewFeeDetailId,
+                    policy.ReviewFeeId,
+                    policy.PricePerReviewFee,
+                    policy.AppliedDate
+                };
+            }
+            catch (Exception ex)
+            {
+                response.IsSucess = false;
+                response.BusinessCode = BusinessCode.EXCEPTION;
+                response.Message = "Lỗi khi xóa chính sách giá: " + ex.Message;
+            }
+
+            return response;
+        }
+
         public async Task<ResponseDTO> GetAllReviewFeePackagesAsync(int pageNumber, int pageSize)
         {
             var response = new ResponseDTO();
@@ -314,7 +376,7 @@ namespace AESP.Service.Implementation
                         d.PercentOfReviewer,
                         d.PercentOfSystem,
                         AppliedDate = d.AppliedDate.ToString("dd/MM/yyyy HH:mm"),
-                        IsCurrent = d.AppliedDate <= now && (currentPolicy == null || d.ReviewFeeDetailId == currentPolicy.ReviewFeeDetailId),
+                        IsCurrent = currentPolicy != null && d.ReviewFeeDetailId == currentPolicy.ReviewFeeDetailId,
                         IsUpcoming = upcomingPolicy != null && d.ReviewFeeDetailId == upcomingPolicy.ReviewFeeDetailId
                     })
                     .ToList();
@@ -399,13 +461,23 @@ namespace AESP.Service.Implementation
                     .OrderByDescending(x => x.AppliedDate)
                     .FirstOrDefaultAsync();
                 // 🔹 2.2 CHẶN: AppliedDate MỚI < AppliedDate CỦA CHÍNH SÁCH HIỆN TẠI
-                if (currentPolicy != null && dto.AppliedDate < currentPolicy.AppliedDate)
+                if (currentPolicy != null && dto.AppliedDate <= currentPolicy.AppliedDate)
                 {
                     response.IsSucess = false;
                     response.BusinessCode = BusinessCode.VALIDATION_ERROR;
                     response.Message =
                         $"Ngày áp dụng mới ({dto.AppliedDate:dd/MM/yyyy HH:mm}) " +
                         $"không được nhỏ hơn ngày áp dụng hiện tại ({currentPolicy.AppliedDate:dd/MM/yyyy HH:mm}).";
+                    return response;
+                }
+                var hasUpcoming = await _reviewFeeDetailRepository.AsQueryable()
+            .AnyAsync(x => x.ReviewFeeId == dto.ReviewFeeId && x.AppliedDate > now);
+
+                if (hasUpcoming)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.INVALID_ACTION;
+                    response.Message = "Đã tồn tại chính sách sắp áp dụng. Vui lòng dùng chức năng CẬP NHẬT.";
                     return response;
                 }
                 // 🔹 2.3 CHẶN: TRÙNG NGÀY APPLIEDDATE TRONG CÙNG REVIEWFEE
@@ -443,7 +515,7 @@ namespace AESP.Service.Implementation
                 response.Message = $"Lên lịch chính sách giá mới cho gói {dto.ReviewFeeId} thành công. Chính sách sẽ áp dụng từ {dto.AppliedDate:dd/MM/yyyy}.";
                 response.Data = new
                 {
-                    PriceDetailId = newReviewFeeDetail.ReviewFeeDetailId,
+                    newReviewFeeDetail.ReviewFeeDetailId,
                     newReviewFeeDetail.PricePerReviewFee,
                     newReviewFeeDetail.PercentOfReviewer,
                     newReviewFeeDetail.AppliedDate

@@ -288,6 +288,7 @@ Trân trọng,
         public async Task<ResponseDTO> GetAllFeedbackAsync(
               string? keyword,
               string? status,
+              string? type,
               int pageNumber = 1,
               int pageSize = 10)
         {
@@ -330,6 +331,11 @@ Trân trọng,
                             // không lọc
                             break;
                     }
+                }
+                // ✅✅✅ LỌC THEO TYPE (ReviewerFeedback / ReviewerReport)
+                if (!string.IsNullOrWhiteSpace(type) && type.ToLower() != "all")
+                {
+                    query = query.Where(f => f.Type == type);
                 }
 
                 // 🔢 Phân trang

@@ -114,9 +114,9 @@ namespace AESP.API.Controllers.AdminController
         //}
 
         [HttpGet("{id}/buyers")]
-        public async Task<IActionResult> GetBuyersOfServicePackage(Guid id)
+        public async Task<IActionResult> GetBuyersOfServicePackage(Guid id, [FromQuery] string? search, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _service.GetBuyersOfServicePackageAsync(id);
+            var result = await _service.GetBuyersOfServicePackageAsync(id, search, pageNumber, pageSize);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
 

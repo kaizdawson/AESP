@@ -16,7 +16,7 @@ namespace AESP.Repository.Contract
         Task<ResponseDTO> GetAllAsync(string? search, int pageNumber = 1, int pageSize = 10, string? filter = null);
         Task<ResponseDTO> GetAllActiveAsync();
         //Task<ResponseDTO> GetServicePackageStatisticAsync();
-        Task<ResponseDTO> GetBuyersOfServicePackageAsync(Guid servicePackageId);
+        Task<ResponseDTO> GetBuyersOfServicePackageAsync(Guid servicePackageId, string? search, int pageNumber = 1, int pageSize = 10);
        // Task<ResponseDTO> UpdateBonusPercentAsync(Guid id, UpdateBonusPercentDto request);
     }
 }

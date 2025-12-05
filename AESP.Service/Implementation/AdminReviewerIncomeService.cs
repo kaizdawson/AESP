@@ -71,19 +71,22 @@ namespace AESP.Service.Implementation
                 // 2) Lấy tất cả review liên quan reviewer (KHÔNG CHỈ Completed)
                 // ========================================
                 var query = db.Set<Review>()
-                    .Include(r => r.LearnerAnswer)
-                        .ThenInclude(la => la.LearnerProfile)
-                            .ThenInclude(lp => lp.User)
-                    .Include(r => r.Record)
-                        .ThenInclude(rc => rc.LearnerRecord)
-                            .ThenInclude(lr => lr.LearnerProfile)
-                                .ThenInclude(lp => lp.User)
-                    .Where(r => r.ReviewerProfileId == reviewerProfileId &&
-                               (r.Status == "Completed"
-                             || r.Status == "Reported"
-                             || r.Status == "Reported_Pending"
-                             || r.Status == "Rejected"))
-                    .AsQueryable();
+                 .Include(r => r.LearnerAnswer)
+                 .ThenInclude(la => la.LearningPathQuestion)
+                 .ThenInclude(lpq => lpq.Question)
+                 .Include(r => r.LearnerAnswer)
+                 .ThenInclude(la => la.LearnerProfile)
+                 .ThenInclude(lp => lp.User)
+                .Include(r => r.Record)
+                .ThenInclude(rc => rc.LearnerRecord)
+                .ThenInclude(lr => lr.LearnerProfile)
+                 .ThenInclude(lp => lp.User)
+                 .Where(r => r.ReviewerProfileId == reviewerProfileId &&
+                (r.Status == "Completed"
+              || r.Status == "Reported"
+              || r.Status == "Reported_Pending"
+              || r.Status == "Rejected"))
+                .AsQueryable();
 
                 if (fromDate != null)
                     query = query.Where(r => r.CreatedAt >= fromDate);
