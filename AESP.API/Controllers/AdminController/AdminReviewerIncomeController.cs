@@ -35,9 +35,11 @@ namespace AESP.API.Controllers.AdminController
         public async Task<IActionResult> GetDetail(
             Guid reviewerProfileId,
             DateTime? fromDate,
-            DateTime? toDate)
+            DateTime? toDate,
+            int pageNumber = 1,
+            int pageSize = 10)
         {
-            var result = await _service.GetReviewerDetailAsync(reviewerProfileId, fromDate, toDate);
+            var result = await _service.GetReviewerDetailAsync(reviewerProfileId, fromDate, toDate, pageNumber, pageSize);
 
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }

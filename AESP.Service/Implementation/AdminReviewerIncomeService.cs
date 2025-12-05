@@ -31,7 +31,7 @@ namespace AESP.Service.Implementation
 
 
 
-        public async Task<ResponseDTO> GetReviewerDetailAsync(Guid reviewerProfileId, DateTime? fromDate, DateTime? toDate)
+        public async Task<ResponseDTO> GetReviewerDetailAsync(Guid reviewerProfileId, DateTime? fromDate, DateTime? toDate, int pageNumber = 1, int pageSize = 10)
         {
             var dto = new ResponseDTO();
 
@@ -94,7 +94,15 @@ namespace AESP.Service.Implementation
                 if (toDate != null)
                     query = query.Where(r => r.CreatedAt <= toDate);
 
-                var reviews = await query.ToListAsync();
+                var totalItems = await query.CountAsync();
+
+
+
+                var reviews = await query
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
 
                 // ========================================
                 // 3) Thống kê tài chính từ TransferTransaction (CHUẨN KẾ TOÁN)
@@ -150,6 +158,10 @@ namespace AESP.Service.Implementation
                     TotalSpentOnTips = totalSpentOnTips,
 
                     NetIncome = totalEarnedFromSystem - totalPenalty - totalSpentOnTips,
+
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize),
 
                     Items = reviews.Select(r => new
                     {
