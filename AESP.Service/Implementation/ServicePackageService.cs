@@ -291,7 +291,7 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> GetBuyersOfServicePackageAsync(Guid servicePackageId)
+        public async Task<ResponseDTO> GetBuyersOfServicePackageAsync(Guid servicePackageId, string? search, int pageNumber = 1, int pageSize= 10)
         {
             var dto = new ResponseDTO();
 
@@ -299,18 +299,37 @@ namespace AESP.Service.Implementation
             {
                 var db = _servicePackageRepository.GetDbContext();
 
-                var buyers = await db.Transactions
+                var query = db.Transactions
                     .Include(t => t.User)
                     .Where(t =>
                         t.ServicePackageId == servicePackageId &&
                         t.Type == "Deposit" &&
                         t.Status == "Paid")
+                    .AsQueryable();
+
+                // ✅ SEARCH theo tên, email, orderCode
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var keyword = search.Trim().ToLower();
+                    query = query.Where(t =>
+                        t.User.FullName.ToLower().Contains(keyword) ||
+                        t.User.Email.ToLower().Contains(keyword) ||
+                        t.OrderCode.ToLower().Contains(keyword));
+                }
+
+                // ✅ Tổng số item
+                var totalItems = await query.CountAsync();
+
+                // ✅ Phân trang
+                var buyers = await query
                     .OrderByDescending(t => t.CreatedTransaction)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .Select(t => new
                     {
                         t.UserId,
-                        t.User.FullName,
-                        t.User.Email,
+                        BuyerName = t.User.FullName,
+                        BuyerEmail = t.User.Email,
                         t.AmountMoney,
                         t.AmountCoin,
                         t.OrderCode,
@@ -321,7 +340,13 @@ namespace AESP.Service.Implementation
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Message = "Lấy danh sách người mua gói thành công.";
-                dto.Data = buyers;
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    Items = buyers
+                };
             }
             catch (Exception ex)
             {

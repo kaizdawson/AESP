@@ -12,6 +12,7 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetAllFeedbackAsync(
            string? keyword,
            string? status,
+           string? type,
            int pageNumber = 1,
            int pageSize = 10);
         Task<ResponseDTO> GetFeedbackDetailAsync(Guid feedbackId);
