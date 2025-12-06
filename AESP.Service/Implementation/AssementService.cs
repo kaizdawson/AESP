@@ -685,13 +685,15 @@ namespace AESP.Service.Implementation
             {
                 var db = _assessmentRepository.GetDbContext();
 
-                // 1️⃣ Load full depth
+                // 1️ Load full depth
                 var query = db.Assessments
-                    .Include(a => a.AssessmentDetails)
-                        .ThenInclude(d => d.QuestionAssessment)
-                    .AsQueryable();
+                .Include(a => a.LearnerProfile)
+                .ThenInclude(lp => lp.User)
+                .Include(a => a.AssessmentDetails)
+                .ThenInclude(d => d.QuestionAssessment)
+                .AsQueryable();
 
-                // 2️⃣ Pagination
+                // 2️ Pagination
                 var totalItems = await query.CountAsync();
                 var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
@@ -701,7 +703,7 @@ namespace AESP.Service.Implementation
                     .Take(pageSize)
                     .ToListAsync();
 
-                // 3️⃣ Map format (ĐÃ BỎ questionAssessmentId)
+                // 3️ Map format (ĐÃ BỎ questionAssessmentId)
                 var mapped = data.Select(a => new
                 {
                     assessmentId = a.AssessmentId,
@@ -710,6 +712,9 @@ namespace AESP.Service.Implementation
                     feedback = a.Feedback,
                     numberOfQuestion = a.NumberOfQuestion,
                     learnerProfileId = a.LearnerProfileId,
+                    learnerName = a.LearnerProfile != null
+                    ? a.LearnerProfile.User.FullName
+                    : null,
 
                     assessmentDetails = a.AssessmentDetails.Select(d => new
                     {

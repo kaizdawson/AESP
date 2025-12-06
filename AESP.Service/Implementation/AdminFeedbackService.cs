@@ -338,6 +338,18 @@ Trân trọng,
                     query = query.Where(f => f.Type == type);
                 }
 
+                var totalFeedback = await query.CountAsync(f => f.Type == "ReviewerFeedback");
+                var totalApproved = await query.CountAsync(f => f.Type == "ReviewerFeedback" && f.Status == "Active");
+                var totalRejected = await query.CountAsync(f => f.Type == "ReviewerFeedback" && f.Status == "Rejected");
+
+                var avgRating = totalFeedback > 0
+                    ? Math.Round(await query
+                        .Where(f => f.Type == "ReviewerFeedback")
+                        .AverageAsync(f => (double?)f.Rating) ?? 0, 1)
+                    : 0;
+
+                var totalReports = await query.CountAsync(f => f.Type == "ReviewerReport");
+
                 // 🔢 Phân trang
                 var totalItems = await query.CountAsync();
                 var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
@@ -387,6 +399,14 @@ Trân trọng,
                 dto.Message = "Lấy danh sách phản hồi thành công.";
                 dto.Data = new
                 {
+                    TotalFeedback = totalFeedback,
+                    TotalApproved = totalApproved,
+                    TotalRejected = totalRejected,
+                    AverageRating = avgRating,
+
+                    // REPORT
+                    TotalReports = totalReports,
+
                     TotalItems = totalItems,
                     TotalPages = totalPages,
                     PageNumber = pageNumber,
