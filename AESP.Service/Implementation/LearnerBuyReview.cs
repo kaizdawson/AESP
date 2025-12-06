@@ -201,6 +201,10 @@ namespace AESP.Service.Implementation
                         || (r.Record != null && r.Record.LearnerRecord.LearnerProfile.LearnerProfileId == learnerProfileId)
                     )
                     .AsQueryable();
+                var dashboardQuery = db.Set<Review>()
+                    .Include(r => r.Feedbacks)
+                    .Where(r => (r.LearnerAnswer != null && r.LearnerAnswer.LearnerProfileId == learnerProfileId) || (r.Record != null && r.Record.LearnerRecord.LearnerProfile.LearnerProfileId == learnerProfileId))
+                    .AsQueryable();
 
                 // ✅ FILTER THEO TRẠNG THÁI FEEDBACK (ĐÚNG NGHIỆP VỤ)
                 if (!string.IsNullOrWhiteSpace(status))
@@ -312,16 +316,24 @@ namespace AESP.Service.Implementation
                     .ToListAsync();
 
                 // ✅ DASHBOARD COUNT ĐÚNG NGHIỆP VỤ
-                var totalReview = await baseQuery.CountAsync();
+                var totalReview = await dashboardQuery.CountAsync();
 
-                var completed = await baseQuery.CountAsync(r =>
-                    r.Feedbacks.Any(f => (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport") && f.Status == "Active")
+                var completed = await dashboardQuery.CountAsync(r =>
+                    r.Feedbacks.Any(f =>
+                        (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport")
+                        && f.Status == "Active")
                 );
 
-                var rejected = await baseQuery.CountAsync(r =>
+                var pending = await dashboardQuery.CountAsync(r =>
                     r.Feedbacks.Any(f =>
-                    (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport") &&
-                         f.Status == "Rejected")
+                        (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport")
+                        && f.Status == "Pending")
+                );
+
+                var rejected = await dashboardQuery.CountAsync(r =>
+                    r.Feedbacks.Any(f =>
+                        (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport")
+                        && f.Status == "Rejected")
                 );
 
                 dto.IsSucess = true;
@@ -335,6 +347,7 @@ namespace AESP.Service.Implementation
 
                     TotalReview = totalReview,
                     Completed = completed,
+                    Pending = pending,
                     Rejected = rejected,
 
                     Items = items
