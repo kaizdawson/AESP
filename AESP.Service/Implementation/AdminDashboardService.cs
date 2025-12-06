@@ -92,17 +92,19 @@ namespace AESP.Service.Implementation
                 if (year <= 0)
                     year = DateTime.UtcNow.Year;
 
-                var db = _purchaseRepository.GetDbContext();
+                // ✅ PHẢI DÙNG TRANSACTION
+                var db = _transactionRepository.GetDbContext();
 
-                var monthlyData = await db.Purchases
-                    .Where(p =>
-                        p.CreatedAt.Year == year &&
-                        p.Status == "Success")
-                    .GroupBy(p => p.CreatedAt.Month)
+                var monthlyData = await db.Transactions
+                    .Where(t =>
+                        t.CreatedTransaction.Year == year &&
+                        t.Status == "Paid" &&
+                        t.Type == "Deposit")           // ✅ tiền nạp thật
+                    .GroupBy(t => t.CreatedTransaction.Month)
                     .Select(g => new
                     {
                         Month = g.Key,
-                        Revenue = g.Sum(x => x.AmountCoin)
+                        Revenue = g.Sum(x => x.AmountMoney) // ✅ tiền VNĐ
                     })
                     .ToListAsync();
 
