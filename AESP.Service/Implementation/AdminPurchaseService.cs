@@ -355,40 +355,42 @@ namespace AESP.Service.Implementation
 
                 var query = db.Purchases
                     .Include(p => p.User)
+                    .Include(p => p.ReviewFee)
                     .Where(p => p.Status == "Success" && p.ReviewFeeId != null);
 
-                var totalBuyer = await query
-                    .Select(p => p.UserId)
-                    .Distinct()
-                    .CountAsync();
-
-                var totalAmountCoin = await query
-                    .SumAsync(p => (decimal?)p.AmountCoin) ?? 0;
-
-                var buyers = await query
-                .OrderByDescending(p => p.CreatedAt)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(p => new
+                var grouped = await query
+                    .GroupBy(p => new
                     {
-                         p.UserId,
-                         p.User.FullName,
-                         p.User.Email,
-                         p.CreatedAt,
-                         p.AmountCoin
+                        p.ReviewFeeId,
+                        p.ReviewFee.NumberOfReview
                     })
-                     .ToListAsync();
+                    .Select(g => new
+                    {
+                        ReviewFeeId = g.Key.ReviewFeeId,
+                        NumberOfReview = g.Key.NumberOfReview,
+
+                        TotalPurchase = g.Count(),
+                        TotalAmountCoin = g.Sum(x => x.AmountCoin),
+
+                        Buyers = g
+                            .OrderByDescending(x => x.CreatedAt)
+                            .Select(x => new
+                            {
+                                x.UserId,
+                                x.User.FullName,
+                                x.User.Email,
+                                x.CreatedAt,
+                                x.AmountCoin
+                            })
+                        .ToList()
+                    })
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Data = new
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalBuyer = totalBuyer,
-                    TotalAmountCoin = totalAmountCoin,
-                    Buyers = buyers
-                };
+                dto.Data = grouped;
             }
             catch (Exception ex)
             {
@@ -398,7 +400,7 @@ namespace AESP.Service.Implementation
             }
 
             return dto;
-        
+
         }
 
         public async Task<ResponseDTO> GetAIConversationBuyerStatisticsAsync(int pageNumber, int pageSize)
@@ -410,40 +412,39 @@ namespace AESP.Service.Implementation
 
                 var query = db.Purchases
                     .Include(p => p.User)
+                    .Include(p => p.AIConversationCharge)
                     .Where(p => p.Status == "Success" && p.AIConversationChargeId != null);
 
-                var totalBuyer = await query
-                    .Select(p => p.UserId)
-                    .Distinct()
-                    .CountAsync();
+                var grouped = await query
+                    .GroupBy(p => new
+                    {
+                        p.AIConversationChargeId,
+                        p.AIConversationCharge.AllowedMinutes
+                    })
+                    .Select(g => new
+                    {
+                        AIConversationChargeId = g.Key.AIConversationChargeId,
+                        AllowedMinutes = g.Key.AllowedMinutes,
 
-                var totalAmountCoin = await query
-                    .SumAsync(p => (decimal?)p.AmountCoin) ?? 0;
+                        TotalPurchase = g.Count(),
+                        TotalAmountCoin = g.Sum(x => x.AmountCoin),
 
-                var buyers = await query
-            .OrderByDescending(p => p.CreatedAt)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .Select(p => new
-            {
-                p.UserId,
-                p.User.FullName,
-                p.User.Email,
-                p.CreatedAt,
-                p.AmountCoin
-            })
-            .ToListAsync();
+                        Buyers = g.Select(x => new
+                        {
+                            x.UserId,
+                            x.User.FullName,
+                            x.User.Email,
+                            x.CreatedAt,
+                            x.AmountCoin
+                        }).ToList()
+                    })
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Data = new
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalBuyer = totalBuyer,
-                    TotalAmountCoin = totalAmountCoin,
-                    Buyers = buyers
-                };
+                dto.Data = grouped;
             }
             catch (Exception ex)
             {
@@ -462,45 +463,45 @@ namespace AESP.Service.Implementation
             {
                 var db = _purchaseRepository.GetDbContext();
 
-                var query = db.LearnerCourses
-                    .Include(lc => lc.LearnerProfile)
-                        .ThenInclude(lp => lp.User);
-
-                var totalLearner = await query
-                    .Select(lc => lc.LearnerProfileId)
-                    .Distinct()
-                    .CountAsync();
-
-                var coursePurchaseQuery = db.Purchases
+                var query = db.Purchases
+                    .Include(p => p.User)
+                    .Include(p => p.Course)
                     .Where(p => p.Status == "Success" && p.CourseId != null);
 
-                var totalCourseAmountCoin = await coursePurchaseQuery
-                    .SumAsync(p => (decimal?)p.AmountCoin) ?? 0;
+                var grouped = await query
+                    .GroupBy(p => new
+                    {
+                        p.CourseId,
+                        p.Course.Title,
+                        p.Course.Level,
+                        p.Course.Price
+                    })
+                    .Select(g => new
+                    {
+                        CourseId = g.Key.CourseId,
+                        g.Key.Title,
+                        g.Key.Level,
+                        g.Key.Price,
 
-                var learners = await query
-                    .OrderByDescending(lc => lc.GeneratedDate)
+                        TotalPurchase = g.Count(),
+                        TotalAmountCoin = g.Sum(x => x.AmountCoin),
+
+                        Buyers = g.Select(x => new
+                        {
+                            x.UserId,
+                            x.User.FullName,
+                            x.User.Email,
+                            x.CreatedAt,
+                            x.AmountCoin
+                        }).ToList()
+                    })
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
-                 .Select(lc => new
-                  {
-                     lc.LearnerProfileId,
-                     lc.LearnerProfile.User.FullName,
-                     lc.LearnerProfile.User.Email,
-                     lc.GeneratedDate,
-                     lc.NumberOfCourse
-                  })
-            .ToListAsync();
+                    .ToListAsync();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Data = new
-                {
-                    PageNumber = pageNumber,
-                    PageSize = pageSize,
-                    TotalEnrolledLearner = totalLearner,
-                    TotalCourseAmountCoin = totalCourseAmountCoin,
-                    Learners = learners
-                };
+                dto.Data = grouped;
             }
             catch (Exception ex)
             {
