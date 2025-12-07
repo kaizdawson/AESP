@@ -72,6 +72,8 @@ namespace AESP.Service.Implementation
         public async Task<(bool isSuccess, string message)> BuyReviewFeeAsync(
     Guid userId, Guid reviewFeeId, Guid learnerAnswerId)
         {
+            var now = DateTime.UtcNow;
+
             var user = await _userRepo.GetById(userId);
             if (user == null)
                 return (false, "User không tồn tại.");
@@ -84,16 +86,16 @@ namespace AESP.Service.Implementation
             if (fee == null)
                 return (false, "Không tìm thấy gói review.");
 
+            // 🔁 FIX: chỉ lấy chi tiết giá đang hiệu lực (AppliedDate <= now)
             var detail = await _reviewfeeDetailRepo.AsQueryable()
-    .Where(x => x.ReviewFeeId == reviewFeeId)
-    .OrderByDescending(x => x.AppliedDate)
-    .FirstOrDefaultAsync();
+                .Where(x => x.ReviewFeeId == reviewFeeId && x.AppliedDate <= now)
+                .OrderByDescending(x => x.AppliedDate)
+                .FirstOrDefaultAsync();
 
             if (detail == null)
                 return (false, "Gói review chưa có cấu hình giá.");
 
-            if (detail.AppliedDate > DateTime.UtcNow)
-                return (false, "Gói review chưa đến ngày áp dụng.");
+            
 
 
             int numberOfReview = (int)fee.NumberOfReview;
@@ -134,7 +136,8 @@ namespace AESP.Service.Implementation
         public async Task<(bool isSuccess, string message)> BuyReviewFeeForRecordAsync(
     Guid userId, Guid reviewFeeId, Guid recordId)
         {
-      
+            var now = DateTime.UtcNow;
+
             var user = await _userRepo.GetById(userId);
             if (user == null)
                 return (false, "User không tồn tại.");
@@ -150,11 +153,11 @@ namespace AESP.Service.Implementation
                 return (false, "Không tìm thấy gói review.");
 
 
-            var detail = await _reviewfeeDetailRepo
-       .AsQueryable()
-       .Where(x => x.ReviewFeeId == reviewFeeId && x.AppliedDate <= DateTime.UtcNow)
-       .OrderByDescending(x => x.AppliedDate)
-       .FirstOrDefaultAsync();
+            // 🔁 FIX: cùng logic với BuyReviewFeeAsync
+            var detail = await _reviewfeeDetailRepo.AsQueryable()
+                .Where(x => x.ReviewFeeId == reviewFeeId && x.AppliedDate <= now)
+                .OrderByDescending(x => x.AppliedDate)
+                .FirstOrDefaultAsync();
 
             if (detail == null)
                 return (false, "Không tìm thấy chi tiết gói review đang áp dụng.");

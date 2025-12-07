@@ -38,41 +38,54 @@ namespace AESP.Service.Implementation
         public async Task<ResponseDTO> GetPackagesByMonthAsync(int year)
         {
             var dto = new ResponseDTO();
+
             try
             {
                 if (year <= 0) year = DateTime.UtcNow.Year;
 
-                var db = _purchaseRepository.GetDbContext();
+                var db = _packageRepository.GetDbContext();
 
-                var monthlyData = await db.Purchases
-                    .Where(p => p.CreatedAt.Year == year && p.Status == "Success")
-                    .GroupBy(p => p.CreatedAt.Month)
+                // ✅ LẤY DỮ LIỆU NGƯỜI MUA SERVICE PACKAGE THEO THÁNG
+                var monthlyData = await db.Transactions
+                    .Where(t =>
+                        t.Status == "Paid" &&
+                        t.Type == "Deposit" &&
+                        t.ServicePackageId != null &&
+                        t.CreatedTransaction.Year == year
+                    )
+                    .GroupBy(t => t.CreatedTransaction.Month)
                     .Select(g => new
                     {
                         Month = g.Key,
-                        Count = g.Count()
+
+                        // ✅ ĐẾM SỐ NGƯỜI MUA (DISTINCT USER)
+                        TotalBuyer = g
+                            .Select(x => x.UserId)
+                            .Distinct()
+                            .Count()
                     })
                     .ToListAsync();
 
+                // ✅ ĐỔ FILL ĐỦ 12 THÁNG CHO BIỂU ĐỒ
                 var result = Enumerable.Range(1, 12)
                     .Select(m => new MonthlyStatDTO
                     {
                         Month = m,
-                        Count = monthlyData.FirstOrDefault(x => x.Month == m)?.Count ?? 0,
-                        Revenue = 0
+                        Count = monthlyData.FirstOrDefault(x => x.Month == m)?.TotalBuyer ?? 0,
+                        Revenue = 0 // ❗ FE hiện chỉ cần biểu đồ người mua → để 0
                     })
                     .ToList();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = $"Thống kê số gói bán trong năm {year} thành công.";
+                dto.Message = $"Thống kê số người mua service package theo tháng năm {year} thành công.";
                 dto.Data = result;
             }
             catch (Exception ex)
             {
                 dto.IsSucess = false;
                 dto.BusinessCode = BusinessCode.EXCEPTION;
-                dto.Message = "Lỗi khi lấy thống kê gói bán theo tháng: " + ex.Message;
+                dto.Message = "Lỗi khi thống kê service package theo tháng: " + ex.Message;
             }
 
             return dto;
