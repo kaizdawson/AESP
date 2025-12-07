@@ -656,7 +656,9 @@ namespace AESP.Service.Implementation
      : null;
 
 
-            double totalScore = allExerciseScores.Sum();
+            double totalScore = allExerciseScores.Any()
+                ? Math.Ceiling(allExerciseScores.Sum())
+                : 0;
             int totalExerciseScored = allExerciseScores.Count;
 
             // =============================================
