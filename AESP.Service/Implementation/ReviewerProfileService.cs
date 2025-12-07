@@ -117,12 +117,18 @@ namespace AESP.Service.Implementation
                 }
 
                 var phone = request.PhoneNumber?.Trim();
-                if (string.IsNullOrEmpty(phone) || !System.Text.RegularExpressions.Regex.IsMatch(phone, @"^0\d{9}$"))
+
+                if (!string.IsNullOrEmpty(phone))
                 {
-                    dto.IsSucess = false;
-                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
-                    dto.Message = "Số điện thoại không hợp lệ. Phải có 10 chữ số và bắt đầu bằng 0.";
-                    return dto;
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(phone, @"^0\d{9}$"))
+                    {
+                        dto.IsSucess = false;
+                        dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                        dto.Message = "Số điện thoại không hợp lệ. Phải có 10 chữ số và bắt đầu bằng 0.";
+                        return dto;
+                    }
+
+                    profile.User.PhoneNumber = phone; //  Chỉ update khi có nhập
                 }
 
                 if (request.Experience < 0 || request.Experience > 100)
