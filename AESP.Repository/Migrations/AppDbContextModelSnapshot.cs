@@ -1277,7 +1277,7 @@ namespace AESP.Repository.Migrations
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 12, 7, 14, 8, 34, 852, DateTimeKind.Utc).AddTicks(4038),
+                            CreatedAt = new DateTime(2025, 12, 7, 19, 22, 52, 403, DateTimeKind.Utc).AddTicks(652),
                             Email = "admin@aesp.com",
                             FirebaseUid = "",
                             FullName = "Super Admin",
@@ -1286,14 +1286,14 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0909000000",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 12, 7, 14, 8, 34, 852, DateTimeKind.Utc).AddTicks(4039)
+                            UpdatedAt = new DateTime(2025, 12, 7, 19, 22, 52, 403, DateTimeKind.Utc).AddTicks(654)
                         },
                         new
                         {
                             UserId = new Guid("22222222-2222-2222-2222-222222222222"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 12, 7, 14, 8, 34, 852, DateTimeKind.Utc).AddTicks(4087),
+                            CreatedAt = new DateTime(2025, 12, 7, 19, 22, 52, 403, DateTimeKind.Utc).AddTicks(708),
                             Email = "admin2@aesp.com",
                             FirebaseUid = "",
                             FullName = "Second Admin",
@@ -1302,7 +1302,7 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0912345678",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 12, 7, 14, 8, 34, 852, DateTimeKind.Utc).AddTicks(4087)
+                            UpdatedAt = new DateTime(2025, 12, 7, 19, 22, 52, 403, DateTimeKind.Utc).AddTicks(709)
                         });
                 });
 

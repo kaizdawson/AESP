@@ -84,14 +84,17 @@ namespace AESP.Service.Implementation
             if (fee == null)
                 return (false, "Không tìm thấy gói review.");
 
-            var detail = await _reviewfeeDetailRepo
-         .AsQueryable()
-         .Where(x => x.ReviewFeeId == reviewFeeId && x.AppliedDate <= DateTime.UtcNow)
-         .OrderByDescending(x => x.AppliedDate)
-         .FirstOrDefaultAsync();
+            var detail = await _reviewfeeDetailRepo.AsQueryable()
+    .Where(x => x.ReviewFeeId == reviewFeeId)
+    .OrderByDescending(x => x.AppliedDate)
+    .FirstOrDefaultAsync();
 
             if (detail == null)
-                return (false, "Không tìm thấy chi tiết gói review đang áp dụng.");
+                return (false, "Gói review chưa có cấu hình giá.");
+
+            if (detail.AppliedDate > DateTime.UtcNow)
+                return (false, "Gói review chưa đến ngày áp dụng.");
+
 
             int numberOfReview = (int)fee.NumberOfReview;
             int amount = (int)(fee.NumberOfReview * detail.PricePerReviewFee);
