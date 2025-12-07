@@ -652,8 +652,9 @@ namespace AESP.Service.Implementation
                 .ToList();
 
             double? averageScore = allExerciseScores.Any()
-                ? Math.Round(allExerciseScores.Average(), 2)
-                : null;
+     ? Math.Ceiling(allExerciseScores.Average())
+     : null;
+
 
             double totalScore = allExerciseScores.Sum();
             int totalExerciseScored = allExerciseScores.Count;
