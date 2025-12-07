@@ -584,10 +584,10 @@ namespace AESP.Service.Implementation
                 // - Deposit: Paid
                 // - Withdrawal: Approved
                 var totalPaid = await db.Transactions
-           .CountAsync(t => t.Type == "Deposit" && t.Status == "Paid");
+                    .CountAsync(t => t.Type == "Deposit" && t.Status == "Paid");
 
                 var totalApproved = await db.Transactions
-            .CountAsync(t => t.Type == "Withdrawal" && t.Status == "Approved");
+                    .CountAsync(t => t.Type == "Withdrawal" && t.Status == "Approved");
 
                 // ❌ Thất bại:
                 // - Deposit: Cancelled
@@ -601,6 +601,14 @@ namespace AESP.Service.Implementation
                 var totalPendingTransaction = await db.Transactions.CountAsync(t =>
                     t.Status == "Pending"
                 );
+                var totalDepositAmount = await db.Transactions
+                    .Where(t => t.Type == "Deposit" && t.Status == "Paid")
+                    .SumAsync(t => (decimal?)t.AmountMoney) ?? 0;
+
+                // ✅ TỔNG TIỀN RÚT RA KHỎI HỆ THỐNG
+                var totalWithdrawalAmount = await db.Transactions
+                    .Where(t => t.Type == "Withdrawal" && t.Status == "Approved")
+                    .SumAsync(t => (decimal?)t.AmountMoney) ?? 0;
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
@@ -610,7 +618,9 @@ namespace AESP.Service.Implementation
                     totalPaid = totalPaid,
                     totalApproved = totalApproved,
                     totalFailTransaction = totalFailTransaction,
-                    totalPendingTransaction = totalPendingTransaction
+                    totalPendingTransaction = totalPendingTransaction,
+                    totalDepositAmount,
+                    totalWithdrawalAmount
                 };
             }
             catch (Exception ex)
