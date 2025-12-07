@@ -61,5 +61,29 @@ namespace AESP.API.Controllers.AdminController
                 });
             }
         }
+        [HttpGet("reviewfee-buyers")]
+        public async Task<IActionResult> GetReviewFeeBuyers(
+    int pageNumber = 1,
+    int pageSize = 10)
+        {
+            var result = await _service.GetReviewFeeBuyerStatisticsAsync(pageNumber, pageSize);
+            return Ok(result);
+        }
+        [HttpGet("ai-buyers")]
+        public async Task<IActionResult> GetAIConversationBuyers(
+    int pageNumber = 1,
+    int pageSize = 10)
+        {
+            var result = await _service.GetAIConversationBuyerStatisticsAsync(pageNumber, pageSize);
+            return Ok(result);
+        }
+        [HttpGet("course-enroll")]
+        public async Task<IActionResult> GetEnrolledCourseStatistics(
+     int pageNumber = 1,
+     int pageSize = 10)
+        {
+            var result = await _service.GetEnrolledCourseStatisticsAsync(pageNumber, pageSize);
+            return Ok(result);
+        }
     }
 }

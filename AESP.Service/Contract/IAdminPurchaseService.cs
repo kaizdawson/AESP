@@ -13,5 +13,8 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetDetailAsync(Guid purchaseId);
         Task<byte[]> ExportPdfAsync();
         Task<ResponseDTO> GetDashboardAsync();
+        Task<ResponseDTO> GetReviewFeeBuyerStatisticsAsync(int pageNumber, int pageSize);
+        Task<ResponseDTO> GetAIConversationBuyerStatisticsAsync(int pageNumber, int pageSize);
+        Task<ResponseDTO> GetEnrolledCourseStatisticsAsync(int pageNumber, int pageSize);
     }
 }
