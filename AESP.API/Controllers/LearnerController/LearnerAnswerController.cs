@@ -30,7 +30,7 @@ namespace AESP.API.Controllers.LearnerController
 
 
 
-        [HttpPut("{learningPathQuestionId}/submit")]
+        [HttpPost("{learningPathQuestionId}/submit")]
         public async Task<IActionResult> SubmitAnswer(Guid learningPathQuestionId, [FromBody] SubmitLearnerAnswerDTO dto)
         {
             try
