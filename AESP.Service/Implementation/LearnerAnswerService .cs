@@ -57,24 +57,52 @@ namespace AESP.Service.Implementation
                 var lpExercise = lpQuestion.LearningPathExercise;
                 var exerciseId = lpExercise.ExerciseId;
 
-                // 2️⃣ Insert learner answer
-                var answer = new LearnerAnswer
-                {
-                    LearnerAnswerId = Guid.NewGuid(),
-                    LearnerProfileId = learnerProfileId,
-                    LearningPathQuestionId = learningPathQuestionId,
-                    AudioRecordingUrl = dto.AudioRecordingUrl,
-                    TranscribedText = dto.TranscribedText,
-                    ScoreForVoice = dto.ScoreForVoice,
-                    ExplainTheWrongForVoiceAI = dto.ExplainTheWrongForVoiceAI,
-                    Status = "Submitted",
-                    SubmittedAt = DateTime.UtcNow,
-                    IsNeededReviewed = false,
-                    NumberofReview = 0
-                };
+                // 2️⃣ UPSERT LearnerAnswer (PUT chuẩn)
+                var existingAnswer = await _answerRepo.AsQueryable()
+                    .FirstOrDefaultAsync(x =>
+                        x.LearnerProfileId == learnerProfileId &&
+                        x.LearningPathQuestionId == learningPathQuestionId
+                    );
 
-                await _answerRepo.Insert(answer);
+                LearnerAnswer answer;
+
+                if (existingAnswer == null)
+                {
+                    // 👉 Lần đầu nộp → INSERT
+                    answer = new LearnerAnswer
+                    {
+                        LearnerAnswerId = Guid.NewGuid(),
+                        LearnerProfileId = learnerProfileId,
+                        LearningPathQuestionId = learningPathQuestionId,
+                        AudioRecordingUrl = dto.AudioRecordingUrl,
+                        TranscribedText = dto.TranscribedText,
+                        ScoreForVoice = dto.ScoreForVoice,
+                        ExplainTheWrongForVoiceAI = dto.ExplainTheWrongForVoiceAI,
+                        Status = "Submitted",
+                        SubmittedAt = DateTime.UtcNow,
+                        IsNeededReviewed = false,
+                        NumberofReview = 0
+                    };
+
+                    await _answerRepo.Insert(answer);
+                }
+                else
+                {
+                    // 👉 Submit lại → UPDATE
+                    existingAnswer.AudioRecordingUrl = dto.AudioRecordingUrl;
+                    existingAnswer.TranscribedText = dto.TranscribedText;
+                    existingAnswer.ScoreForVoice = dto.ScoreForVoice;
+                    existingAnswer.ExplainTheWrongForVoiceAI = dto.ExplainTheWrongForVoiceAI;
+                    existingAnswer.Status = "Submitted";
+                    existingAnswer.SubmittedAt = DateTime.UtcNow;
+
+                    await _answerRepo.Update(existingAnswer);
+
+                    answer = existingAnswer;
+                }
+
                 await _unitOfWork.SaveChangeAsync();
+
 
                 // 3️⃣ Update LPQuestion
                 lpQuestion.Status = "Completed";
