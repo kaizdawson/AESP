@@ -37,22 +37,36 @@ namespace AESP.Service.Implementation
 
         public async Task<List<ReviewFeeMenuDto>> GetReviewFeeMenuAsync()
         {
-            var fees = _reviewfeeRepo.AsQueryable();
-            var feeDetails = _reviewfeeDetailRepo.AsQueryable();
+            var now = DateTime.UtcNow;
 
-            var query =
-                from fee in fees
-                join detail in feeDetails
-                    on fee.ReviewFeeId equals detail.ReviewFeeId
-                select new ReviewFeeMenuDto
+            var fees = await _reviewfeeRepo.AsQueryable().ToListAsync();
+            var details = await _reviewfeeDetailRepo.AsQueryable()
+                .Where(x => x.AppliedDate <= now)
+                .ToListAsync();
+
+            var result = fees
+                .Select(fee =>
                 {
-                    ReviewFeeId = fee.ReviewFeeId,
-                    NumberOfReview = fee.NumberOfReview,
-                    PricePerReviewFee = detail.PricePerReviewFee,
-                    AmountMoney = fee.NumberOfReview * detail.PricePerReviewFee
-                };
+                    var latestDetail = details
+                        .Where(d => d.ReviewFeeId == fee.ReviewFeeId)
+                        .OrderByDescending(d => d.AppliedDate)
+                        .FirstOrDefault();
 
-            return await query.ToListAsync();
+                    if (latestDetail == null)
+                        return null;
+
+                    return new ReviewFeeMenuDto
+                    {
+                        ReviewFeeId = fee.ReviewFeeId,
+                        NumberOfReview = fee.NumberOfReview,
+                        PricePerReviewFee = latestDetail.PricePerReviewFee,
+                        AmountMoney = fee.NumberOfReview * latestDetail.PricePerReviewFee
+                    };
+                })
+                .Where(x => x != null)
+                .ToList()!;
+
+            return result;
         }
 
         public async Task<(bool isSuccess, string message)> BuyReviewFeeAsync(

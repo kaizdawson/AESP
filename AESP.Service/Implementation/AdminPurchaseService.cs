@@ -345,5 +345,156 @@ namespace AESP.Service.Implementation
                 return dto;
             }
         }
+
+        public async Task<ResponseDTO> GetReviewFeeBuyerStatisticsAsync(int pageNumber, int pageSize)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                var db = _purchaseRepository.GetDbContext();
+
+                var query = db.Purchases
+                    .Include(p => p.User)
+                    .Where(p => p.Status == "Success" && p.ReviewFeeId != null);
+
+                var totalBuyer = await query
+                    .Select(p => p.UserId)
+                    .Distinct()
+                    .CountAsync();
+
+                var buyers = await query
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => new
+                    {
+                         p.UserId,
+                         p.User.FullName,
+                         p.User.Email,
+                         p.CreatedAt,
+                         p.AmountCoin
+                    })
+                     .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalBuyer = totalBuyer,
+                    Buyers = buyers
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = ex.Message;
+            }
+
+            return dto;
+        
+        }
+
+        public async Task<ResponseDTO> GetAIConversationBuyerStatisticsAsync(int pageNumber, int pageSize)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                var db = _purchaseRepository.GetDbContext();
+
+                var query = db.Purchases
+                    .Include(p => p.User)
+                    .Where(p => p.Status == "Success" && p.AIConversationChargeId != null);
+
+                var totalBuyer = await query
+                    .Select(p => p.UserId)
+                    .Distinct()
+                    .CountAsync();
+
+                var buyers = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(p => new
+            {
+                p.UserId,
+                p.User.FullName,
+                p.User.Email,
+                p.CreatedAt,
+                p.AmountCoin
+            })
+            .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalBuyer = totalBuyer,
+                    Buyers = buyers
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = ex.Message;
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> GetEnrolledCourseStatisticsAsync(int pageNumber, int pageSize)
+        {
+            var dto = new ResponseDTO();
+            try
+            {
+                var db = _purchaseRepository.GetDbContext();
+
+                var query = db.LearnerCourses
+                    .Include(lc => lc.LearnerProfile)
+                        .ThenInclude(lp => lp.User);
+
+                var totalLearner = await query
+                    .Select(lc => lc.LearnerProfileId)
+                    .Distinct()
+                    .CountAsync();
+
+                var learners = await query
+                    .OrderByDescending(lc => lc.GeneratedDate)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                 .Select(lc => new
+                  {
+                     lc.LearnerProfileId,
+                     lc.LearnerProfile.User.FullName,
+                     lc.LearnerProfile.User.Email,
+                     lc.GeneratedDate,
+                     lc.NumberOfCourse
+                  })
+            .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalEnrolledLearner = totalLearner,
+                    Learners = learners
+                };
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = ex.Message;
+            }
+
+            return dto;
+        }
     }
 }
