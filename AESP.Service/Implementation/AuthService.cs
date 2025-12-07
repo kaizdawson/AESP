@@ -60,9 +60,14 @@ namespace AESP.Service.Implementation
 
         public async Task<LoginResult> SignUpAsync(SignUpDto dto)
         {
-            var existingUser = await _userRepository.GetByExpression(u => u.PhoneNumber == dto.PhoneNumber);
-            if (existingUser != null)
-                return new LoginResult { Success = false, Message = "Số điện thoại này đã tồn tại." };
+            if (!string.IsNullOrWhiteSpace(dto.PhoneNumber))
+            {
+                var existingUser = await _userRepository
+                    .GetByExpression(u => u.PhoneNumber == dto.PhoneNumber);
+
+                if (existingUser != null)
+                    return new LoginResult { Success = false, Message = "Số điện thoại này đã tồn tại." };
+            }
 
             var existingUserByEmail = await _userRepository.GetByExpression(u => u.Email == dto.Email);
             if (existingUserByEmail != null)
@@ -79,7 +84,7 @@ namespace AESP.Service.Implementation
             {
                 UserId = Guid.NewGuid(),
                 FullName = dto.FullName,
-                PhoneNumber = dto.PhoneNumber,
+                PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? null : dto.PhoneNumber,
                 Email = dto.Email,
                 PasswordHash = HashPassword(dto.Password),
                 Role = dto.Role.ToString(),
