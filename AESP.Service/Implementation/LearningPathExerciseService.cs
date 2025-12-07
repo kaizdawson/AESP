@@ -116,7 +116,7 @@ namespace AESP.Service.Implementation
 
                 if (hasOtherInProgress)
                     return Fail(BusinessCode.INVALID_ACTION,
-                        "Trong cùng một chương chỉ được học 1 bài tại 1 thời điểm.");
+                        "Bài trước chỉ đạt {Math.Round(previousExercise.ScoreAchieved, 2)}%. Cần ≥ 50% để mở bài tiếp.");
 
                 // ✅ 2. KHÔNG CHO HỌC CHAPTER SAU KHI CHAPTER TRƯỚC CHƯA HOÀN THÀNH 100%
                 var previousChapter = allChapterInCourse
@@ -135,7 +135,7 @@ namespace AESP.Service.Implementation
 
                     if (!prevChapterCompleted)
                         return Fail(BusinessCode.INVALID_ACTION,
-                            "Bạn phải hoàn thành TOÀN BỘ Chapter trước (>= 50%) để học chương tiếp theo.");
+                            "Bạn cần hoàn thành bài tập trong Chapter trước với điểm tối thiểu 50% để mở Chapter tiếp theo.");
                 }
 
                 // ✅ 3. SINH LPQ NẾU CHƯA CÓ
