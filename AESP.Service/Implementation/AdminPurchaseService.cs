@@ -362,6 +362,9 @@ namespace AESP.Service.Implementation
                     .Distinct()
                     .CountAsync();
 
+                var totalAmountCoin = await query
+                    .SumAsync(p => (decimal?)p.AmountCoin) ?? 0;
+
                 var buyers = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
@@ -383,6 +386,7 @@ namespace AESP.Service.Implementation
                     PageNumber = pageNumber,
                     PageSize = pageSize,
                     TotalBuyer = totalBuyer,
+                    TotalAmountCoin = totalAmountCoin,
                     Buyers = buyers
                 };
             }
@@ -413,6 +417,9 @@ namespace AESP.Service.Implementation
                     .Distinct()
                     .CountAsync();
 
+                var totalAmountCoin = await query
+                    .SumAsync(p => (decimal?)p.AmountCoin) ?? 0;
+
                 var buyers = await query
             .OrderByDescending(p => p.CreatedAt)
             .Skip((pageNumber - 1) * pageSize)
@@ -434,6 +441,7 @@ namespace AESP.Service.Implementation
                     PageNumber = pageNumber,
                     PageSize = pageSize,
                     TotalBuyer = totalBuyer,
+                    TotalAmountCoin = totalAmountCoin,
                     Buyers = buyers
                 };
             }
@@ -463,6 +471,12 @@ namespace AESP.Service.Implementation
                     .Distinct()
                     .CountAsync();
 
+                var coursePurchaseQuery = db.Purchases
+                    .Where(p => p.Status == "Success" && p.CourseId != null);
+
+                var totalCourseAmountCoin = await coursePurchaseQuery
+                    .SumAsync(p => (decimal?)p.AmountCoin) ?? 0;
+
                 var learners = await query
                     .OrderByDescending(lc => lc.GeneratedDate)
                     .Skip((pageNumber - 1) * pageSize)
@@ -484,6 +498,7 @@ namespace AESP.Service.Implementation
                     PageNumber = pageNumber,
                     PageSize = pageSize,
                     TotalEnrolledLearner = totalLearner,
+                    TotalCourseAmountCoin = totalCourseAmountCoin,
                     Learners = learners
                 };
             }
