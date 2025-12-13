@@ -16,6 +16,10 @@ namespace AESP.Repository.Models
         [ForeignKey(nameof(LearnerRecord))]
         public Guid LearnerRecordId { get; set; }
 
+        public Guid? RecordChargeId { get; set; }
+        public RecordCharge? RecordCharge { get; set; }
+
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string AudioRecordingURL { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;

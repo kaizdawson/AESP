@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AESP.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251207192253_AddIsTestToExercise")]
-    partial class AddIsTestToExercise
+    [Migration("20251213174543_addfieldRecordCharge")]
+    partial class addfieldRecordCharge
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -731,6 +731,9 @@ namespace AESP.Repository.Migrations
                     b.Property<decimal>("PricePerReviewAtPurchase")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<Guid?>("RecordChargeId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("ReviewFeeId")
                         .HasColumnType("uniqueidentifier");
 
@@ -748,6 +751,8 @@ namespace AESP.Repository.Migrations
                     b.HasIndex("CourseId");
 
                     b.HasIndex("LearnerProfileId");
+
+                    b.HasIndex("RecordChargeId");
 
                     b.HasIndex("ReviewFeeId");
 
@@ -875,6 +880,9 @@ namespace AESP.Repository.Migrations
                     b.Property<int>("NumberOfReview")
                         .HasColumnType("int");
 
+                    b.Property<Guid?>("RecordChargeId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<double>("Score")
                         .HasColumnType("float");
 
@@ -890,7 +898,39 @@ namespace AESP.Repository.Migrations
 
                     b.HasIndex("LearnerRecordId");
 
+                    b.HasIndex("RecordChargeId");
+
                     b.ToTable("Records");
+                });
+
+            modelBuilder.Entity("AESP.Repository.Models.RecordCharge", b =>
+                {
+                    b.Property<Guid>("RecordChargeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AllowedRecordCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AmountCoin")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("RecordChargeId");
+
+                    b.ToTable("RecordCharge");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.RefreshToken", b =>
@@ -1280,7 +1320,7 @@ namespace AESP.Repository.Migrations
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 12, 7, 19, 22, 52, 403, DateTimeKind.Utc).AddTicks(652),
+                            CreatedAt = new DateTime(2025, 12, 13, 17, 45, 41, 926, DateTimeKind.Utc).AddTicks(5001),
                             Email = "admin@aesp.com",
                             FirebaseUid = "",
                             FullName = "Super Admin",
@@ -1289,14 +1329,14 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0909000000",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 12, 7, 19, 22, 52, 403, DateTimeKind.Utc).AddTicks(654)
+                            UpdatedAt = new DateTime(2025, 12, 13, 17, 45, 41, 926, DateTimeKind.Utc).AddTicks(5006)
                         },
                         new
                         {
                             UserId = new Guid("22222222-2222-2222-2222-222222222222"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 12, 7, 19, 22, 52, 403, DateTimeKind.Utc).AddTicks(708),
+                            CreatedAt = new DateTime(2025, 12, 13, 17, 45, 41, 926, DateTimeKind.Utc).AddTicks(5096),
                             Email = "admin2@aesp.com",
                             FirebaseUid = "",
                             FullName = "Second Admin",
@@ -1305,7 +1345,7 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0912345678",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 12, 7, 19, 22, 52, 403, DateTimeKind.Utc).AddTicks(709)
+                            UpdatedAt = new DateTime(2025, 12, 13, 17, 45, 41, 926, DateTimeKind.Utc).AddTicks(5097)
                         });
                 });
 
@@ -1589,6 +1629,11 @@ namespace AESP.Repository.Migrations
                         .HasForeignKey("LearnerProfileId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("AESP.Repository.Models.RecordCharge", "RecordCharge")
+                        .WithMany()
+                        .HasForeignKey("RecordChargeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("AESP.Repository.Models.ReviewFee", "ReviewFee")
                         .WithMany("Purchases")
                         .HasForeignKey("ReviewFeeId")
@@ -1603,6 +1648,8 @@ namespace AESP.Repository.Migrations
                     b.Navigation("AIConversationCharge");
 
                     b.Navigation("Course");
+
+                    b.Navigation("RecordCharge");
 
                     b.Navigation("ReviewFee");
 
@@ -1639,7 +1686,14 @@ namespace AESP.Repository.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("AESP.Repository.Models.RecordCharge", "RecordCharge")
+                        .WithMany()
+                        .HasForeignKey("RecordChargeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("LearnerRecord");
+
+                    b.Navigation("RecordCharge");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.RefreshToken", b =>

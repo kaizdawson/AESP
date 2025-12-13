@@ -62,6 +62,8 @@ namespace AESP.Repository.DB
 
         public DbSet<LearningPathQuestion> LearningPathQuestions { get; set; }
 
+        public DbSet<RecordCharge> RecordCharge { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
