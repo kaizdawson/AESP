@@ -165,6 +165,12 @@ namespace AESP.Service.Implementation
                 //        return Fail(BusinessCode.INVALID_ACTION, "Bạn cần hoàn thành khóa học trước đó trước khi mở khóa tiếp theo.");
                 //}
                 // ⭐ 4.1 CHECK ĐIỂM TRUNG BÌNH COURSE TRƯỚC >= 50%
+
+
+
+
+
+                bool canStartLearning = true;
                 if (orderIndex > 1)
                 {
                     var prevCourse = await _repo.AsQueryable()
@@ -177,39 +183,31 @@ namespace AESP.Service.Implementation
                     if (prevCourse == null)
                         return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trước đó.");
 
-                    // ✅ 1. BẮT BUỘC COURSE TRƯỚC PHẢI COMPLETED 100%
                     if (!prevCourse.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                     {
-                        return Fail(
-                            BusinessCode.INVALID_ACTION,
-                            "Bạn phải hoàn thành 100% khóa học trước thì mới được mở khóa học tiếp theo."
-                        );
+                        canStartLearning = false;
                     }
-
-                    // ✅ 2. TÍNH ĐIỂM TRUNG BÌNH TOÀN COURSE
-                    double totalScore = 0;
-                    int exerciseCount = 0;
-
-                    foreach (var chapter in prevCourse.LearningPathChapters)
+                    else
                     {
-                        foreach (var ex in chapter.LearningPathExercises)
+                        double totalScore = 0;
+                        int exerciseCount = 0;
+
+                        foreach (var chapter in prevCourse.LearningPathChapters)
                         {
-                            totalScore += ex.ScoreAchieved;
-                            exerciseCount++;
+                            foreach (var ex in chapter.LearningPathExercises)
+                            {
+                                totalScore += ex.ScoreAchieved;
+                                exerciseCount++;
+                            }
                         }
-                    }
 
-                    double avgScore = exerciseCount == 0 ? 0 : totalScore / exerciseCount;
+                        double avgScore = exerciseCount == 0 ? 0 : totalScore / exerciseCount;
 
-                    // ✅ 3. BẮT BUỘC ĐIỂM TB ≥ 50%
-                    if (avgScore < 50)
-                    {
-                        return Fail(
-                            BusinessCode.INVALID_ACTION,
-                            $"Điểm trung bình khóa trước chỉ đạt {Math.Round(avgScore, 2)}%. Cần tối thiểu 50% để mở khóa học tiếp theo."
-                        );
+                        if (avgScore < 50)
+                            canStartLearning = false;
                     }
                 }
+
 
 
 
@@ -275,7 +273,7 @@ namespace AESP.Service.Implementation
                     LearnerCourseId = dto.LearnerCourseId,
                     CourseId = dto.CourseId,
                     OrderIndex = orderIndex,
-                    Status = "InProgress",
+                    Status = canStartLearning ? "InProgress" : "NotStarted",
                     Progress = 0,
                     NumberOfChapter = course.NumberOfChapter
                 };
