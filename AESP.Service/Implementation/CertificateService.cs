@@ -142,6 +142,25 @@ namespace AESP.Service.Implementation
                     dto.Message = "Vui lòng chọn file hợp lệ.";
                     return dto;
                 }
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+                var allowedContentTypes = new[]
+                {
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+        };
+
+                var extension = Path.GetExtension(file.FileName).ToLower();
+                var contentType = file.ContentType.ToLower();
+
+                if (!allowedExtensions.Contains(extension) ||
+                    !allowedContentTypes.Contains(contentType))
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "Chỉ cho phép upload ảnh chứng chỉ (JPG, PNG, WEBP).";
+                    return dto;
+                }
 
                 if (string.IsNullOrWhiteSpace(certificateName))
                 {

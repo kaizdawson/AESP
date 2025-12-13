@@ -146,6 +146,7 @@ builder.Services.AddScoped<IAdminWithdrawalService, AdminWithdrawalService>();
 builder.Services.AddScoped<IAdminPurchaseService, AdminPurchaseService>();
 builder.Services.AddScoped<ILearnerProfileService, LearnerProfileService>();
 builder.Services.AddScoped<ILearningPathChapterService, LearningPathChapterService>();
+builder.Services.AddScoped<IRecordChargeService, RecordChargeService>();
 
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 

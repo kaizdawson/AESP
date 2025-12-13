@@ -48,7 +48,12 @@ namespace AESP.Repository.Models
         // Navigation
         public virtual User User { get; set; }
 
+        public Guid? RecordChargeId { get; set; }
       
+        [ForeignKey(nameof(RecordChargeId))]
+        public virtual RecordCharge? RecordCharge { get; set; }
+
+
 
     }
 }
