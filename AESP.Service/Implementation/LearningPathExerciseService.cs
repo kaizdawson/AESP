@@ -107,6 +107,19 @@ namespace AESP.Service.Implementation
             // =========================================================
             // ✅ KHI SET InProgress
             // =========================================================
+            var lpCourse = lpExercise.LearningPathChapter.LearningPathCourse;
+
+            // ❌ Course chưa cho học
+            if (!string.Equals(lpCourse.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
+            {
+                return Fail(
+                    BusinessCode.INVALID_ACTION,
+                    "Khóa học này chưa được mở để học. Vui lòng hoàn thành khóa học trước đó."
+                );
+            }
+
+
+
             if (status == "InProgress")
             {
                 // ✅ 1. CHẶN nếu CÙNG CHAPTER đã có bài khác InProgress
