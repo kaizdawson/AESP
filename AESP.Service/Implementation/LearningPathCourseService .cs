@@ -171,6 +171,7 @@ namespace AESP.Service.Implementation
 
 
                 bool canStartLearning = true;
+
                 if (orderIndex > 1)
                 {
                     var prevCourse = await _repo.AsQueryable()
@@ -183,7 +184,16 @@ namespace AESP.Service.Implementation
                     if (prevCourse == null)
                         return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trước đó.");
 
-                    if (!prevCourse.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                    bool allExerciseCompleted = prevCourse.LearningPathChapters
+                        .SelectMany(c => c.LearningPathExercises)
+                        .All(e => e.Status == "Completed" && e.ScoreAchieved >= 50);
+
+                    if (!allExerciseCompleted)
+                        canStartLearning = false;
+                
+
+
+                if (!prevCourse.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                     {
                         canStartLearning = false;
                     }

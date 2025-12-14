@@ -280,41 +280,22 @@ namespace AESP.Service.Implementation
             var lpCourse = await _lpCourseRepo.GetById(learningPathCourseId);
             if (lpCourse == null) return;
 
-            // ✅ Nếu tất cả chương đều hoàn thành
-            if (chapters.All(c => c.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)))
+            if (chapters.All(c => c.Status == "Completed"))
             {
                 lpCourse.Status = "Completed";
                 lpCourse.Progress = 100;
-
-                var nextCourse = await _lpCourseRepo.AsQueryable()
-                    .Where(x =>
-                        x.LearnerCourseId == lpCourse.LearnerCourseId &&
-                        x.OrderIndex == lpCourse.OrderIndex + 1 &&
-                        x.Status == "NotStarted")
-                    .FirstOrDefaultAsync();
-
-                if (nextCourse != null)
-                {
-                    nextCourse.Status = "InProgress";
-                    await _lpCourseRepo.Update(nextCourse);
-
-                    var firstChapter = await _repo.AsQueryable()
-                        .Where(c => c.LearningPathCourseId == nextCourse.LearningPathCourseId)
-                        .OrderBy(c => c.OrderIndex)
-                        .FirstOrDefaultAsync();
-
-                    if (firstChapter != null)
-                    {
-                        firstChapter.Status = "InProgress";
-                        await _repo.Update(firstChapter);
-                    }
-                }
             }
-
+            else if (chapters.Any(c => c.Status == "InProgress"))
+            {
+                lpCourse.Status = "InProgress";
+                lpCourse.Progress = (int)Math.Round(chapters.Average(c => c.Progress));
+            }
+            // ❌ KHÔNG BAO GIỜ set NotStarted ở đây
 
             await _lpCourseRepo.Update(lpCourse);
             await _unitOfWork.SaveChangeAsync();
         }
+
 
 
         // ============================================================
