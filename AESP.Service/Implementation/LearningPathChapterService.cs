@@ -285,19 +285,32 @@ namespace AESP.Service.Implementation
             {
                 lpCourse.Status = "Completed";
                 lpCourse.Progress = 100;
+
+                var nextCourse = await _lpCourseRepo.AsQueryable()
+                    .Where(x =>
+                        x.LearnerCourseId == lpCourse.LearnerCourseId &&
+                        x.OrderIndex == lpCourse.OrderIndex + 1 &&
+                        x.Status == "NotStarted")
+                    .FirstOrDefaultAsync();
+
+                if (nextCourse != null)
+                {
+                    nextCourse.Status = "InProgress";
+                    await _lpCourseRepo.Update(nextCourse);
+
+                    var firstChapter = await _repo.AsQueryable()
+                        .Where(c => c.LearningPathCourseId == nextCourse.LearningPathCourseId)
+                        .OrderBy(c => c.OrderIndex)
+                        .FirstOrDefaultAsync();
+
+                    if (firstChapter != null)
+                    {
+                        firstChapter.Status = "InProgress";
+                        await _repo.Update(firstChapter);
+                    }
+                }
             }
-            // ✅ Nếu có ít nhất 1 chương đang học (InProgress)
-            else if (chapters.Any(c => c.Status.Equals("InProgress", StringComparison.OrdinalIgnoreCase)))
-            {
-                lpCourse.Status = "InProgress";
-                lpCourse.Progress = (int)Math.Round(chapters.Average(c => c.Progress));
-            }
-            // ✅ Còn lại: tất cả đều chưa bắt đầu
-            else
-            {
-                lpCourse.Status = "Enrolled";
-                lpCourse.Progress = 0;
-            }
+
 
             await _lpCourseRepo.Update(lpCourse);
             await _unitOfWork.SaveChangeAsync();
