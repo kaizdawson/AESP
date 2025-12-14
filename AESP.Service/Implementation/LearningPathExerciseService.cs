@@ -107,17 +107,19 @@ namespace AESP.Service.Implementation
             // =========================================================
             // ✅ KHI SET InProgress
             // =========================================================
-            var lpCourse = lpExercise.LearningPathChapter.LearningPathCourse;
-
-            // ❌ Course chưa cho học
-            if (!string.Equals(lpCourse.Status, "InProgress", StringComparison.OrdinalIgnoreCase))
+            if (status == "InProgress")
             {
-                return Fail(
-                    BusinessCode.INVALID_ACTION,
-                    "Khóa học này chưa được mở để học. Vui lòng hoàn thành khóa học trước đó."
-                );
-            }
+                var lpCourse = lpExercise.LearningPathChapter.LearningPathCourse;
 
+                if (!lpCourse.Status.Equals("InProgress", StringComparison.OrdinalIgnoreCase)
+                    && !lpCourse.Status.Equals("NotStarted", StringComparison.OrdinalIgnoreCase))
+                {
+                    return Fail(
+                        BusinessCode.INVALID_ACTION,
+                        "Khóa học này chưa được mở để học. Vui lòng hoàn thành khóa học trước đó."
+                    );
+                }
+            }
 
 
             if (status == "InProgress")
