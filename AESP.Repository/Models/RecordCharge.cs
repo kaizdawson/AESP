@@ -20,5 +20,7 @@ namespace AESP.Repository.Models
 
         // Trạng thái gói
         public string Status { get; set; } = "Active";
+
+        public virtual ICollection<Purchase> Purchases { get; set; } = new List<Purchase>();
     }
 }
