@@ -609,44 +609,65 @@ namespace AESP.Service.Implementation
                                 .FirstOrDefault(),
 
                             Questions = db.Set<LearningPathQuestion>()
-                                .Where(q => q.LearningPathExerciseId == e.LearningPathExerciseId)
-                                .OrderBy(q => q.Question.OrderIndex)
-                                .Select(q => new
-                                {
-                                    q.LearningPathQuestionId,
-                                    q.QuestionId,
-                                    q.Status,
-                                    q.Score,
-                                    q.NumberOfRetake,
+    .Where(q => q.LearningPathExerciseId == e.LearningPathExerciseId)
+    .OrderBy(q => db.Set<Question>()
+        .Where(qq => qq.QuestionId == q.QuestionId)
+        .Select(qq => qq.OrderIndex)
+        .FirstOrDefault())
+    .Select(q => new
+    {
+        q.LearningPathQuestionId,
+        q.QuestionId,
+        q.Status,
+        q.Score,
+        q.NumberOfRetake,
 
-                                    Text = db.Set<Question>()
-                                        .Where(qq => qq.QuestionId == q.QuestionId)
-                                        .Select(qq => qq.Text)
-                                        .FirstOrDefault(),
+        Text = db.Set<Question>()
+            .Where(qq => qq.QuestionId == q.QuestionId)
+            .Select(qq => qq.Text)
+            .FirstOrDefault(),
 
-                                    Type = db.Set<Question>()
-                                        .Where(qq => qq.QuestionId == q.QuestionId)
-                                        .Select(qq => qq.Type)
-                                        .FirstOrDefault(),
+        Type = db.Set<Question>()
+            .Where(qq => qq.QuestionId == q.QuestionId)
+            .Select(qq => qq.Type)
+            .FirstOrDefault(),
 
-                                    OrderIndex = db.Set<Question>()
-                                        .Where(qq => qq.QuestionId == q.QuestionId)
-                                        .Select(qq => qq.OrderIndex)
-                                        .FirstOrDefault(),
+        OrderIndex = db.Set<Question>()
+            .Where(qq => qq.QuestionId == q.QuestionId)
+            .Select(qq => qq.OrderIndex)
+            .FirstOrDefault(),
 
-                                    Media = db.Set<QuestionMedia>()
-                                        .Where(m => m.QuestionId == q.QuestionId)
-                                        .Select(m => new
-                                        {
-                                            m.QuestionMediaId,
-                                            m.Accent,
-                                            m.AudioUrl,
-                                            m.VideoUrl,
-                                            m.ImageUrl,
-                                            m.Source
-                                        })
-                                        .ToList()
-                                }).ToList()
+        // ✅ 3 FIELD FE CẦN
+        TranscribedText = db.Set<LearnerAnswer>()
+            .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
+            .Select(a => a.TranscribedText)
+            .FirstOrDefault() ?? string.Empty,
+
+        AudioRecordingUrl = db.Set<LearnerAnswer>()
+            .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
+            .Select(a => a.AudioRecordingUrl)
+            .FirstOrDefault() ?? string.Empty,
+
+        ExplainTheWrongForVoiceAI = db.Set<LearnerAnswer>()
+            .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
+            .Select(a => a.ExplainTheWrongForVoiceAI)
+            .FirstOrDefault() ?? string.Empty,
+
+        Media = db.Set<QuestionMedia>()
+            .Where(m => m.QuestionId == q.QuestionId)
+            .Select(m => new
+            {
+                m.QuestionMediaId,
+                m.Accent,
+                m.AudioUrl,
+                m.VideoUrl,
+                m.ImageUrl,
+                m.Source
+            })
+            .ToList()
+    })
+    .ToList()
+
                         }).ToList()
                 })
                 .ToListAsync();
