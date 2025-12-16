@@ -4,6 +4,7 @@ using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.EntityFrameworkCore;
+using AESP.API.Helpers;
 
 public class RecordService : IRecordService
 {
@@ -47,7 +48,7 @@ public class RecordService : IRecordService
                 Score = dto.Score,
                 AIFeedback = dto.AIFeedback,
                 Status = "Submitted",
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.NowVN(),
                 NumberOfReview = 0,
                 IsNeedReviewed = false
             };
@@ -200,11 +201,25 @@ public class RecordService : IRecordService
 
         try
         {
+
             var folder = await _folderRepo.AsQueryable()
-                .FirstOrDefaultAsync(x => x.LearnerRecordId == folderId && x.LearnerId == learnerProfileId);
+                .FirstOrDefaultAsync(x =>
+                    x.LearnerRecordId == folderId &&
+                    x.LearnerId == learnerProfileId
+                );
 
             if (folder == null)
                 return Fail("Không tìm thấy thư mục hoặc không có quyền.");
+
+            if (folder.NumberOfRecord <= 0)
+            {
+                return Fail("Bạn cần mua thêm số lượng record.");
+            }
+
+
+            folder.NumberOfRecord -= 1;
+            await _folderRepo.Update(folder);
+
 
             var record = new Record
             {
@@ -216,7 +231,7 @@ public class RecordService : IRecordService
                 AIFeedback = string.Empty,
                 TranscribedText = string.Empty,
                 Status = "Draft",
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.NowVN(),
                 NumberOfReview = 0,
                 IsNeedReviewed = false
             };
@@ -231,7 +246,8 @@ public class RecordService : IRecordService
                 record.RecordId,
                 record.Content,
                 record.Status,
-                record.CreatedAt
+                record.CreatedAt,
+                RemainingFreeRecord = folder.NumberOfRecord
             });
         }
         catch (Exception ex)
@@ -311,7 +327,7 @@ public class RecordService : IRecordService
                 record.Score,
                 record.AIFeedback,
                 record.TranscribedText,
-                record.Status
+                record.Status   
             });
         }
         catch (Exception ex)

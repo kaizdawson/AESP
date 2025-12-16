@@ -13,6 +13,13 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> RenameCategoryAsync(Guid learnerProfileId, Guid categoryId, string newName);
         Task<ResponseDTO> DeleteCategoryAsync(Guid learnerProfileId, Guid categoryId);
         Task<ResponseDTO> GetAllCategoriesAsync(Guid learnerProfileId);
+
+        Task<ResponseDTO> PurchaseRecordChargeAsync(
+    Guid learnerProfileId,
+    Guid userId,
+    Guid folderId,
+    PurchaseRecordChargeDTO dto);
+
     }
 
 }
