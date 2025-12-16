@@ -520,9 +520,9 @@ namespace AESP.Service.Implementation
 
 
         public async Task<ResponseDTO> GetFullLearningPathCourseAsync(
-            Guid? learningPathCourseId,
-            Guid? courseId,
-            string? status)
+     Guid? learningPathCourseId,
+     Guid? courseId,
+     string? status)
         {
             // =============================================
             // 1️⃣ Xác định learningPathCourseId
@@ -537,10 +537,11 @@ namespace AESP.Service.Implementation
             }
             else if (courseId.HasValue && courseId.Value != Guid.Empty)
             {
+                // ✅ FIX: lấy bản ghi mới nhất (tránh lấy nhầm lpCourse cũ / user khác)
                 lpCourse = await _repo.AsQueryable()
                     .Include(x => x.Course)
                     .Where(x => x.CourseId == courseId.Value)
-                    .OrderBy(x => x.OrderIndex)
+                    .OrderByDescending(x => x.CreatedAt) // ⭐ QUAN TRỌNG
                     .FirstOrDefaultAsync();
             }
 
@@ -609,71 +610,76 @@ namespace AESP.Service.Implementation
                                 .FirstOrDefault(),
 
                             Questions = db.Set<LearningPathQuestion>()
-    .Where(q => q.LearningPathExerciseId == e.LearningPathExerciseId)
-    .OrderBy(q => db.Set<Question>()
-        .Where(qq => qq.QuestionId == q.QuestionId)
-        .Select(qq => qq.OrderIndex)
-        .FirstOrDefault())
-    .Select(q => new
-    {
-        q.LearningPathQuestionId,
-        q.QuestionId,
-        q.Status,
-        q.Score,
-        q.NumberOfRetake,
+                                .Where(q => q.LearningPathExerciseId == e.LearningPathExerciseId)
+                                .OrderBy(q => db.Set<Question>()
+                                    .Where(qq => qq.QuestionId == q.QuestionId)
+                                    .Select(qq => qq.OrderIndex)
+                                    .FirstOrDefault())
+                                .Select(q => new
+                                {
+                                    q.LearningPathQuestionId,
+                                    q.QuestionId,
+                                    q.Status,
+                                    q.Score,
+                                    q.NumberOfRetake,
 
-        Text = db.Set<Question>()
-            .Where(qq => qq.QuestionId == q.QuestionId)
-            .Select(qq => qq.Text)
-            .FirstOrDefault(),
+                                    Text = db.Set<Question>()
+                                        .Where(qq => qq.QuestionId == q.QuestionId)
+                                        .Select(qq => qq.Text)
+                                        .FirstOrDefault(),
 
-        Type = db.Set<Question>()
-            .Where(qq => qq.QuestionId == q.QuestionId)
-            .Select(qq => qq.Type)
-            .FirstOrDefault(),
+                                    Type = db.Set<Question>()
+                                        .Where(qq => qq.QuestionId == q.QuestionId)
+                                        .Select(qq => qq.Type)
+                                        .FirstOrDefault(),
 
-        OrderIndex = db.Set<Question>()
-            .Where(qq => qq.QuestionId == q.QuestionId)
-            .Select(qq => qq.OrderIndex)
-            .FirstOrDefault(),
+                                    OrderIndex = db.Set<Question>()
+                                        .Where(qq => qq.QuestionId == q.QuestionId)
+                                        .Select(qq => qq.OrderIndex)
+                                        .FirstOrDefault(),
 
-        // ✅ 3 FIELD FE CẦN
-        TranscribedText = db.Set<LearnerAnswer>()
-            .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
-            .Select(a => a.TranscribedText)
-            .FirstOrDefault() ?? string.Empty,
+                                    // ✅ FIX: luôn lấy LearnerAnswer mới nhất theo SubmittedAt
+                                    TranscribedText = db.Set<LearnerAnswer>()
+                                        .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
+                                        .OrderByDescending(a => a.SubmittedAt)
+                                        .ThenByDescending(a => a.LearnerAnswerId)
+                                        .Select(a => a.TranscribedText)
+                                        .FirstOrDefault() ?? string.Empty,
 
-        AudioRecordingUrl = db.Set<LearnerAnswer>()
-            .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
-            .Select(a => a.AudioRecordingUrl)
-            .FirstOrDefault() ?? string.Empty,
+                                    AudioRecordingUrl = db.Set<LearnerAnswer>()
+                                        .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
+                                        .OrderByDescending(a => a.SubmittedAt)
+                                        .ThenByDescending(a => a.LearnerAnswerId)
+                                        .Select(a => a.AudioRecordingUrl)
+                                        .FirstOrDefault() ?? string.Empty,
 
-        ExplainTheWrongForVoiceAI = db.Set<LearnerAnswer>()
-            .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
-            .Select(a => a.ExplainTheWrongForVoiceAI)
-            .FirstOrDefault() ?? string.Empty,
+                                    ExplainTheWrongForVoiceAI = db.Set<LearnerAnswer>()
+                                        .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
+                                        .OrderByDescending(a => a.SubmittedAt)
+                                        .ThenByDescending(a => a.LearnerAnswerId)
+                                        .Select(a => a.ExplainTheWrongForVoiceAI)
+                                        .FirstOrDefault() ?? string.Empty,
 
-        Media = db.Set<QuestionMedia>()
-            .Where(m => m.QuestionId == q.QuestionId)
-            .Select(m => new
-            {
-                m.QuestionMediaId,
-                m.Accent,
-                m.AudioUrl,
-                m.VideoUrl,
-                m.ImageUrl,
-                m.Source
-            })
-            .ToList()
-    })
-    .ToList()
-
+                                    Media = db.Set<QuestionMedia>()
+                                        .Where(m => m.QuestionId == q.QuestionId)
+                                        .Select(m => new
+                                        {
+                                            m.QuestionMediaId,
+                                            m.Accent,
+                                            m.AudioUrl,
+                                            m.VideoUrl,
+                                            m.ImageUrl,
+                                            m.Source
+                                        })
+                                        .ToList()
+                                })
+                                .ToList()
                         }).ToList()
                 })
                 .ToListAsync();
 
             // =============================================
-            // ✅ 3️⃣.1 TÍNH ĐIỂM TRUNG BÌNH TOÀN COURSE (KHÔNG ẢNH HƯỞNG CODE CŨ)
+            // ✅ 3️⃣.1 TÍNH ĐIỂM TRUNG BÌNH TOÀN COURSE
             // =============================================
             var allExerciseScores = chapters
                 .SelectMany(c => c.Exercises)
@@ -681,13 +687,13 @@ namespace AESP.Service.Implementation
                 .ToList();
 
             double? averageScore = allExerciseScores.Any()
-     ? Math.Ceiling(allExerciseScores.Average())
-     : null;
-
+                ? Math.Ceiling(allExerciseScores.Average())
+                : null;
 
             double totalScore = allExerciseScores.Any()
                 ? Math.Ceiling(allExerciseScores.Sum())
                 : 0;
+
             int totalExerciseScored = allExerciseScores.Count;
 
             // =============================================
@@ -705,7 +711,7 @@ namespace AESP.Service.Implementation
             bool showDuration = lpCourse.Course.OrderIndex > 1;
 
             // =============================================
-            // 5️⃣ Trả kết quả (GIỮ NGUYÊN + THÊM ĐIỂM)
+            // 5️⃣ Trả kết quả
             // =============================================
             return Success(BusinessCode.GET_DATA_SUCCESSFULLY,
                 "Lấy đầy đủ LearningPathCourse thành công.",
@@ -731,7 +737,6 @@ namespace AESP.Service.Implementation
                         ShowDuration = showDuration,
                         RemainingDays = showDuration ? remainingDays : 0,
 
-                        // ✅ THÊM ĐIỂM COURSE (KHÔNG PHÁ CẤU TRÚC CŨ)
                         AverageScore = averageScore,
                         TotalScore = totalScore,
                         TotalExerciseScored = totalExerciseScored
