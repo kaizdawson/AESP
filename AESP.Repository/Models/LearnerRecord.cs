@@ -23,6 +23,8 @@ namespace AESP.Repository.Models
 
         public string Status { get; set; } = string.Empty;
 
+        public int NumberOfRecord { get; set; } = 0;
+
         // Navigation
         public virtual LearnerProfile LearnerProfile { get; set; }
         public virtual ICollection<Record> Records { get; set; } = new List<Record>();

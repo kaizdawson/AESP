@@ -24,12 +24,10 @@ public class RecordCategoryController : ControllerBase
         _unitOfWork = unitOfWork;
     }
 
-    // ------------------------------
-    // GET LEARNER PROFILE ID
-    // ------------------------------
+
     private async Task<Guid> GetLearnerProfileIdAsync()
     {
-        // 1) Lấy LearnerProfileId từ token nếu có
+ 
         var learnerProfileClaim = User.Claims
             .FirstOrDefault(c => c.Type == "LearnerProfileId");
 
@@ -39,7 +37,7 @@ public class RecordCategoryController : ControllerBase
             return learnerProfileId;
         }
 
-        // 2) Nếu không có → fallback lấy UserId từ token
+
         var userIdClaim = User.Claims.FirstOrDefault(c =>
             c.Type == JwtRegisteredClaimNames.Sub ||
             c.Type == ClaimTypes.NameIdentifier ||
@@ -52,7 +50,7 @@ public class RecordCategoryController : ControllerBase
         if (!Guid.TryParse(userIdClaim.Value, out var userId))
             throw new UnauthorizedAccessException("UserId trong token không hợp lệ.");
 
-        // 3) Query DB lấy LearnerProfile theo UserId
+
         var learnerProfile = await _unitOfWork
             .GetDbContext()
             .Set<LearnerProfile>()
@@ -64,9 +62,7 @@ public class RecordCategoryController : ControllerBase
         return learnerProfile.LearnerProfileId;
     }
 
-    // ------------------------------
-    // CREATE CATEGORY
-    // ------------------------------
+
     [HttpPost("create")]
     public async Task<IActionResult> Create([FromBody] CreateRecordCategoryDTO dto)
     {
@@ -74,9 +70,7 @@ public class RecordCategoryController : ControllerBase
         return Ok(await _categoryService.CreateCategoryAsync(id, dto));
     }
 
-    // ------------------------------
-    // RENAME CATEGORY
-    // ------------------------------
+
     [HttpPut("{categoryId}/rename")]
     public async Task<IActionResult> Rename(Guid categoryId, [FromBody] RenameRecordCategoryDTO dto)
     {
@@ -84,9 +78,7 @@ public class RecordCategoryController : ControllerBase
         return Ok(await _categoryService.RenameCategoryAsync(id, categoryId, dto.NewName));
     }
 
-    // ------------------------------
-    // DELETE CATEGORY
-    // ------------------------------
+
     [HttpDelete("{categoryId}")]
     public async Task<IActionResult> Delete(Guid categoryId)
     {
@@ -94,13 +86,32 @@ public class RecordCategoryController : ControllerBase
         return Ok(await _categoryService.DeleteCategoryAsync(id, categoryId));
     }
 
-    // ------------------------------
-    // GET ALL CATEGORIES OF LEARNER
-    // ------------------------------
+
     [HttpGet("mine")]
     public async Task<IActionResult> GetMine()
     {
         var id = await GetLearnerProfileIdAsync();
         return Ok(await _categoryService.GetAllCategoriesAsync(id));
     }
+
+    [HttpPost("{folderId}/purchase-record")]
+    public async Task<IActionResult> PurchaseRecord(
+    Guid folderId,
+    [FromBody] PurchaseRecordChargeDTO dto)
+    {
+        var learnerProfileId = await GetLearnerProfileIdAsync();
+
+        var userIdClaim = User.Claims.FirstOrDefault(c =>
+            c.Type == JwtRegisteredClaimNames.Sub ||
+            c.Type == ClaimTypes.NameIdentifier ||
+            c.Type.EndsWith("/nameidentifier")
+        );
+
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+            return Unauthorized();
+
+        return Ok(await _categoryService
+            .PurchaseRecordChargeAsync(learnerProfileId, userId, folderId, dto));
+    }
+
 }

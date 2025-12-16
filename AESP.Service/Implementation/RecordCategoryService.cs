@@ -4,6 +4,7 @@ using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
 using Microsoft.EntityFrameworkCore;
+using AESP.API.Helpers;
 
 public class RecordCategoryService : IRecordCategoryService
 {
@@ -28,13 +29,19 @@ public class RecordCategoryService : IRecordCategoryService
     {
         try
         {
+            var existingFolderCount = await _categoryRepo.AsQueryable()
+                .CountAsync(x => x.LearnerId == learnerProfileId);
+   
+            var initialFree = existingFolderCount == 0 ? 5 : 0;
+
             var cat = new LearnerRecord
             {
                 LearnerRecordId = Guid.NewGuid(),
                 LearnerId = learnerProfileId,
                 Name = dto.Name,
                 Status = "Draft",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.NowVN(),
+                NumberOfRecord = initialFree
             };
 
             await _categoryRepo.Insert(cat);
@@ -45,7 +52,8 @@ public class RecordCategoryService : IRecordCategoryService
                 cat.LearnerRecordId,
                 cat.Name,
                 cat.Status,
-                cat.CreatedAt
+                cat.CreatedAt,
+                cat.NumberOfRecord
             });
         }
         catch (Exception ex)
@@ -140,7 +148,8 @@ public class RecordCategoryService : IRecordCategoryService
                     x.LearnerRecordId,
                     x.Name,
                     x.Status,
-                    x.CreatedAt
+                    x.CreatedAt,
+                    x.NumberOfRecord
                 })
                 .ToListAsync();
 
@@ -152,9 +161,77 @@ public class RecordCategoryService : IRecordCategoryService
         }
     }
 
-    // ========================================================
-    // HELPERS
-    // ========================================================
+    public async Task<ResponseDTO> PurchaseRecordChargeAsync(
+     Guid learnerProfileId,
+     Guid userId,
+     Guid folderId,
+     PurchaseRecordChargeDTO dto)
+    {
+        await _unitOfWork.BeginTransactionAsync();
+
+        try
+        {
+            var db = _unitOfWork.GetDbContext();
+
+            var user = await db.Set<User>()
+                .FirstOrDefaultAsync(x => x.UserId == userId);
+
+            if (user == null)
+                return Fail("Không tìm thấy user.");
+
+            var recordCharge = await db.Set<RecordCharge>()
+                .FirstOrDefaultAsync(x =>
+                    x.RecordChargeId == dto.RecordChargeId &&
+                    !x.IsDeleted &&
+                    x.Status == "Active");
+
+            if (recordCharge == null)
+                return Fail("Gói record không tồn tại hoặc đã bị vô hiệu.");
+
+            if (user.CoinBalance < recordCharge.AmountCoin)
+                return Fail("Số dư không đủ, vui lòng nạp thêm coin.");
+
+            var folder = await _categoryRepo.AsQueryable()
+                .FirstOrDefaultAsync(x =>
+                    x.LearnerRecordId == folderId &&
+                    x.LearnerId == learnerProfileId);
+
+            if (folder == null)
+                return Fail("Không tìm thấy thư mục.");
+
+            user.CoinBalance -= recordCharge.AmountCoin;
+            folder.NumberOfRecord += recordCharge.AllowedRecordCount;
+
+            var purchase = new Purchase
+            {
+                PurchaseId = Guid.NewGuid(),
+                Status = "Success",
+                CreatedAt = DateTimeHelper.NowVN(),
+                UserId = userId,
+                AmountCoin = recordCharge.AmountCoin,
+                RecordChargeId = recordCharge.RecordChargeId
+            };
+
+            db.Set<Purchase>().Add(purchase);
+
+            await _unitOfWork.SaveChangeAsync();
+            await _unitOfWork.CommitAsync();
+
+            return Success("Mua gói record thành công.", new
+            {
+                FolderId = folder.LearnerRecordId,
+                AddedRecord = recordCharge.AllowedRecordCount,
+                TotalRecord = folder.NumberOfRecord,
+                RemainingCoin = user.CoinBalance
+            });
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            return Fail(ex.Message);
+        }
+    }
+
     private ResponseDTO Success(string msg, object data = null)
         => new ResponseDTO
         {
