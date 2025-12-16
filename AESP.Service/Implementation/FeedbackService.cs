@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -144,7 +145,7 @@ namespace AESP.Service.Implementation
                     FeedbackId = Guid.NewGuid(),
                     Content = dto.Content.Trim(),
                     Rating = dto.Rating,
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTimeHelper.NowVN(),
                     Status = "Pending",
                     UserId = userId,
                     ReviewId = dto.ReviewId,
@@ -265,7 +266,7 @@ namespace AESP.Service.Implementation
                     FeedbackId = Guid.NewGuid(),
                     Content = dto.Reason.Trim(),
                     Rating = 1,                    // ✅ Fix cứng = 1
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTimeHelper.NowVN(),
                     Status = "Pending",
                     UserId = userId,
                     ReviewId = dto.ReviewId,

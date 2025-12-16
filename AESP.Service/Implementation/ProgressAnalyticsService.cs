@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs.BusinessCode;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
@@ -77,7 +78,7 @@ namespace AESP.Service.Implementation
                 {
                     ProgressAnalyticsId = Guid.NewGuid(),
                     LearnerProfileId = learnerProfileId,
-                    DateRecorded = DateTime.UtcNow,
+                    DateRecorded = DateTimeHelper.NowVN(),
                     SpeakingTime = totalSeconds,
                     SessionsCompleted = sessionsCompleted,
                     PronunciationScoreAvg = avgScore
@@ -87,7 +88,7 @@ namespace AESP.Service.Implementation
             }
             else
             {
-                progress.DateRecorded = DateTime.UtcNow;
+                progress.DateRecorded = DateTimeHelper.NowVN();
                 progress.SpeakingTime = totalSeconds;
                 progress.SessionsCompleted = sessionsCompleted;
                 progress.PronunciationScoreAvg = avgScore;

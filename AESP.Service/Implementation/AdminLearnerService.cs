@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Common.Enums;
 using AESP.Common.Helpers;
@@ -102,7 +103,7 @@ Trân trọng,
                         Message = $"Tài khoản của bạn đã bị khóa. Lý do: {reason}",
                         Type = "Account",
                         IsRead = false,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.NowVN()
                     };
                     await _notificationRepository.Insert(notification);
 
@@ -145,7 +146,7 @@ Trân trọng,
                         Message = "Tài khoản của bạn đã được mở khóa bởi quản trị viên.",
                         Type = "Account",
                         IsRead = false,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.NowVN()
                     };
                     await _notificationRepository.Insert(notification);
 
@@ -203,7 +204,7 @@ Trân trọng,
                     .Where(lp => learnerCourseIds.Contains(lp.LearnerCourseId))
                     .ToListAsync();
 
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.NowVN();
 
                 // --- B4: Mapping dữ liệu trả về ---
                 var mapped = learners.Select(l =>

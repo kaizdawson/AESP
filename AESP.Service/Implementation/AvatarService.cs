@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -42,7 +43,7 @@ namespace AESP.Service.Implementation
                 return new ResponseDTO { IsSucess = false, BusinessCode = BusinessCode.EXCEPTION, Message = upload.Message };
 
             user.AvatarUrl = upload.Url;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTimeHelper.NowVN();
             await _userRepo.Update(user);
             await _uow.SaveChangeAsync();
 

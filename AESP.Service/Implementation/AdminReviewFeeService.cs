@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -55,7 +56,7 @@ namespace AESP.Service.Implementation
                     ReviewFeeDetailId = Guid.NewGuid(),
                     ReviewFeeId = reviewFee.ReviewFeeId,
                     PricePerReviewFee = dto.PricePerReviewFee,
-                    AppliedDate = DateTime.UtcNow,
+                    AppliedDate = DateTimeHelper.NowVN(),
                     PercentOfSystem = dto.PercentOfSystem,
                     PercentOfReviewer = dto.PercentOfReviewer
                 };
@@ -93,7 +94,7 @@ namespace AESP.Service.Implementation
 
             try
             {
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.NowVN();
 
                 // ==============================
                 // 1. LẤY POLICY THEO ID
@@ -165,7 +166,7 @@ namespace AESP.Service.Implementation
                     return response;
                 }
 
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.NowVN();
 
                 // 2. Lấy tất cả gói + detail, rồi lọc trên DB những gói có ít nhất 1 chính sách đang áp dụng
                 var activePackagesQuery = _reviewFeeRepository.AsQueryable()
@@ -258,7 +259,7 @@ namespace AESP.Service.Implementation
 
             try
             {
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.NowVN();
 
                 // ================================
                 // 1) Lấy toàn bộ gói + detail
@@ -339,7 +340,7 @@ namespace AESP.Service.Implementation
 
             try
             {
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.NowVN();
 
                 var package = await _reviewFeeRepository.AsQueryable()
                     .Include(rf => rf.ReviewFeeDetails)
@@ -443,7 +444,7 @@ namespace AESP.Service.Implementation
                     response.Message = "Gói Review Fee không tồn tại.";
                     return response;
                 }
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.NowVN();
 
                 // 🚫✅ CHẶN TUYỆT ĐỐI: KHÔNG CHO ĐỤNG LỊCH SỬ (AppliedDate < NOW)
                 if (dto.AppliedDate < now)
@@ -547,7 +548,7 @@ namespace AESP.Service.Implementation
                     return response;
                 }
 
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.NowVN();
 
                 // ==============================
                 // 2. LẤY POLICY THEO ID

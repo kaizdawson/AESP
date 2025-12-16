@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -177,7 +178,7 @@ namespace AESP.Service.Implementation
                 var newAssessment = new Assessment
                 {
                     AssessmentId = Guid.NewGuid(),
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTimeHelper.NowVN(),
                     LearnerProfileId = request.LearnerProfileId,
                     Score = request.Score,
                     Feedback = request.Feedback?.Trim() ?? "",
@@ -424,7 +425,7 @@ namespace AESP.Service.Implementation
                     {
                         LearnerProfileId = Guid.NewGuid(),
                         UserId = userId,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.NowVN()
                     };
                     await _learnerProfileRepository.Insert(learnerProfile);
                     await _unitOfWork.SaveChangeAsync();
@@ -456,7 +457,7 @@ namespace AESP.Service.Implementation
                     {
                         AssessmentId = Guid.NewGuid(),
                         LearnerProfileId = learnerProfileId,
-                        CreatedAt = DateTime.UtcNow,
+                        CreatedAt = DateTimeHelper.NowVN(),
                         Feedback = string.Empty,
                         Score = null,
 
@@ -603,7 +604,7 @@ namespace AESP.Service.Implementation
                     {
                         AssessmentId = Guid.NewGuid(),
                         LearnerProfileId = dto.LearnerProfileId,
-                        CreatedAt = DateTime.UtcNow,
+                        CreatedAt = DateTimeHelper.NowVN(),
                         Score = averageScore,
                         Feedback = string.Empty,
                         NumberOfQuestion = dto.NumberOfQuestion
@@ -655,7 +656,7 @@ namespace AESP.Service.Implementation
                 // ✅ LUÔN UPDATE LEVEL — KỂ CẢ KHI = A1 (0 ĐIỂM)
                 learner.Level = assignedLevel;
                 learner.PronunciationScore = averageScore;
-                learner.UpdatedAt = DateTime.UtcNow;
+                learner.UpdatedAt = DateTimeHelper.NowVN();
 
                 await _learnerProfileRepository.Update(learner);
                 await _unitOfWork.SaveChangeAsync();

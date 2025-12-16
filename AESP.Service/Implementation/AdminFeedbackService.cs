@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.DB;
@@ -225,7 +226,7 @@ namespace AESP.Service.Implementation
                         AmountCoin = actualDeduct,
                         Comment = $"Thu hồi {actualDeduct} coin do review bị learner report và được admin chấp nhận.",
                         Status = "Completed",
-                        CreatedAt = DateTime.UtcNow,
+                        CreatedAt = DateTimeHelper.NowVN(),
                         TransactionType = "ReviewPenalty"
                     };
                     await db.TransferTransactions.AddAsync(penaltyTransaction);

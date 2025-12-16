@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -270,7 +271,7 @@ namespace AESP.Service.Implementation
                         CourseId = course.CourseId,
                         AmountCoin = price,
                         Status = "Success",
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.NowVN()
                     };
 
                     await _courseRepo.GetDbContext().Set<Purchase>().AddAsync(purchase);
@@ -699,7 +700,7 @@ namespace AESP.Service.Implementation
             // =============================================
             // 4️⃣ TÍNH DURATION theo đúng giờ Việt Nam
             // =============================================
-            var vnNow = DateTime.UtcNow.AddHours(7);
+            var vnNow = DateTimeHelper.NowVN().AddHours(7);
 
             var duration = lpCourse.Course.Duration;
             var activatedAt = lpCourse.CreatedAt.AddHours(7).Date;

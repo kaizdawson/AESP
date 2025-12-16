@@ -1,4 +1,5 @@
-﻿ using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.DB;
@@ -38,7 +39,7 @@ namespace AESP.Service.Implementation
             try
             {
                 var db = _unitOfWork.GetDbContext();
-                var now = DateTime.UtcNow;
+                var now = DateTimeHelper.NowVN();
 
                 // ========================================
                 // 1) Lấy giá review mới nhất

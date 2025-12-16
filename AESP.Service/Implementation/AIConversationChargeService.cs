@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
@@ -19,7 +20,7 @@ namespace AESP.Service.Implementation
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize)
+        public async Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize, string? status = null)
         {
             var response = new ResponseDTO();
 
@@ -27,12 +28,36 @@ namespace AESP.Service.Implementation
             {
                 var db = _repo.GetDbContext();
 
-                var query = db.AIConversationCharge
-                    .Where(x => !x.IsDeleted)
-                    .OrderByDescending(x => x.CreatedAt);
+                var allQuery = db.AIConversationCharge
+                    .Where(x => !x.IsDeleted);
 
+                // Tổng tất cả gói
+                var totalPackages = await allQuery.CountAsync();
+
+                // Tổng gói active toàn hệ thống
+                var totalActivePackages = await allQuery
+                    .CountAsync(x => x.Status == "Active");
+
+                // Query dùng để filter
+                var query = allQuery;
+
+                if (!string.IsNullOrEmpty(status) && status != "All")
+                {
+                    query = query.Where(x => x.Status == status);
+                }
+
+                // Tổng item sau filter
                 var totalItems = await query.CountAsync();
 
+                // Sort: Active trước, rồi CreatedAt DESC
+                query = query
+                    .OrderBy(x =>
+                        x.Status == "Active" ? 1 :
+                        x.Status == "InActive" ? 2 :
+                        3)
+                    .ThenByDescending(x => x.CreatedAt);
+
+                // Paging
                 var items = await query
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
@@ -46,16 +71,22 @@ namespace AESP.Service.Implementation
                         UpdatedAt = x.UpdatedAt,
                         IsDeleted = x.IsDeleted
                     })
-
                     .ToListAsync();
 
+                var totalActiveItems = items.Count(x => x.Status == "Active");
+
                 response.IsSucess = true;
-                response.Message = "Lấy danh sách thành công.";
+                response.Message = "Lấy danh sách gói AI Conversation thành công.";
                 response.Data = new
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
+
                     TotalItems = totalItems,
+                    TotalPackages = totalPackages,
+                    TotalActivePackages = totalActivePackages,
+                    TotalActiveItems = totalActiveItems,
+
                     Items = items
                 };
             }
@@ -112,8 +143,8 @@ namespace AESP.Service.Implementation
                     AmountCoin = dto.AmountCoin,
                     AllowedMinutes = dto.AllowedMinutes,
                     Status = "Active",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.NowVN(),
+                    UpdatedAt = DateTimeHelper.NowVN()
                 };
 
                 await _repo.Insert(entity);
@@ -151,7 +182,7 @@ namespace AESP.Service.Implementation
 
                 entity.AmountCoin = dto.AmountCoin;
                 entity.AllowedMinutes = dto.AllowedMinutes;
-                entity.UpdatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTimeHelper.NowVN();
 
                 await _repo.Update(entity);
                 await _unitOfWork.SaveChangeAsync();
@@ -186,7 +217,7 @@ namespace AESP.Service.Implementation
                 }
 
                 entity.Status = entity.Status == "Active" ? "InActive" : "Active";
-                entity.UpdatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTimeHelper.NowVN();
 
                 await _repo.Update(entity);
                 await _unitOfWork.SaveChangeAsync();
@@ -228,7 +259,7 @@ namespace AESP.Service.Implementation
                 }
 
                 entity.IsDeleted = true;
-                entity.UpdatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTimeHelper.NowVN();
 
                 await _repo.Update(entity);
                 await _unitOfWork.SaveChangeAsync();

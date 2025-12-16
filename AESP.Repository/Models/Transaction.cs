@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AESP.API.Helpers;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -56,7 +57,7 @@ namespace AESP.Repository.Models
         public string? ReasonReject { get; set; }
 
        
-        public DateTime CreatedTransaction { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedTransaction { get; set; } = DateTimeHelper.NowVN();
 
      
 

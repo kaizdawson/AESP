@@ -1,7 +1,8 @@
-﻿using System;
+﻿using AESP.API.Helpers;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,7 +18,7 @@ namespace AESP.Repository.Models
 
         public Guid LearningPathQuestionId { get; set; }
 
-        public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
+        public DateTime SubmittedAt { get; set; } = DateTimeHelper.NowVN();
 
         public string AudioRecordingUrl { get; set; } = string.Empty;
 

@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -41,7 +42,7 @@ namespace AESP.Service.Implementation
 
             try
             {
-                if (year <= 0) year = DateTime.UtcNow.Year;
+                if (year <= 0) year = DateTimeHelper.NowVN().Year;
 
                 var db = _packageRepository.GetDbContext();
 
@@ -103,7 +104,7 @@ namespace AESP.Service.Implementation
             try
             {
                 if (year <= 0)
-                    year = DateTime.UtcNow.Year;
+                    year = DateTimeHelper.NowVN().Year;
 
                 // ✅ PHẢI DÙNG TRANSACTION
                 var db = _transactionRepository.GetDbContext();

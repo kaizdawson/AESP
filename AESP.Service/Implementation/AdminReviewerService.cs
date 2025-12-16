@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -179,7 +180,7 @@ Trân trọng,
                         Message = $"Tài khoản Reviewer của bạn đã bị khóa. Lý do: {reason}",
                         Type = "Account",
                         IsRead = false,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.NowVN()
                     };
 
                     var db = _reviewerProfileRepository.GetDbContext();
@@ -230,7 +231,7 @@ Trân trọng,
                         Message = "Tài khoản Reviewer của bạn đã được mở khóa bởi quản trị viên.",
                         Type = "Account",
                         IsRead = false,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTimeHelper.NowVN()
                     };
 
                     var db = _reviewerProfileRepository.GetDbContext();
@@ -274,7 +275,7 @@ Trân trọng,
                 }
 
                 var reviewers = await query.ToListAsync();
-                DateTime now = DateTime.UtcNow;
+                DateTime now = DateTimeHelper.NowVN();
 
                 // ✅ Xử lý logic trạng thái động (3 loại)
                 var mapped = reviewers.Select(r =>

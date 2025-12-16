@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -147,7 +148,7 @@ namespace AESP.Service.Implementation
                     Title = request.Title.Trim(),
                     Description = request.Description.Trim(),
                     NumberOfExercise = request.NumberOfExercise,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.NowVN()
                 };
 
                 await _chapterRepository.Insert(chapter);

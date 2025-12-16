@@ -1,4 +1,5 @@
-﻿using AESP.Service.Contract;
+﻿using AESP.API.Helpers;
+using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -32,7 +33,7 @@ namespace AESP.API.Controllers.CoinController
         {
             try
             {
-                _logger.LogInformation("📩 Webhook PayOS nhận vào lúc {Time}", DateTime.UtcNow);
+                _logger.LogInformation("📩 Webhook PayOS nhận vào lúc {Time}", DateTimeHelper.NowVN());
 
                 var checksumKey = _config["PayOS:ChecksumKey"];
                 if (string.IsNullOrEmpty(checksumKey))

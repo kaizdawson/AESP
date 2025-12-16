@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Implementation;
@@ -199,7 +200,7 @@ namespace AESP.Service.Implementation
                 AmountCoin = payCoin,
                 AIConversationChargeId = aiChargeId,
                 Status = "Success",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTimeHelper.NowVN()
             };
 
             await _purchaseRepository.Insert(purchase);

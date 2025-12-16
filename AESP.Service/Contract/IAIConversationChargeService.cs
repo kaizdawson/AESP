@@ -4,7 +4,7 @@ namespace AESP.Service.Contract
 {
     public interface IAIConversationChargeService
     {
-        Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize);
+        Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize, string? status = null);
         Task<ResponseDTO> GetAllActiveAsync();
         Task<ResponseDTO> CreateAsync(AIConversationChargeCreateOrUpdateDto dto);
         Task<ResponseDTO> UpdateAsync(Guid id, AIConversationChargeCreateOrUpdateDto dto);

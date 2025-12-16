@@ -18,8 +18,8 @@ namespace AESP.API.Controllers.AdminController
         }
         [Authorize(Roles = "ADMIN")]
         [HttpGet("list")]
-        public async Task<IActionResult> GetAll(int pageNumber = 1, int pageSize = 20)
-            => Ok(await _service.GetAllAsync(pageNumber, pageSize));
+        public async Task<IActionResult> GetAll(int pageNumber = 1, int pageSize = 20, string? status = null)
+            => Ok(await _service.GetAllAsync(pageNumber, pageSize, status));
         [AllowAnonymous]
         [HttpGet("active")]
         public async Task<IActionResult> GetAllActive()

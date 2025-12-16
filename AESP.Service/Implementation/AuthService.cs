@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Repository.Repositories;
@@ -109,7 +110,7 @@ namespace AESP.Service.Implementation
                 var progress = new ProgressAnalytics
                 {
                     ProgressAnalyticsId = Guid.NewGuid(),
-                    DateRecorded = DateTime.UtcNow,
+                    DateRecorded = DateTimeHelper.NowVN(),
                     SpeakingTime = 0,
                     SessionsCompleted = 0,
                     PronunciationScoreAvg = 0,
@@ -180,8 +181,8 @@ namespace AESP.Service.Implementation
                 Id = Guid.NewGuid(),
                 UserId = user.UserId,
                 Token = refreshToken,
-                CreatedAt = DateTime.UtcNow,
-                ExpiredAt = DateTime.UtcNow.AddDays(7),
+                CreatedAt = DateTimeHelper.NowVN(),
+                ExpiredAt = DateTimeHelper.NowVN().AddDays(7),
                 Revoked = false,
                 IpAddress = ipAddress ?? "unknown",
                 DeviceInfo = deviceInfo ?? "unknown"
@@ -296,7 +297,7 @@ namespace AESP.Service.Implementation
                 };
             }
 
-            if (storedToken.ExpiredAt <= DateTime.UtcNow)
+            if (storedToken.ExpiredAt <= DateTimeHelper.NowVN())
             {
                 storedToken.Revoked = true;
                 await _refreshTokenRepository.Update(storedToken);
@@ -487,7 +488,7 @@ namespace AESP.Service.Implementation
                 return (false, "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", "Expired");
 
 
-            if (storedToken.ExpiredAt <= DateTime.UtcNow)
+            if (storedToken.ExpiredAt <= DateTimeHelper.NowVN())
                 return (false, "Refresh token đã hết hạn.", "Expired");
 
 
@@ -681,8 +682,8 @@ namespace AESP.Service.Implementation
                     Id = Guid.NewGuid(),
                     UserId = user.UserId,
                     Token = refreshToken,
-                    CreatedAt = DateTime.UtcNow,
-                    ExpiredAt = DateTime.UtcNow.AddDays(7),
+                    CreatedAt = DateTimeHelper.NowVN(),
+                    ExpiredAt = DateTimeHelper.NowVN().AddDays(7),
                     Revoked = false,
                     IpAddress = ipAddress ?? "unknown",
                     DeviceInfo = deviceInfo ?? "unknown"
@@ -862,8 +863,8 @@ namespace AESP.Service.Implementation
                     Id = Guid.NewGuid(),
                     UserId = user.UserId,
                     Token = refreshToken,
-                    CreatedAt = DateTime.UtcNow,
-                    ExpiredAt = DateTime.UtcNow.AddDays(7),
+                    CreatedAt = DateTimeHelper.NowVN(),
+                    ExpiredAt = DateTimeHelper.NowVN().AddDays(7),
                     Revoked = false,
                     IpAddress = ipAddress ?? "unknown",
                     DeviceInfo = deviceInfo ?? "unknown"
