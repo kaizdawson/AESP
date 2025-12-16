@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -78,8 +79,8 @@ namespace AESP.Service.Implementation
                     NumberOfCoin = request.NumberOfCoin,
                     BonusPercent = request.BonusPercent,
                     Status = "Active",
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.NowVN(),
+                    UpdatedAt = DateTimeHelper.NowVN()
                 };
 
                 await _servicePackageRepository.Insert(entity);
@@ -128,7 +129,7 @@ namespace AESP.Service.Implementation
                 // Soft delete: set IsDeleted + Inactive
                 entity.IsDeleted = true;
                 entity.Status = "Inactive";
-                entity.UpdatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTimeHelper.NowVN();
 
                 await _servicePackageRepository.Update(entity);
                 await _unitOfWork.SaveChangeAsync();
@@ -430,7 +431,7 @@ namespace AESP.Service.Implementation
                 }
 
                 entity.Status = entity.Status == "Active" ? "Inactive" : "Active";
-                entity.UpdatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTimeHelper.NowVN();
 
                 await _servicePackageRepository.Update(entity);
                 await _unitOfWork.SaveChangeAsync();
@@ -511,7 +512,7 @@ namespace AESP.Service.Implementation
                 entity.NumberOfCoin = request.NumberOfCoin; // ✅ FE gửi giá trị cuối cùng
                 entity.BonusPercent = request.BonusPercent;
                 entity.Status = string.IsNullOrWhiteSpace(request.Status) ? entity.Status : request.Status.Trim();
-                entity.UpdatedAt = DateTime.UtcNow;
+                entity.UpdatedAt = DateTimeHelper.NowVN();
 
                 await _servicePackageRepository.Update(entity);
                 await _unitOfWork.SaveChangeAsync();

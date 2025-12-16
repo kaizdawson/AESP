@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AESP.API.Helpers;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -23,7 +24,7 @@ namespace AESP.Repository.Models
 
         public int NumberOfCoin { get; set; } = 0;
         public decimal BonusPercent { get; set; } = 0;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.NowVN();
 
         // --- Navigation ---
         public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();

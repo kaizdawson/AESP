@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -62,7 +63,7 @@ namespace AESP.Service.Implementation
                 // ✅ UPDATE USER
                 learner.User.FullName = dto.FullName.Trim();
                 learner.User.PhoneNumber = dto.PhoneNumber.Trim();
-                learner.User.UpdatedAt = DateTime.UtcNow;
+                learner.User.UpdatedAt = DateTimeHelper.NowVN();
 
                 await _userRepo.Update(learner.User);
                 await _unitOfWork.SaveChangeAsync();

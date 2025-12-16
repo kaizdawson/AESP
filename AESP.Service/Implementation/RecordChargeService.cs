@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace AESP.Service.Implementation
 {
@@ -124,7 +125,7 @@ namespace AESP.Service.Implementation
             return response;
         }
 
-        public async Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize)
+        public async Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize, string? status = null)
         {
             var response = new ResponseDTO();
 
@@ -132,17 +133,38 @@ namespace AESP.Service.Implementation
             {
                 var db = _repo.GetDbContext();
 
-                var query = db.Set<RecordCharge>()
-                    .Where(x => !x.IsDeleted)
-                    .OrderByDescending(x => x.CreatedAt);
+                // Base query
+                var allQuery = db.Set<RecordCharge>()
+                .Where(x => !x.IsDeleted);
 
-                var totalPackages = await query.CountAsync();
+               
 
-                var totalActivePackages = await query
+                
+
+                // Tổng số gói
+                var totalPackages = await allQuery.CountAsync();
+
+                // Tổng số gói active (toàn hệ thống)
+                var totalActivePackages = await allQuery
             .CountAsync(x => x.Status == "Active");
 
+
+                var query = allQuery;
+
+                if (!string.IsNullOrEmpty(status) && status != "All")
+                {
+                    query = query.Where(x => x.Status == status);
+                }
                 var totalItems = await query.CountAsync();
 
+                query = query
+           .OrderBy(x =>
+               x.Status == "Active" ? 1 :
+               x.Status == "InActive" ? 2 :
+               3)
+           .ThenByDescending(x => x.CreatedAt);
+
+                // Page items
                 var items = await query
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
@@ -158,16 +180,26 @@ namespace AESP.Service.Implementation
                     })
                     .ToListAsync();
 
+                // Items active trong page
+                var itemsActive = items
+                    .Where(x => x.Status == "Active")
+                    .ToList();
+
                 response.IsSucess = true;
                 response.Message = "Lấy danh sách gói record thành công.";
                 response.Data = new
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
+
                     TotalItems = totalItems,
-                    Items = items,
                     TotalPackages = totalPackages,
-                    TotalActivePackages = totalActivePackages
+                    TotalActivePackages = totalActivePackages,
+
+                    TotalActiveItems = itemsActive.Count,
+
+                    Items = items,
+                    ItemsActive = itemsActive
                 };
             }
             catch (Exception ex)

@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
+﻿using AESP.API.Helpers;
 using AESP.Repository.DB;
 using AESP.Repository.Models;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -58,7 +59,7 @@ namespace AESP.Service.Implementation
                 issuer: _config["JWT:ValidIssuer"],
                 audience: _config["JWT:ValidAudience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddDays(1),
+                expires: DateTimeHelper.NowVN().AddDays(1),
                 signingCredentials: creds
             );
 
@@ -84,7 +85,7 @@ namespace AESP.Service.Implementation
                 issuer: _config["JWT:ValidIssuer"],
                 audience: _config["JWT:ValidAudience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(15), // chỉ sống 15 phút
+                expires: DateTimeHelper.NowVN().AddMinutes(15), // chỉ sống 15 phút
                 signingCredentials: creds
             );
 

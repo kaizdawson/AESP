@@ -9,7 +9,7 @@ namespace AESP.Service.Contract
 {
     public interface IRecordChargeService
     {
-        Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize);
+        Task<ResponseDTO> GetAllAsync(int pageNumber, int pageSize, string? status = null);
         Task<ResponseDTO> GetAllActiveAsync();
         Task<ResponseDTO> CreateAsync(RecordChargeCreateOrUpdateDto dto);
         Task<ResponseDTO> UpdateAsync(Guid id, RecordChargeCreateOrUpdateDto dto);

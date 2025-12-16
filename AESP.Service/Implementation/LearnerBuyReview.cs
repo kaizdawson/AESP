@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -37,7 +38,7 @@ namespace AESP.Service.Implementation
 
         public async Task<List<ReviewFeeMenuDto>> GetReviewFeeMenuAsync()
         {
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.NowVN();
 
             var fees = await _reviewfeeRepo.AsQueryable().ToListAsync();
             var details = await _reviewfeeDetailRepo.AsQueryable()
@@ -72,7 +73,7 @@ namespace AESP.Service.Implementation
         public async Task<(bool isSuccess, string message)> BuyReviewFeeAsync(
     Guid userId, Guid reviewFeeId, Guid learnerAnswerId)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.NowVN();
 
             var user = await _userRepo.GetById(userId);
             if (user == null)
@@ -116,7 +117,7 @@ namespace AESP.Service.Implementation
             {
                 PurchaseId = Guid.NewGuid(),
                 Status = "Success",
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.NowVN(),
                 UserId = userId,
                 ReviewFeeId = reviewFeeId,
                 AmountCoin = amount,
@@ -136,7 +137,7 @@ namespace AESP.Service.Implementation
         public async Task<(bool isSuccess, string message)> BuyReviewFeeForRecordAsync(
     Guid userId, Guid reviewFeeId, Guid recordId)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.NowVN();
 
             var user = await _userRepo.GetById(userId);
             if (user == null)
@@ -183,7 +184,7 @@ namespace AESP.Service.Implementation
             {
                 PurchaseId = Guid.NewGuid(),
                 Status = "Success",
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTimeHelper.NowVN(),
                 UserId = userId,
                 ReviewFeeId = reviewFeeId,
                 AmountCoin = amount,

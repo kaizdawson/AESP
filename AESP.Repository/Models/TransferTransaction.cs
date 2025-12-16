@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using AESP.API.Helpers;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AESP.Repository.Models
@@ -27,7 +28,7 @@ namespace AESP.Repository.Models
         public string Status { get; set; } = "Pending";
 
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.NowVN();
         public string TransactionType { get; set; } = "ReviewPayment";
 
         // --- Navigation ---

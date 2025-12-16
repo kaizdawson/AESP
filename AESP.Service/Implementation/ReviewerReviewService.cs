@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Realtime.Interfaces;
 using AESP.Repository.Contract;
@@ -452,7 +453,7 @@ namespace AESP.Service.Implementation
 
                         CreatedAt = r.LearnerAnswer != null
                             ? r.LearnerAnswer.SubmittedAt
-                            : (r.Record != null ? r.Record.CreatedAt : DateTime.UtcNow),
+                            : (r.Record != null ? r.Record.CreatedAt : DateTimeHelper.NowVN()),
 
                         // Câu hỏi của Answer hoặc Content của Record
                         QuestionContent = r.LearnerAnswer != null
@@ -852,7 +853,7 @@ namespace AESP.Service.Implementation
                     AmountCoin = dto.AmountCoin,
                     Comment = $"Reviewer thưởng kèm review: {dto.Message}",
                     Status = "Completed",
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTimeHelper.NowVN(),
                     TransactionType = "ReviewerTip"
                 };
                 await db.TransferTransactions.AddAsync(transfer);
@@ -865,7 +866,7 @@ namespace AESP.Service.Implementation
                     Message = $"Reviewer {reviewerUser.FullName} đã thưởng bạn {dto.AmountCoin} coin vì phần nói rất tuyệt vời!\n\"{dto.Message}\"",
                     Type = "ReviewerTip",
                     IsRead = false,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTimeHelper.NowVN()
                 };
                 await db.Notifications.AddAsync(notification);
 
@@ -949,7 +950,7 @@ namespace AESP.Service.Implementation
                 else
                 {
                     // ⚠️ BACKUP CHO DATA CŨ - GIỮ LUỒNG CŨ ĐỂ KHÔNG LỖI
-                    var now = DateTime.UtcNow;
+                    var now = DateTimeHelper.NowVN();
 
                     var feeDetail = await db.Set<ReviewFeeDetail>()
                         .Where(f => f.AppliedDate <= now)
@@ -1018,7 +1019,7 @@ namespace AESP.Service.Implementation
                     AmountCoin = reviewerCoin,
                     Comment = comment,
                     Status = "Completed",
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = DateTimeHelper.NowVN(),
                     TransactionType = "ReviewPayment"
                 };
 

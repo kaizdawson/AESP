@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
@@ -68,7 +69,7 @@ namespace AESP.Service.Implementation
                     ScoreForVoice = dto.ScoreForVoice,
                     ExplainTheWrongForVoiceAI = dto.ExplainTheWrongForVoiceAI,
                     Status = "Submitted",
-                    SubmittedAt = DateTime.UtcNow,
+                    SubmittedAt = DateTimeHelper.NowVN(),
                     IsNeededReviewed = false,
                     NumberofReview = 0
                 };
@@ -292,7 +293,7 @@ namespace AESP.Service.Implementation
                 // 5. UP LEVEL
                 // ========================================
                 learner.Level = levels[currentIndex + 1];
-                learner.UpdatedAt = DateTime.UtcNow;
+                learner.UpdatedAt = DateTimeHelper.NowVN();
 
                 _unitOfWork.GetDbContext().Update(learner);
                 await _unitOfWork.SaveChangeAsync();

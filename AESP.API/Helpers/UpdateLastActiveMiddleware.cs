@@ -35,7 +35,7 @@ namespace AESP.API.Helpers
 
                         if (user != null)
                         {
-                            user.LastActiveAt = DateTime.UtcNow;
+                            user.LastActiveAt = DateTimeHelper.NowVN();
 
                             await userRepository.Update(user);
                             await unitOfWork.SaveChangeAsync();

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AESP.API.Helpers;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -17,7 +18,7 @@ namespace AESP.Repository.Models
         [Required]
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.NowVN();
         public int NumberOfExercise { get; set; }
 
         public virtual Course Course { get; set; }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AESP.API.Helpers;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -23,7 +24,7 @@ namespace AESP.Repository.Models
 
         public decimal AmountCoin { get; set; }        // số coin đã thanh toán
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTimeHelper.NowVN();
 
         public decimal PricePerReviewAtPurchase { get; set; }
         public decimal PercentOfReviewerAtPurchase { get; set; }

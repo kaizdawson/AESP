@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
@@ -80,7 +81,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
+                Expires = DateTimeHelper.NowVN().AddDays(7)
             });
 
             return Ok(new
@@ -255,7 +256,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
+                Expires = DateTimeHelper.NowVN().AddDays(7)
             });
 
             return Ok(new
@@ -286,7 +287,7 @@ namespace AESP.API.Controllers
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(7)
+                Expires = DateTimeHelper.NowVN().AddDays(7)
             });
 
 

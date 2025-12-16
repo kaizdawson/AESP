@@ -1,4 +1,5 @@
-﻿using AESP.Common.DTOs;
+﻿using AESP.API.Helpers;
+using AESP.Common.DTOs;
 using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Implementation;
@@ -272,7 +273,7 @@ namespace AESP.Service.Implementation
             {
                 LearnerCourseId = Guid.NewGuid(),
                 LearnerProfileId = learner.LearnerProfileId,
-                GeneratedDate = DateTime.UtcNow,
+                GeneratedDate = DateTimeHelper.NowVN(),
                 NumberOfCourse = 1
             };
             await _learnerCourseRepo.Insert(learnerCourse);
@@ -523,7 +524,7 @@ namespace AESP.Service.Implementation
                     var startDate = lpCourse.CreatedAt;
                     var expireDate = startDate.AddDays(courseInfo.Duration);
 
-                    if (DateTime.UtcNow > expireDate)
+                    if (DateTimeHelper.NowVN() > expireDate)
                     {
                         return Fail(BusinessCode.INVALID_ACTION,
                             $"Khóa học đã hết hạn vào ngày {expireDate:dd/MM/yyyy}. Bạn không thể học lại bài tập này.");
