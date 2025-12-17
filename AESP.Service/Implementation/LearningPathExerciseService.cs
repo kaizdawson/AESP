@@ -150,7 +150,10 @@ namespace AESP.Service.Implementation
             if (courseOrder > 1)
             {
                 var previousCourse = await _lpCourseRepo.AsQueryable()
-                    .FirstOrDefaultAsync(x => x.OrderIndex == courseOrder - 1);
+     .FirstOrDefaultAsync(x =>
+         x.LearnerCourseId == currentCourse.LearnerCourseId &&
+         x.OrderIndex == courseOrder - 1);
+
 
                 if (previousCourse == null ||
                     !previousCourse.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
