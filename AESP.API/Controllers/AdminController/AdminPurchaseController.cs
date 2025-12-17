@@ -85,5 +85,12 @@ namespace AESP.API.Controllers.AdminController
             var result = await _service.GetEnrolledCourseStatisticsAsync(pageNumber, pageSize);
             return Ok(result);
         }
+        [HttpGet("statistics/record-charge")]
+        public async Task<IActionResult> GetRecordChargeBuyerStatistics(
+    int pageNumber = 1,
+    int pageSize = 10)
+        {
+            return Ok(await _service.GetRecordChargeBuyerStatisticsAsync(pageNumber, pageSize));
+        }
     }
 }

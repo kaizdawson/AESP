@@ -16,5 +16,6 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetReviewFeeBuyerStatisticsAsync(int pageNumber, int pageSize);
         Task<ResponseDTO> GetAIConversationBuyerStatisticsAsync(int pageNumber, int pageSize);
         Task<ResponseDTO> GetEnrolledCourseStatisticsAsync(int pageNumber, int pageSize);
+        Task<ResponseDTO> GetRecordChargeBuyerStatisticsAsync(int pageNumber, int pageSize);
     }
 }

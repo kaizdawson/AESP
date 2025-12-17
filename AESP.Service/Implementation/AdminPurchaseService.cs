@@ -39,6 +39,7 @@ namespace AESP.Service.Implementation
                     .Include(x => x.Course).ThenInclude(c => c.Chapters)
                     .Include(x => x.ReviewFee)
                     .Include(x => x.AIConversationCharge)
+                    .Include(x => x.RecordCharge)
                     .AsQueryable();
 
                 // ===========================
@@ -74,6 +75,10 @@ namespace AESP.Service.Implementation
                         case "aiconversation":
                             query = query.Where(p => p.AIConversationChargeId != null);
                             break;
+
+                        case "recordcharge":
+                            query = query.Where(p => p.RecordChargeId != null);
+                            break;
                     }
                 }
 
@@ -93,11 +98,11 @@ namespace AESP.Service.Implementation
                 // ===========================
                 var mapped = items.Select(p =>
                 {
-                    string itemType = p.CourseId != null
-                        ? "Course"
-                        : p.ReviewFeeId != null
-                            ? "Review Fee"
-                            : "AI Conversation";
+                    string itemType =
+                     p.CourseId != null ? "Course" :
+                     p.ReviewFeeId != null ? "Review Fee" :
+                     p.AIConversationChargeId != null ? "AI Conversation" :
+                     p.RecordChargeId != null ? "Record Charge" : "Unknown";
 
                     string itemName = "";
 
@@ -116,6 +121,10 @@ namespace AESP.Service.Implementation
                     else if (p.AIConversationChargeId != null)
                     {
                         itemName = $"AI Conversation | {p.AIConversationCharge.AllowedMinutes} minutes";
+                    }
+                    else if (p.RecordChargeId != null && p.RecordCharge != null)
+                    {
+                        itemName = $"Record Package | {p.RecordCharge.AllowedRecordCount} records";
                     }
 
                     return new
@@ -167,6 +176,7 @@ namespace AESP.Service.Implementation
                     .Include(x => x.ReviewFee)
                         .ThenInclude(r => r.ReviewFeeDetails)
                     .Include(x => x.AIConversationCharge)
+                     .Include(x => x.RecordCharge)
                     .FirstOrDefaultAsync(x => x.PurchaseId == purchaseId);
 
                 if (p == null)
@@ -180,11 +190,12 @@ namespace AESP.Service.Implementation
                 // ============================
                 // Xác định loại Item
                 // ============================
-                string itemType = p.CourseId != null
-                    ? "Course"
-                    : p.ReviewFeeId != null
-                        ? "Review Fee"
-                        : "AI Conversation";
+                string itemType =
+                 p.CourseId != null ? "Course"
+                : p.ReviewFeeId != null ? "Review Fee"
+                : p.AIConversationChargeId != null ? "AI Conversation"
+                : p.RecordChargeId != null ? "Record Charge"
+                : "Unknown";
 
                 object? itemDetail = null;
 
@@ -203,11 +214,7 @@ namespace AESP.Service.Implementation
                         p.Course.Price
                     };
                 }
-
-                // ============================
-                // 🟩 Nếu là ReviewFee
-                // ============================
-                if (p.ReviewFeeId != null && p.ReviewFee != null)
+                else if (p.ReviewFeeId != null && p.ReviewFee != null)
                 {
                     var latest = p.ReviewFee.ReviewFeeDetails
                         .OrderByDescending(x => x.AppliedDate)
@@ -222,11 +229,7 @@ namespace AESP.Service.Implementation
                         PercentOfReviewer = latest?.PercentOfReviewer ?? 0
                     };
                 }
-
-                // ============================
-                // 🟧 Nếu là AIConversation
-                // ============================
-                if (p.AIConversationChargeId != null && p.AIConversationCharge != null)
+                else if (p.AIConversationChargeId != null && p.AIConversationCharge != null)
                 {
                     itemDetail = new
                     {
@@ -234,6 +237,16 @@ namespace AESP.Service.Implementation
                         p.AIConversationCharge.AmountCoin,
                         p.AIConversationCharge.AllowedMinutes,
                         p.AIConversationCharge.Status
+                    };
+                }
+                else if (p.RecordChargeId != null && p.RecordCharge != null)
+                {
+                    itemDetail = new
+                    {
+                        p.RecordCharge.RecordChargeId,
+                        p.RecordCharge.AmountCoin,
+                        p.RecordCharge.AllowedRecordCount,
+                        p.RecordCharge.Status
                     };
                 }
 
@@ -280,6 +293,7 @@ namespace AESP.Service.Implementation
                 .Include(p => p.Course)
                 .Include(p => p.ReviewFee)
                 .Include(p => p.AIConversationCharge)
+                .Include(p => p.RecordCharge)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
@@ -287,12 +301,19 @@ namespace AESP.Service.Implementation
             {
                 PurchaseId = p.PurchaseId.ToString(),
                 UserName = p.User.FullName,
-                ItemType = p.CourseId != null ? "Course"
-                         : p.ReviewFeeId != null ? "Review Fee"
-                         : "AI Conversation",
-                ItemName = p.CourseId != null ? p.Course.Title
-                         : p.ReviewFeeId != null ? $"Review Fee - {p.ReviewFee.NumberOfReview} reviews"
-                         : $"{p.AIConversationCharge.AllowedMinutes} minutes",
+                ItemType =
+                p.CourseId != null ? "Course"
+                : p.ReviewFeeId != null ? "Review Fee"
+                : p.AIConversationChargeId != null ? "AI Conversation"
+                :  "Record Charge",
+
+                ItemName =
+                p.CourseId != null ? p.Course.Title
+                : p.ReviewFeeId != null ? $"Review Fee - {p.ReviewFee.NumberOfReview} reviews"
+                : p.AIConversationChargeId != null ? $"{p.AIConversationCharge.AllowedMinutes} minutes"
+                : p.RecordCharge != null
+                ? $"{p.RecordCharge.AllowedRecordCount} records"
+                : "Record Package",
                 AmountCoin = p.AmountCoin,
                 CreatedAt = p.CreatedAt
             }).ToList();
@@ -429,14 +450,17 @@ namespace AESP.Service.Implementation
                         TotalPurchase = g.Count(),
                         TotalAmountCoin = g.Sum(x => x.AmountCoin),
 
-                        Buyers = g.Select(x => new
+                        AllBuyers = g
+                        .OrderByDescending(x => x.CreatedAt)
+                        .Select(x => new
                         {
                             x.UserId,
                             x.User.FullName,
                             x.User.Email,
                             x.CreatedAt,
                             x.AmountCoin
-                        }).ToList()
+                        })
+                        .ToList()
                     })
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
@@ -502,6 +526,84 @@ namespace AESP.Service.Implementation
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
                 dto.Data = grouped;
+            }
+            catch (Exception ex)
+            {
+                dto.IsSucess = false;
+                dto.BusinessCode = BusinessCode.EXCEPTION;
+                dto.Message = ex.Message;
+            }
+
+            return dto;
+        }
+
+        public async Task<ResponseDTO> GetRecordChargeBuyerStatisticsAsync(int pageNumber, int pageSize)
+        {
+            var dto = new ResponseDTO();
+
+            try
+            {
+                var db = _purchaseRepository.GetDbContext();
+
+                // ✅ Chỉ thống kê giao dịch thành công + có RecordCharge
+                var query = db.Purchases
+                    .Include(p => p.User)
+                    .Include(p => p.RecordCharge)
+                    .Where(p =>
+                        p.Status == "Success" &&
+                        p.RecordChargeId != null &&
+                        p.RecordCharge != null
+                    );
+                var totalItems = await query
+                    .GroupBy(p => p.RecordChargeId)
+                    .CountAsync();
+
+                // ===========================
+                // 📊 GROUP BY RECORD CHARGE
+                // ===========================
+                var grouped = await query
+                    .GroupBy(p => new
+                    {
+                        p.RecordChargeId,
+                        p.RecordCharge.AllowedRecordCount,
+                        p.RecordCharge.AmountCoin
+                    })
+                    .Select(g => new
+                    {
+                        RecordChargeId = g.Key.RecordChargeId,
+                        AllowedRecordCount = g.Key.AllowedRecordCount,
+                        PackageCoin = g.Key.AmountCoin,
+
+                        TotalPurchase = g.Count(),
+                        TotalAmountCoin = g.Sum(x => x.AmountCoin),
+
+                        Buyers = g
+                            .OrderByDescending(x => x.CreatedAt)
+                            .Select(x => new
+                            {
+                                x.UserId,
+                                x.User.FullName,
+                                x.User.Email,
+                                x.CreatedAt,
+                                x.AmountCoin
+                            })
+                            .ToList()
+                    })
+                    .OrderByDescending(x => x.TotalPurchase)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                dto.IsSucess = true;
+                dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                dto.Message = "Lấy thống kê gói record thành công.";
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    Items = grouped
+                };
             }
             catch (Exception ex)
             {
