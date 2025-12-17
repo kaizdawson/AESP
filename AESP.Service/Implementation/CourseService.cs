@@ -440,8 +440,7 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Tên khóa học không được để trống.");
                 if (!request.NumberOfChapter.HasValue)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng chương không được để trống.");
-                if (!request.OrderIndex.HasValue || request.OrderIndex.Value <= 0)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex phải lớn hơn 0.");
+              
                 if (!request.Level.HasValue)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Trình độ (Level) không được để trống.");
 
@@ -460,7 +459,6 @@ namespace AESP.Service.Implementation
                 // ===== CẬP NHẬT =====
                 course.Title = request.Title.Trim();
                 course.NumberOfChapter = request.NumberOfChapter.Value;
-                course.OrderIndex = request.OrderIndex.Value;
                 course.Level = request.Level.ToString();
 
                 if (request.Price.HasValue)

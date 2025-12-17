@@ -246,8 +246,7 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Text không được để trống.");
                 if (request.Type.HasValue && !Enum.IsDefined(typeof(QuestionType), request.Type.Value))
                     return Fail(BusinessCode.VALIDATION_FAILED, "Type không hợp lệ.");
-                if (request.OrderIndex.HasValue && request.OrderIndex.Value <= 0)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "OrderIndex phải lớn hơn 0.");
+             
 
 
                 //// 🔹 Check trùng OrderIndex trong cùng Exercise
@@ -266,10 +265,7 @@ namespace AESP.Service.Implementation
                 question.Text = request.Text.Trim();
                 if (request.Type.HasValue)
                     question.Type = request.Type.Value.ToString();
-                if (request.OrderIndex.HasValue)
-                    question.OrderIndex = request.OrderIndex.Value;
-                if (!string.IsNullOrWhiteSpace(request.PhonemeJson))
-                    question.PhonemeJson = request.PhonemeJson.Trim();
+             
 
                 await _questionRepository.Update(question);
                 await _unitOfWork.SaveChangeAsync();
