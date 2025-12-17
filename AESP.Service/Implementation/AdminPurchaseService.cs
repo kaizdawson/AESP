@@ -424,7 +424,7 @@ namespace AESP.Service.Implementation
 
         }
 
-        public async Task<ResponseDTO> GetAIConversationBuyerStatisticsAsync(int pageNumber, int pageSize)
+        public async Task<ResponseDTO> GetAIConversationBuyerStatisticsAsync(int pageNumber, int pageSize, int buyerPageNumber, int buyerPageSize)
         {
             var dto = new ResponseDTO();
             try
@@ -435,6 +435,10 @@ namespace AESP.Service.Implementation
                     .Include(p => p.User)
                     .Include(p => p.AIConversationCharge)
                     .Where(p => p.Status == "Success" && p.AIConversationChargeId != null);
+                var totalPackages = await query
+                    .Select(p => p.AIConversationChargeId)
+                    .Distinct()
+                    .CountAsync();
 
                 var grouped = await query
                     .GroupBy(p => new
@@ -442,6 +446,8 @@ namespace AESP.Service.Implementation
                         p.AIConversationChargeId,
                         p.AIConversationCharge.AllowedMinutes
                     })
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .Select(g => new
                     {
                         AIConversationChargeId = g.Key.AIConversationChargeId,
@@ -450,25 +456,38 @@ namespace AESP.Service.Implementation
                         TotalPurchase = g.Count(),
                         TotalAmountCoin = g.Sum(x => x.AmountCoin),
 
-                        AllBuyers = g
-                        .OrderByDescending(x => x.CreatedAt)
-                        .Select(x => new
-                        {
-                            x.UserId,
-                            x.User.FullName,
-                            x.User.Email,
-                            x.CreatedAt,
-                            x.AmountCoin
-                        })
-                        .ToList()
+                        TotalBuyers = g.Count(),
+
+                        BuyerPageNumber = buyerPageNumber,
+                        BuyerPageSize = buyerPageSize,
+
+                        Buyers = g
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Skip((buyerPageNumber - 1) * buyerPageSize)
+                    .Take(buyerPageSize)
+                    .Select(x => new
+                    {
+                        x.UserId,
+                        x.User.FullName,
+                        x.User.Email,
+                        x.CreatedAt,
+                        x.AmountCoin
                     })
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
+                    .ToList()
+                    })
                     .ToListAsync();
 
+               
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Data = grouped;
+                dto.Message = "Lấy thống kê AI Conversation thành công.";
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalPackages = totalPackages,
+                    Items = grouped
+                };
             }
             catch (Exception ex)
             {
