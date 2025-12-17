@@ -70,11 +70,9 @@ namespace AESP.API.Controllers.AdminController
             return Ok(result);
         }
         [HttpGet("ai-buyers")]
-        public async Task<IActionResult> GetAIConversationBuyers(
-    int pageNumber = 1,
-    int pageSize = 10)
+        public async Task<IActionResult> GetAIConversationBuyers(int pageNumber = 1, int pageSize = 10, int buyerPageNumber = 1, int buyerPageSize = 5)
         {
-            var result = await _service.GetAIConversationBuyerStatisticsAsync(pageNumber, pageSize);
+            var result = await _service.GetAIConversationBuyerStatisticsAsync(pageNumber, pageSize, buyerPageNumber, buyerPageSize);
             return Ok(result);
         }
         [HttpGet("course-enroll")]
