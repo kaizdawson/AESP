@@ -93,7 +93,8 @@ namespace AESP.Service.Implementation
 
                         AudioUrl = la.AudioRecordingUrl,
                         NumberOfReview = la.NumberofReview,
-                        LearnerFullName = la.LearnerProfile.User.FullName
+                        LearnerFullName = la.LearnerProfile.User.FullName,
+                        ExpectedReviewerCoin = 0
                     });
 
                 // ============================
@@ -125,7 +126,8 @@ namespace AESP.Service.Implementation
                         AudioUrl = r.AudioRecordingURL,
                         NumberOfReview = r.NumberOfReview,
                         LearnerFullName = r.LearnerRecord.LearnerProfile.User.FullName,
-                       
+                        ExpectedReviewerCoin = 0
+
                     });
 
                 // ============================
@@ -141,6 +143,22 @@ namespace AESP.Service.Implementation
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
+
+                foreach (var item in items)
+                {
+                    var learnerUserId = item.Type == "LearnerAnswer"
+                        ? db.Set<LearnerAnswer>()
+                            .Where(x => x.LearnerAnswerId == item.Id)
+                            .Select(x => x.LearnerProfile.User.UserId)
+                            .FirstOrDefault()
+                        : db.Set<Record>()
+                            .Where(x => x.RecordId == item.Id)
+                            .Select(x => x.LearnerRecord.LearnerProfile.User.UserId)
+                            .FirstOrDefault();
+
+                    item.ExpectedReviewerCoin =
+                        await CalculateExpectedReviewerCoinAsync(db, learnerUserId);
+                }
 
                 // ============================
                 // TRẢ VỀ RESPONSE
@@ -1030,6 +1048,61 @@ namespace AESP.Service.Implementation
                 // Không để lỗi coin làm hỏng flow review
             }
         }
+        private async Task<int> CalculateExpectedReviewerCoinAsync(
+    DbContext db,
+    Guid learnerUserId)
+        {
+            // =============================
+            // 1️⃣ ƯU TIÊN GIÁ ĐÃ ĐÓNG BĂNG KHI LEARNER MUA
+            // =============================
+            var purchase = await db.Set<Purchase>()
+                .Where(p =>
+                    p.UserId == learnerUserId &&
+                    p.Status == "Success" &&
+                    p.PricePerReviewAtPurchase > 0 &&
+                    p.PercentOfReviewerAtPurchase > 0)
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            decimal pricePerReview;
+            decimal percentOfReviewer;
+
+            if (purchase != null)
+            {
+                // ✅ DÙNG GIÁ TẠI THỜI ĐIỂM MUA
+                pricePerReview = purchase.PricePerReviewAtPurchase;
+                percentOfReviewer = purchase.PercentOfReviewerAtPurchase;
+            }
+            else
+            {
+                // =============================
+                // 2️⃣ FALLBACK – REVIEWFEEDETAIL ĐANG HIỆU LỰC
+                // =============================
+                var now = DateTimeHelper.NowVN();
+
+                var feeDetail = await db.Set<ReviewFeeDetail>()
+                    .Where(f => f.AppliedDate <= now)
+                    .OrderByDescending(f => f.AppliedDate)
+                    .FirstOrDefaultAsync();
+
+                if (feeDetail == null)
+                    return 1; // fallback an toàn
+
+                pricePerReview = feeDetail.PricePerReviewFee;
+                percentOfReviewer = feeDetail.PercentOfReviewer;
+            }
+
+            // =============================
+            // 3️⃣ TÍNH COIN REVIEWER NHẬN
+            // =============================
+            var reviewerCoin = (int)Math.Round(
+                pricePerReview * percentOfReviewer,
+                MidpointRounding.AwayFromZero
+            );
+
+            return reviewerCoin <= 0 ? 1 : reviewerCoin;
+        }
+
 
     }
 }

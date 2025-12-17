@@ -62,11 +62,9 @@ namespace AESP.API.Controllers.AdminController
             }
         }
         [HttpGet("reviewfee-buyers")]
-        public async Task<IActionResult> GetReviewFeeBuyers(
-    int pageNumber = 1,
-    int pageSize = 10)
+        public async Task<IActionResult> GetReviewFeeBuyers(int pageNumber = 1, int pageSize = 10, int buyerPageNumber = 1, int buyerPageSize = 5)
         {
-            var result = await _service.GetReviewFeeBuyerStatisticsAsync(pageNumber, pageSize);
+            var result = await _service.GetReviewFeeBuyerStatisticsAsync(pageNumber, pageSize, buyerPageNumber, buyerPageSize);
             return Ok(result);
         }
         [HttpGet("ai-buyers")]
@@ -78,17 +76,21 @@ namespace AESP.API.Controllers.AdminController
         [HttpGet("course-enroll")]
         public async Task<IActionResult> GetEnrolledCourseStatistics(
      int pageNumber = 1,
-     int pageSize = 10)
+     int pageSize = 10,
+     int buyerPageNumber = 1,
+     int buyerPageSize = 5)
         {
-            var result = await _service.GetEnrolledCourseStatisticsAsync(pageNumber, pageSize);
+            var result = await _service.GetEnrolledCourseStatisticsAsync(pageNumber, pageSize, buyerPageNumber, buyerPageSize);
             return Ok(result);
         }
         [HttpGet("statistics/record-charge")]
         public async Task<IActionResult> GetRecordChargeBuyerStatistics(
     int pageNumber = 1,
-    int pageSize = 10)
+    int pageSize = 10,
+    int buyerPageNumber = 1,
+    int buyerPageSize = 5)
         {
-            return Ok(await _service.GetRecordChargeBuyerStatisticsAsync(pageNumber, pageSize));
+            return Ok(await _service.GetRecordChargeBuyerStatisticsAsync(pageNumber, pageSize, buyerPageNumber, buyerPageSize));
         }
     }
 }

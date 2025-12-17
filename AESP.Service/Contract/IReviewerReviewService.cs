@@ -15,5 +15,6 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetReviewerStatisticsAsync(Guid reviewerProfileId);
         Task<ResponseDTO> GetReviewerWalletAsync(Guid reviewerProfileId, int pageNumber, int pageSize);
         Task<ResponseDTO> TipAfterReviewAsync(Guid reviewerProfileId, ReviewerTipAfterReviewDTO dto);
+
     }
 }

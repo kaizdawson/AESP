@@ -367,7 +367,7 @@ namespace AESP.Service.Implementation
             }
         }
 
-        public async Task<ResponseDTO> GetReviewFeeBuyerStatisticsAsync(int pageNumber, int pageSize)
+        public async Task<ResponseDTO> GetReviewFeeBuyerStatisticsAsync(int pageNumber, int pageSize, int buyerPageNumber, int buyerPageSize)
         {
             var dto = new ResponseDTO();
             try
@@ -378,6 +378,11 @@ namespace AESP.Service.Implementation
                     .Include(p => p.User)
                     .Include(p => p.ReviewFee)
                     .Where(p => p.Status == "Success" && p.ReviewFeeId != null);
+
+                var totalPackages = await query
+                    .Select(p => p.ReviewFeeId)
+                    .Distinct()
+                    .CountAsync();
 
                 var grouped = await query
                     .GroupBy(p => new
@@ -392,26 +397,35 @@ namespace AESP.Service.Implementation
 
                         TotalPurchase = g.Count(),
                         TotalAmountCoin = g.Sum(x => x.AmountCoin),
+                        TotalBuyers = g.Count(),
+                        BuyerPageNumber = buyerPageNumber,
+                        BuyerPageSize = buyerPageSize,
 
                         Buyers = g
-                            .OrderByDescending(x => x.CreatedAt)
-                            .Select(x => new
-                            {
-                                x.UserId,
-                                x.User.FullName,
-                                x.User.Email,
-                                x.CreatedAt,
-                                x.AmountCoin
-                            })
-                        .ToList()
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Skip((buyerPageNumber - 1) * buyerPageSize)
+                    .Take(buyerPageSize)
+                    .Select(x => new
+                    {
+                        x.UserId,
+                        x.User.FullName,
+                        x.User.Email,
+                        x.CreatedAt,
+                        x.AmountCoin
                     })
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
+                    .ToList()
+                    })
                     .ToListAsync();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Data = grouped;
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalPackages = totalPackages,
+                    Items = grouped
+                };
             }
             catch (Exception ex)
             {
@@ -499,9 +513,10 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> GetEnrolledCourseStatisticsAsync(int pageNumber, int pageSize)
+        public async Task<ResponseDTO> GetEnrolledCourseStatisticsAsync(int pageNumber, int pageSize, int buyerPageNumber, int buyerPageSize)
         {
             var dto = new ResponseDTO();
+
             try
             {
                 var db = _purchaseRepository.GetDbContext();
@@ -511,6 +526,11 @@ namespace AESP.Service.Implementation
                     .Include(p => p.Course)
                     .Where(p => p.Status == "Success" && p.CourseId != null);
 
+                var totalPackages = await query
+                    .Select(p => p.CourseId)
+                    .Distinct()
+                    .CountAsync();
+
                 var grouped = await query
                     .GroupBy(p => new
                     {
@@ -519,6 +539,8 @@ namespace AESP.Service.Implementation
                         p.Course.Level,
                         p.Course.Price
                     })
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .Select(g => new
                     {
                         CourseId = g.Key.CourseId,
@@ -528,23 +550,36 @@ namespace AESP.Service.Implementation
 
                         TotalPurchase = g.Count(),
                         TotalAmountCoin = g.Sum(x => x.AmountCoin),
+                        TotalBuyers = g.Count(),
 
-                        Buyers = g.Select(x => new
-                        {
-                            x.UserId,
-                            x.User.FullName,
-                            x.User.Email,
-                            x.CreatedAt,
-                            x.AmountCoin
-                        }).ToList()
+                        BuyerPageNumber = buyerPageNumber,
+                        BuyerPageSize = buyerPageSize,
+
+                        Buyers = g
+                            .OrderByDescending(x => x.CreatedAt)
+                            .Skip((buyerPageNumber - 1) * buyerPageSize)
+                            .Take(buyerPageSize)
+                            .Select(x => new
+                            {
+                                x.UserId,
+                                x.User.FullName,
+                                x.User.Email,
+                                x.CreatedAt,
+                                x.AmountCoin
+                            })
+                            .ToList()
                     })
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
                     .ToListAsync();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Data = grouped;
+                dto.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalPackages = totalPackages,
+                    Items = grouped
+                };
             }
             catch (Exception ex)
             {
@@ -556,7 +591,7 @@ namespace AESP.Service.Implementation
             return dto;
         }
 
-        public async Task<ResponseDTO> GetRecordChargeBuyerStatisticsAsync(int pageNumber, int pageSize)
+        public async Task<ResponseDTO> GetRecordChargeBuyerStatisticsAsync(int pageNumber, int pageSize, int buyerPageNumber, int buyerPageSize)
         {
             var dto = new ResponseDTO();
 
@@ -564,7 +599,6 @@ namespace AESP.Service.Implementation
             {
                 var db = _purchaseRepository.GetDbContext();
 
-                // ✅ Chỉ thống kê giao dịch thành công + có RecordCharge
                 var query = db.Purchases
                     .Include(p => p.User)
                     .Include(p => p.RecordCharge)
@@ -573,13 +607,12 @@ namespace AESP.Service.Implementation
                         p.RecordChargeId != null &&
                         p.RecordCharge != null
                     );
-                var totalItems = await query
-                    .GroupBy(p => p.RecordChargeId)
+
+                var totalPackages = await query
+                    .Select(p => p.RecordChargeId)
+                    .Distinct()
                     .CountAsync();
 
-                // ===========================
-                // 📊 GROUP BY RECORD CHARGE
-                // ===========================
                 var grouped = await query
                     .GroupBy(p => new
                     {
@@ -587,6 +620,8 @@ namespace AESP.Service.Implementation
                         p.RecordCharge.AllowedRecordCount,
                         p.RecordCharge.AmountCoin
                     })
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
                     .Select(g => new
                     {
                         RecordChargeId = g.Key.RecordChargeId,
@@ -595,9 +630,15 @@ namespace AESP.Service.Implementation
 
                         TotalPurchase = g.Count(),
                         TotalAmountCoin = g.Sum(x => x.AmountCoin),
+                        TotalBuyers = g.Count(),
+
+                        BuyerPageNumber = buyerPageNumber,
+                        BuyerPageSize = buyerPageSize,
 
                         Buyers = g
                             .OrderByDescending(x => x.CreatedAt)
+                            .Skip((buyerPageNumber - 1) * buyerPageSize)
+                            .Take(buyerPageSize)
                             .Select(x => new
                             {
                                 x.UserId,
@@ -608,19 +649,15 @@ namespace AESP.Service.Implementation
                             })
                             .ToList()
                     })
-                    .OrderByDescending(x => x.TotalPurchase)
-                    .Skip((pageNumber - 1) * pageSize)
-                    .Take(pageSize)
                     .ToListAsync();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = "Lấy thống kê gói record thành công.";
                 dto.Data = new
                 {
                     PageNumber = pageNumber,
                     PageSize = pageSize,
-                    TotalItems = totalItems,
+                    TotalPackages = totalPackages,
                     Items = grouped
                 };
             }

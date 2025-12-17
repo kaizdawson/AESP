@@ -21,5 +21,6 @@ namespace AESP.Common.DTOs
 
         public int NumberOfReview { get; set; }
         public string LearnerFullName { get; set; }
+        public int ExpectedReviewerCoin { get; set; }
     }
 }
