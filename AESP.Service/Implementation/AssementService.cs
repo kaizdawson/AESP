@@ -79,14 +79,14 @@ namespace AESP.Service.Implementation
                 {
                     AssessmentId = a.AssessmentId,
                     CreatedAt = a.CreatedAt,
-                    Score = a.Score,
+                    Score = Math.Round(a.Score ?? 0, 2),
                     Feedback = a.Feedback,
                     NumberOfQuestion = a.NumberOfQuestion,
                     LearnerProfileId = a.LearnerProfileId,
                     AssessmentDetails = a.AssessmentDetails?.Select(d => new ReadAssessmentDetailInAssessmentDTO
                     {
                         AssessmentDetailId = d.AssessmentDetailId,
-                        Score = d.Score,
+                        Score = Math.Round(a.Score ?? 0, 2),
                         Type = d.Type,
                         AI_Feedback = d.AI_Feedback,
                         AnswerAudio = d.AnswerAudio,
@@ -132,14 +132,14 @@ namespace AESP.Service.Implementation
                 {
                     AssessmentId = assessment.AssessmentId,
                     CreatedAt = assessment.CreatedAt,
-                    Score = assessment.Score,
+                    Score = Math.Round(assessment.Score ?? 0, 2),
                     Feedback = assessment.Feedback,
                     NumberOfQuestion = assessment.NumberOfQuestion,
                     LearnerProfileId = assessment.LearnerProfileId,
                     AssessmentDetails = assessment.AssessmentDetails?.Select(d => new ReadAssessmentDetailInAssessmentDTO
                     {
                         AssessmentDetailId = d.AssessmentDetailId,
-                        Score = d.Score,
+                        Score = Math.Round(d.Score ?? 0, 2),
                         Type = d.Type,
                         AI_Feedback = d.AI_Feedback,
                         AnswerAudio = d.AnswerAudio,

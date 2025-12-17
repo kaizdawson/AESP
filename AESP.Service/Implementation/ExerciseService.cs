@@ -227,8 +227,7 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Mô tả bài tập không được để trống.");
                 if (request.NumberOfQuestion.HasValue && request.NumberOfQuestion.Value <= 0)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Số lượng câu hỏi phải lớn hơn 0.");
-                if (request.OrderIndex <= 0)
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Thứ tự bài tập (OrderIndex) phải lớn hơn 0.");
+              
 
                 // --- RÀNG BUỘC: KHÔNG TRÙNG TITLE TRONG CÙNG CHƯƠNG ---
                 var duplicateTitle = await _exerciseRepository.AsQueryable()
@@ -242,8 +241,7 @@ namespace AESP.Service.Implementation
                 // --- CẬP NHẬT DỮ LIỆU ---
                 exercise.Title = request.Title.Trim();
                 exercise.Description = request.Description.Trim();
-                if (request.OrderIndex.HasValue)
-                    exercise.OrderIndex = request.OrderIndex.Value;
+             
                 if (request.NumberOfQuestion.HasValue)
                     exercise.NumberOfQuestion = request.NumberOfQuestion.Value;
 

@@ -521,9 +521,9 @@ namespace AESP.Service.Implementation
 
 
         public async Task<ResponseDTO> GetFullLearningPathCourseAsync(
-     Guid? learningPathCourseId,
-     Guid? courseId,
-     string? status)
+        Guid? learningPathCourseId,
+        Guid? courseId,
+        string? status)
         {
             // =============================================
             // 1️⃣ Xác định learningPathCourseId
@@ -538,11 +538,10 @@ namespace AESP.Service.Implementation
             }
             else if (courseId.HasValue && courseId.Value != Guid.Empty)
             {
-                // ✅ FIX: lấy bản ghi mới nhất (tránh lấy nhầm lpCourse cũ / user khác)
                 lpCourse = await _repo.AsQueryable()
                     .Include(x => x.Course)
                     .Where(x => x.CourseId == courseId.Value)
-                    .OrderByDescending(x => x.CreatedAt) // ⭐ QUAN TRỌNG
+                    .OrderByDescending(x => x.CreatedAt)
                     .FirstOrDefaultAsync();
             }
 
@@ -556,15 +555,17 @@ namespace AESP.Service.Implementation
             {
                 if (!lpCourse.Status.Equals(status, StringComparison.OrdinalIgnoreCase))
                 {
-                    return Fail(BusinessCode.DATA_NOT_FOUND,
-                        $"Không tìm thấy LearningPathCourse với status = {status}.");
+                    return Fail(
+                        BusinessCode.DATA_NOT_FOUND,
+                        $"Không tìm thấy LearningPathCourse với status = {status}."
+                    );
                 }
             }
 
             var db = _unitOfWork.GetDbContext();
 
             // =============================================
-            // 3️⃣ Load Chapters + Exercises + Questions (nested)
+            // 3️⃣ Load Chapters + Exercises + Questions
             // =============================================
             var chapters = await db.Set<LearningPathChapter>()
                 .Where(x => x.LearningPathCourseId == lpCourse.LearningPathCourseId)
@@ -597,7 +598,7 @@ namespace AESP.Service.Implementation
                             e.ExerciseId,
                             e.OrderIndex,
                             e.Status,
-                            e.ScoreAchieved,
+                            e.ScoreAchieved, // ⚠️ giữ nguyên
                             e.NumberOfQuestion,
 
                             ExerciseTitle = db.Set<Exercise>()
@@ -639,7 +640,6 @@ namespace AESP.Service.Implementation
                                         .Select(qq => qq.OrderIndex)
                                         .FirstOrDefault(),
 
-                                    // ✅ FIX: luôn lấy LearnerAnswer mới nhất theo SubmittedAt
                                     TranscribedText = db.Set<LearnerAnswer>()
                                         .Where(a => a.LearningPathQuestionId == q.LearningPathQuestionId)
                                         .OrderByDescending(a => a.SubmittedAt)
@@ -675,14 +675,45 @@ namespace AESP.Service.Implementation
                                         .ToList()
                                 })
                                 .ToList()
-                        }).ToList()
+                        })
+                        .ToList()
                 })
                 .ToListAsync();
 
             // =============================================
-            // ✅ 3️⃣.1 TÍNH ĐIỂM TRUNG BÌNH TOÀN COURSE
+            // ✅ 3️⃣.1 LÀM TRÒN SCORE Ở MEMORY (KHÔNG ẢNH HƯỞNG DB)
             // =============================================
-            var allExerciseScores = chapters
+            var chaptersRounded = chapters
+                .Select(c => new
+                {
+                    c.LearningPathChapterId,
+                    c.ChapterId,
+                    c.OrderIndex,
+                    c.Status,
+                    c.Progress,
+                    c.NumberOfModule,
+                    c.ChapterTitle,
+                    c.ChapterDescription,
+
+                    Exercises = c.Exercises.Select(e => new
+                    {
+                        e.LearningPathExerciseId,
+                        e.ExerciseId,
+                        e.OrderIndex,
+                        e.Status,
+                        ScoreAchieved = Math.Ceiling(e.ScoreAchieved), // ✅ GẮN Ở ĐÂY
+                        e.NumberOfQuestion,
+                        e.ExerciseTitle,
+                        e.ExerciseDescription,
+                        e.Questions
+                    }).ToList()
+                })
+                .ToList();
+
+            // =============================================
+            // 4️⃣ TÍNH ĐIỂM COURSE (TỪ SCORE ĐÃ LÀM TRÒN)
+            // =============================================
+            var allExerciseScores = chaptersRounded
                 .SelectMany(c => c.Exercises)
                 .Select(e => e.ScoreAchieved)
                 .ToList();
@@ -698,7 +729,7 @@ namespace AESP.Service.Implementation
             int totalExerciseScored = allExerciseScores.Count;
 
             // =============================================
-            // 4️⃣ TÍNH DURATION theo đúng giờ Việt Nam
+            // 5️⃣ TÍNH DURATION
             // =============================================
             var vnNow = DateTimeHelper.NowVN().AddHours(7);
 
@@ -712,9 +743,10 @@ namespace AESP.Service.Implementation
             bool showDuration = lpCourse.Course.OrderIndex > 1;
 
             // =============================================
-            // 5️⃣ Trả kết quả
+            // 6️⃣ TRẢ KẾT QUẢ
             // =============================================
-            return Success(BusinessCode.GET_DATA_SUCCESSFULLY,
+            return Success(
+                BusinessCode.GET_DATA_SUCCESSFULLY,
                 "Lấy đầy đủ LearningPathCourse thành công.",
                 new
                 {
@@ -743,8 +775,9 @@ namespace AESP.Service.Implementation
                         TotalExerciseScored = totalExerciseScored
                     },
 
-                    Chapters = chapters
-                });
+                    Chapters = chaptersRounded // ✅ QUAN TRỌNG
+                }
+            );
         }
 
 
