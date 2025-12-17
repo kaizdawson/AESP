@@ -13,9 +13,9 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetDetailAsync(Guid purchaseId);
         Task<byte[]> ExportPdfAsync();
         Task<ResponseDTO> GetDashboardAsync();
-        Task<ResponseDTO> GetReviewFeeBuyerStatisticsAsync(int pageNumber, int pageSize);
+        Task<ResponseDTO> GetReviewFeeBuyerStatisticsAsync(int pageNumber, int pageSize, int buyerPageNumber, int buyerPageSize);
         Task<ResponseDTO> GetAIConversationBuyerStatisticsAsync(int pageNumber, int pageSize, int buyerPageNumber, int buyerPageSize);
-        Task<ResponseDTO> GetEnrolledCourseStatisticsAsync(int pageNumber, int pageSize);
-        Task<ResponseDTO> GetRecordChargeBuyerStatisticsAsync(int pageNumber, int pageSize);
+        Task<ResponseDTO> GetEnrolledCourseStatisticsAsync(int pageNumber, int pageSize, int buyerPageNumber, int buyerPageSize);
+        Task<ResponseDTO> GetRecordChargeBuyerStatisticsAsync(int pageNumber, int pageSize, int buyerPageNumber, int buyerPageSize);
     }
 }
