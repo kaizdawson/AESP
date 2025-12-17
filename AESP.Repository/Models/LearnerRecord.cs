@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class LearnerRecord
+    public class LearnerRecord : BaseEntity
     {
         [Key]
         public Guid LearnerRecordId { get; set; }
@@ -20,8 +20,6 @@ namespace AESP.Repository.Models
         [Required]
         public string Name { get; set; } = string.Empty;
 
-        public DateTime CreatedAt { get; set; } = DateTimeHelper.NowVN();
-
         public string Status { get; set; } = string.Empty;
 
         public int NumberOfRecord { get; set; } = 0;
@@ -30,4 +28,5 @@ namespace AESP.Repository.Models
         public virtual LearnerProfile LearnerProfile { get; set; }
         public virtual ICollection<Record> Records { get; set; } = new List<Record>();
     }
+
 }

@@ -41,7 +41,8 @@ public class RecordCategoryService : IRecordCategoryService
                 Name = dto.Name,
                 Status = "Draft",
                 CreatedAt = DateTimeHelper.NowVN(),
-                NumberOfRecord = initialFree
+                NumberOfRecord = initialFree,
+                IsDeleted = false
             };
 
             await _categoryRepo.Insert(cat);
@@ -71,9 +72,10 @@ public class RecordCategoryService : IRecordCategoryService
         {
             var cat = await _categoryRepo.AsQueryable()
                 .FirstOrDefaultAsync(x =>
-                    x.LearnerRecordId == categoryId &&
-                    x.LearnerId == learnerProfileId
-                );
+                x.LearnerRecordId == categoryId &&
+                x.LearnerId == learnerProfileId &&
+                !x.IsDeleted);
+
 
             if (cat == null)
                 return Fail("Không tìm thấy thư mục.");
@@ -113,13 +115,14 @@ public class RecordCategoryService : IRecordCategoryService
                     x.LearnerId == learnerProfileId
                 );
 
-            if (cat == null)
+            if (cat == null || cat.IsDeleted)
                 return Fail("Không tìm thấy thư mục.");
 
-            if (cat.Records.Any())
-                await _recordRepo.DeleteRange(cat.Records);
+            cat.IsDeleted = true;
+            cat.UpdatedAt = DateTimeHelper.NowVN();
 
-            await _categoryRepo.Delete(cat);
+            await _categoryRepo.Update(cat);
+
 
             await _unitOfWork.SaveChangeAsync();
             await _unitOfWork.CommitAsync();
@@ -141,7 +144,7 @@ public class RecordCategoryService : IRecordCategoryService
         try
         {
             var cats = await _categoryRepo.AsQueryable()
-                .Where(x => x.LearnerId == learnerProfileId)
+                .Where(x => x.LearnerId == learnerProfileId && !x.IsDeleted)
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new
                 {
@@ -194,7 +197,8 @@ public class RecordCategoryService : IRecordCategoryService
             var folder = await _categoryRepo.AsQueryable()
                 .FirstOrDefaultAsync(x =>
                     x.LearnerRecordId == folderId &&
-                    x.LearnerId == learnerProfileId);
+                    x.LearnerId == learnerProfileId &&
+                    !x.IsDeleted);
 
             if (folder == null)
                 return Fail("Không tìm thấy thư mục.");
