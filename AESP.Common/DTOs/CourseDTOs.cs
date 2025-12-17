@@ -183,7 +183,6 @@ namespace AESP.Common.DTOs
     {
         public string? Title { get; set; }
         public int? NumberOfChapter { get; set; }
-        public int? OrderIndex { get; set; }
         public CourseLevel? Level { get; set; }
         public decimal? Price { get; set; }
         public int? Duration { get; set; }
