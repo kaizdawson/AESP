@@ -56,6 +56,9 @@ public class RecordService : IRecordService
             await _recordRepo.Insert(record);
 
             await _unitOfWork.SaveChangeAsync();
+            await UpdateFolderStatusAsync(record.LearnerRecord);
+
+            await _unitOfWork.SaveChangeAsync();
             await _unitOfWork.CommitAsync();
 
             return Success("Tạo record thành công.", new
@@ -106,6 +109,8 @@ public class RecordService : IRecordService
                 record.IsNeedReviewed = false;
 
             await _recordRepo.Update(record);
+            await _unitOfWork.SaveChangeAsync();
+            await UpdateFolderStatusAsync(record.LearnerRecord);
             await _unitOfWork.SaveChangeAsync();
             await _unitOfWork.CommitAsync();
 
@@ -182,6 +187,9 @@ public class RecordService : IRecordService
 
             await _recordRepo.Delete(record);
             await _unitOfWork.SaveChangeAsync();
+            await UpdateFolderStatusAsync(record.LearnerRecord);
+
+            await _unitOfWork.SaveChangeAsync();
             await _unitOfWork.CommitAsync();
 
             return Success("Xóa record thành công.");
@@ -218,6 +226,13 @@ public class RecordService : IRecordService
 
 
             folder.NumberOfRecord -= 1;
+
+            if (folder.Status == "Draft")
+            {
+                folder.Status = "InProgress";
+                folder.UpdatedAt = DateTimeHelper.NowVN();
+            }
+
             await _folderRepo.Update(folder);
 
 
@@ -239,6 +254,10 @@ public class RecordService : IRecordService
             await _recordRepo.Insert(record);
 
             await _unitOfWork.SaveChangeAsync();
+            await UpdateFolderStatusAsync(folder);
+
+            await _unitOfWork.SaveChangeAsync();
+
             await _unitOfWork.CommitAsync();
 
             return Success("Tạo record content-only thành công.", new
@@ -318,6 +337,9 @@ public class RecordService : IRecordService
 
             await _recordRepo.Update(record);
             await _unitOfWork.SaveChangeAsync();
+            await UpdateFolderStatusAsync(record.LearnerRecord);
+
+            await _unitOfWork.SaveChangeAsync();
             await _unitOfWork.CommitAsync();
 
             return Success("Cập nhật record thành công.", new
@@ -335,6 +357,32 @@ public class RecordService : IRecordService
             await _unitOfWork.RollbackAsync();
             return Fail(ex.Message);
         }
+    }
+
+    private async Task UpdateFolderStatusAsync(LearnerRecord folder)
+    {
+        var records = await _recordRepo.AsQueryable()
+            .Where(r => r.LearnerRecordId == folder.LearnerRecordId)
+            .ToListAsync();
+
+        
+        if (!records.Any())
+        {
+            folder.Status = "Draft";
+        }
+        
+        else if (records.All(r => r.Status == "Submitted"))
+        {
+            folder.Status = "Done";
+        }
+       
+        else
+        {
+            folder.Status = "InProgress";
+        }
+
+        folder.UpdatedAt = DateTimeHelper.NowVN();
+        await _folderRepo.Update(folder);
     }
 
 
