@@ -62,7 +62,6 @@ namespace AESP.Service.Implementation
                         Text = q.Text,
                         Type = q.Type,
                         OrderIndex = q.OrderIndex,
-                        PhonemeJson = q.PhonemeJson
                     }).ToList()
                 }).ToList();
 
@@ -111,7 +110,6 @@ namespace AESP.Service.Implementation
                         Text = q.Text,
                         Type = q.Type,
                         OrderIndex = q.OrderIndex,
-                        PhonemeJson = q.PhonemeJson
                     }).ToList()
                 };
 
@@ -341,7 +339,6 @@ namespace AESP.Service.Implementation
                             Text = q.Text,
                             Type = q.Type,
                             OrderIndex = q.OrderIndex,
-                            PhonemeJson = q.PhonemeJson
                         }).ToList()
                     });
 

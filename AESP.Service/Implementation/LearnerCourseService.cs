@@ -449,7 +449,6 @@ namespace AESP.Service.Implementation
                                 Text = q.Text,
                                 Type = q.Type,
                                 OrderIndex = q.OrderIndex,
-                                PhonemeJson = q.PhonemeJson,
                                 QuestionMedia = q.QuestionMedias?.Select(m => new ReadQuestionMediaForCourseDTO
                                 {
                                     QuestionMediaId = m.QuestionMediaId,
@@ -488,74 +487,74 @@ namespace AESP.Service.Implementation
         // ============================================================
         // 🔹 HỌC LẠI EXERCISE ĐỂ CẢI THIỆN ĐIỂM
         // ============================================================
-        public async Task<ResponseDTO> RelearnAndUpdateScoreAsync(Guid learnerProfileId, Guid exerciseId, double? newScore = null)
+        public async Task<ResponseDTO> RelearnAndUpdateScoreAsync(
+            Guid learnerProfileId,
+            Guid exerciseId,
+            double? newScore = null)
         {
             try
             {
-                // 1️⃣ Tìm LearnerCourse
                 var learnerCourse = await _learnerCourseRepo.AsQueryable()
                     .FirstOrDefaultAsync(lc => lc.LearnerProfileId == learnerProfileId);
 
                 if (learnerCourse == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học của học viên.");
 
-                // 2️⃣ Tìm bài tập
                 var exercise = await _unitOfWork.GetDbContext()
-                    .Set<LearningPathExercise>()
-                    .Include(e => e.LearningPathChapter)
-                        .ThenInclude(ch => ch.LearningPathCourse)
-                            .ThenInclude(lpc => lpc.Course)
-                    .Include(e => e.LearningPathChapter.LearningPathCourse.LearnerCourse)
-                    .FirstOrDefaultAsync(e =>
-                        e.ExerciseId == exerciseId &&
-                        e.LearningPathChapter.LearningPathCourse.LearnerCourse.LearnerProfileId == learnerProfileId);
+      .Set<LearningPathExercise>()
+      .Include(e => e.LearningPathChapter)
+          .ThenInclude(ch => ch.LearningPathCourse)
+              .ThenInclude(lpc => lpc.Course) // ✅ BẮT BUỘC
+      .Include(e => e.LearningPathChapter.LearningPathCourse.LearnerCourse)
+      .FirstOrDefaultAsync(e =>
+          e.ExerciseId == exerciseId &&
+          e.LearningPathChapter
+              .LearningPathCourse
+              .LearnerCourse
+              .LearnerProfileId == learnerProfileId);
+
 
                 if (exercise == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy bài tập trong lộ trình học.");
 
-                // 3️⃣ KIỂM TRA THỜI HẠN KHÓA HỌC
                 var lpCourse = exercise.LearningPathChapter.LearningPathCourse;
                 var courseInfo = lpCourse.Course;
 
-                // Duration > 0 thì mới tính hạn
                 if (courseInfo.Duration > 0)
                 {
-                    // Lấy từ CreatedAt của LearningPathCourse
-                    var startDate = lpCourse.CreatedAt;
-                    var expireDate = startDate.AddDays(courseInfo.Duration);
-
+                    var expireDate = lpCourse.CreatedAt.AddDays(courseInfo.Duration);
                     if (DateTimeHelper.NowVN() > expireDate)
                     {
-                        return Fail(BusinessCode.INVALID_ACTION,
-                            $"Khóa học đã hết hạn vào ngày {expireDate:dd/MM/yyyy}. Bạn không thể học lại bài tập này.");
+                        return Fail(
+                            BusinessCode.INVALID_ACTION,
+                            "Khóa học đã hết hạn. Không thể học lại.");
                     }
                 }
 
-                // 4️⃣ Mỗi lần học lại → tăng số lần
+                // ✅ CHỈ TĂNG SỐ LẦN HỌC LẠI
                 exercise.NumberOfRetake++;
 
-                // 5️⃣ Nếu có điểm mới → cập nhật
-                if (newScore.HasValue)
-                {
-                    exercise.ScoreAchieved = newScore.Value;
-                }
+                // ❌ KHÔNG ghi đè ScoreAchieved
+                // ❌ KHÔNG đụng Status
+                // ❌ KHÔNG đụng Progress
 
                 await _unitOfWork.GetDbContext().SaveChangesAsync();
 
-                // 6️⃣ RETURN HOÀN THÀNH
-                return Success(BusinessCode.UPDATE_SUCESSFULLY,
-                    "Cập nhật học lại thành công.",
+                return Success(
+                    BusinessCode.UPDATE_SUCESSFULLY,
+                    "Học lại thành công (điểm không ảnh hưởng kết quả đã đạt).",
                     new
                     {
                         exercise.LearningPathExerciseId,
                         exercise.ExerciseId,
-                        exercise.ScoreAchieved,
+                        OldScore = exercise.ScoreAchieved,
+                        RelearnScore = newScore,
                         exercise.NumberOfRetake
                     });
             }
             catch (Exception ex)
             {
-                return Fail(BusinessCode.EXCEPTION, "Lỗi khi xử lý học lại: " + ex.Message);
+                return Fail(BusinessCode.EXCEPTION, "Lỗi khi học lại: " + ex.Message);
             }
         }
 

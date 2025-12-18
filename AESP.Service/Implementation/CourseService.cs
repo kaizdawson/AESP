@@ -104,7 +104,6 @@ namespace AESP.Service.Implementation
                                     Text = q.Text,
                                     Type = q.Type,
                                     OrderIndex = q.OrderIndex,
-                                    PhonemeJson = q.PhonemeJson
                                 }).ToList()
                             }).ToList()
                         }).ToList()
@@ -185,7 +184,6 @@ namespace AESP.Service.Implementation
                                 Text = q.Text,
                                 Type = q.Type,
                                 OrderIndex = q.OrderIndex,
-                                PhonemeJson = q.PhonemeJson,
                                 QuestionMedia = q.QuestionMedias?.Select(m => new ReadQuestionMediaForCourseDTO
                                 {
                                     QuestionMediaId = m.QuestionMediaId,
