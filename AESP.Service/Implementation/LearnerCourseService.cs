@@ -500,6 +500,9 @@ namespace AESP.Service.Implementation
                 if (learnerCourse == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy lộ trình học của học viên.");
 
+
+
+
                 var exercise = await _unitOfWork.GetDbContext()
       .Set<LearningPathExercise>()
       .Include(e => e.LearningPathChapter)
