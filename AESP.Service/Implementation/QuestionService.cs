@@ -63,7 +63,6 @@ namespace AESP.Service.Implementation
                     Text = q.Text,
                     Type = q.Type,
                     OrderIndex = q.OrderIndex,
-                    PhonemeJson = q.PhonemeJson,
                     Media = q.QuestionMedias?.Select(m => new ReadQuestionMediaDTO
                     {
                         QuestionMediaId = m.QuestionMediaId,
@@ -113,7 +112,6 @@ namespace AESP.Service.Implementation
                         Text = question.Text,
                         Type = question.Type,
                         OrderIndex = question.OrderIndex,
-                        PhonemeJson = question.PhonemeJson,
                         Media = question.QuestionMedias?.Select(m => new ReadQuestionMediaDTO
                         {
                             QuestionMediaId = m.QuestionMediaId,
@@ -189,7 +187,6 @@ namespace AESP.Service.Implementation
                         Text = req.Text.Trim(),
                         Type = req.Type.ToString(),
                         OrderIndex = nextOrder++,
-                        PhonemeJson = req.PhonemeJson?.Trim() ?? string.Empty
                     });
 
                     index++;
@@ -211,7 +208,6 @@ namespace AESP.Service.Implementation
                     Text = q.Text,
                     Type = q.Type,
                     OrderIndex = q.OrderIndex,
-                    PhonemeJson = q.PhonemeJson,
                     Media = new List<ReadQuestionMediaDTO>()
                 }).ToList();
 
@@ -277,7 +273,6 @@ namespace AESP.Service.Implementation
                     Text = question.Text,
                     Type = question.Type,
                     OrderIndex = question.OrderIndex,
-                    PhonemeJson = question.PhonemeJson,
                     Media = new List<ReadQuestionMediaDTO>()
                 };
 
@@ -382,7 +377,6 @@ namespace AESP.Service.Implementation
                     Text = q.Text,
                     Type = q.Type,
                     OrderIndex = q.OrderIndex,
-                    PhonemeJson = q.PhonemeJson,
                     Media = q.QuestionMedias?.Select(m => new ReadQuestionMediaDTO
                     {
                         QuestionMediaId = m.QuestionMediaId,

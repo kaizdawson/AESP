@@ -326,7 +326,6 @@ namespace AESP.Service.Implementation
                             Type = q.Type,
                             OrderIndex = q.OrderIndex,
                             IPA = "", // Nếu bạn muốn parse từ JSON thì thay bằng q.PhonemeJson
-                            PhonemeJson = q.PhonemeJson
                         }).ToList() ?? new List<ReadChapterQuestionDTO>()
                     }).ToList() ?? new List<ReadChapterExerciseDTO>()
                 }).ToList();
@@ -379,7 +378,6 @@ namespace AESP.Service.Implementation
                         Text = q.Text,
                         Type = q.Type,
                         OrderIndex = q.OrderIndex,
-                        PhonemeJson = q.PhonemeJson
                     }).ToList()
                 }).ToList()
             };

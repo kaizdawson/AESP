@@ -28,6 +28,9 @@ namespace AESP.Repository.Models
 
         public int Score { get; set; } = 0;
 
+        public int? RelearnScore { get; set; }   // điểm lần làm lại gần nhất
+
+
         public string Status { get; set; } = "NotStarted";
         // NotStarted / InProgress / Completed
 

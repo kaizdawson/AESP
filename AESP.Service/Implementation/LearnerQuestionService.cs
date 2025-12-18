@@ -108,7 +108,6 @@ namespace AESP.Service.Implementation
                         Text = q.Question.Text,
                         Type = q.Question.Type,
                         OrderIndex = q.Question.OrderIndex,
-                        PhonemeJson = q.Question.PhonemeJson,
                         Media = new List<ReadQuestionMediaDTO>() // vì QuestionMedias đang rỗng
                     })
                     .ToList();
