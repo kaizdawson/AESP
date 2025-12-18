@@ -49,6 +49,7 @@ namespace AESP.Service.Implementation
                     .Include(q => q.LearningPathExercise)
                         .ThenInclude(e => e.LearningPathChapter)
                             .ThenInclude(ch => ch.LearningPathCourse) // ⭐ BẮT BUỘC
+            .ThenInclude(lpc => lpc.Course) // ⭐ BẮT BUỘC
                     .FirstOrDefaultAsync(q => q.LearningPathQuestionId == learningPathQuestionId);
 
                 if (lpQuestion == null)
@@ -57,6 +58,9 @@ namespace AESP.Service.Implementation
                 var question = lpQuestion.Question;
                 var lpExercise = lpQuestion.LearningPathExercise;
                 var exerciseId = lpExercise.ExerciseId;
+
+
+
 
                 // 2️⃣ Insert learner answer
                 var answer = new LearnerAnswer
@@ -77,10 +81,52 @@ namespace AESP.Service.Implementation
                 await _answerRepo.Insert(answer);
                 await _unitOfWork.SaveChangeAsync();
 
+                bool wasExerciseCompletedBeforeSubmit =
+    lpExercise.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase);
+
+                // ⏱️ CHECK DURATION – CHỈ CHO RELEARN
+                if (wasExerciseCompletedBeforeSubmit)
+                {
+                    var lpCourseForRelearn = lpExercise.LearningPathChapter.LearningPathCourse;
+                    var course = lpCourseForRelearn.Course;
+
+                    if (course.Duration <= 0)
+                    {
+                        return Fail(
+                            BusinessCode.INVALID_ACTION,
+                            "Khóa học đã hết hạn. Không thể học lại."
+                        );
+                    }
+
+                    var expireDate = lpCourseForRelearn.CreatedAt.AddDays(course.Duration);
+
+                    if (DateTimeHelper.NowVN() > expireDate)
+                    {
+                        return Fail(
+                            BusinessCode.INVALID_ACTION,
+                            "Khóa học đã hết hạn. Không thể học lại."
+                        );
+                    }
+                }
+
+
+
                 // 3️⃣ Update LPQuestion
                 lpQuestion.Status = "Completed";
-                lpQuestion.Score = dto.ScoreForVoice;
                 lpQuestion.NumberOfRetake += 1;
+
+                if (wasExerciseCompletedBeforeSubmit)
+                {
+                    // 🔁 RELEARN
+                    lpQuestion.RelearnScore = dto.ScoreForVoice;
+                }
+                else
+                {
+                    // ▶️ HỌC LẦN ĐẦU
+                    lpQuestion.Score = dto.ScoreForVoice;
+                }
+
+
 
                 await _lpQuestionRepo.Update(lpQuestion);
                 await _unitOfWork.SaveChangeAsync();
@@ -98,17 +144,22 @@ namespace AESP.Service.Implementation
                     : 0;
 
                 // ✅ LOGIC TRẠNG THÁI ĐÚNG
-                if (completed == lpExercise.NumberOfQuestion && lpExercise.ScoreAchieved >= 50)
+                if (!wasExerciseCompletedBeforeSubmit)
                 {
-                    lpExercise.Status = "Completed";
-                }
-                else
-                {
-                    lpExercise.Status = "InProgress";
+                    lpExercise.ScoreAchieved = allLpQuestions.Any()
+                        ? allLpQuestions.Average(q => q.Score)
+                        : 0;
+
+                    if (completed == lpExercise.NumberOfQuestion && lpExercise.ScoreAchieved >= 50)
+                        lpExercise.Status = "Completed";
+                    else
+                        lpExercise.Status = "InProgress";
+
+                    await _lpExerciseRepo.Update(lpExercise);
+                    await _unitOfWork.SaveChangeAsync();
                 }
 
-                await _lpExerciseRepo.Update(lpExercise);
-                await _unitOfWork.SaveChangeAsync();
+
 
 
                 // ⭐⭐⭐ 4.1️⃣ UPDATE CHAPTER ⭐⭐⭐
