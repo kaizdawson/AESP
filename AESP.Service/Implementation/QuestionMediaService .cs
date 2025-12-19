@@ -50,11 +50,11 @@ namespace AESP.Service.Implementation
                 {
                     QuestionMediaId = m.QuestionMediaId,
                     QuestionId = m.QuestionId,
-                    Accent = m.Accent,
-                    AudioUrl = m.AudioUrl,
+                 
+                  
                     VideoUrl = m.VideoUrl,
                     ImageUrl = m.ImageUrl,
-                    Source = m.Source
+                  
                 }).ToList();
 
                 return new ResponseDTO
@@ -90,11 +90,10 @@ namespace AESP.Service.Implementation
                 {
                     QuestionMediaId = media.QuestionMediaId,
                     QuestionId = media.QuestionId,
-                    Accent = media.Accent,
-                    AudioUrl = media.AudioUrl,
+                  
                     VideoUrl = media.VideoUrl,
                     ImageUrl = media.ImageUrl,
-                    Source = media.Source
+                    
                 };
 
                 return new ResponseDTO
@@ -121,41 +120,32 @@ namespace AESP.Service.Implementation
                     return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
                 if (questionId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "QuestionId không hợp lệ.");
-                if (string.IsNullOrWhiteSpace(request.Accent))
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Accent không được để trống.");
+              
 
                 // --- ÍT NHẤT 1 TRONG 3 URL PHẢI CÓ ---
                 bool hasAnyMedia =
-                    !string.IsNullOrWhiteSpace(request.AudioUrl) ||
                     !string.IsNullOrWhiteSpace(request.VideoUrl) ||
                     !string.IsNullOrWhiteSpace(request.ImageUrl);
                 if (!hasAnyMedia)
                     return Fail(BusinessCode.VALIDATION_FAILED,
-                        "Phải có ít nhất một trong các URL (AudioUrl, VideoUrl, ImageUrl).");
+                        "Phải có ít nhất một trong các URL (VideoUrl, ImageUrl).");
 
                 // --- KIỂM TRA QUESTION CÓ TỒN TẠI ---
                 var question = await _questionRepository.GetById(questionId);
                 if (question == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy câu hỏi để gắn media.");
 
-                // --- KIỂM TRA TRÙNG ACCENT TRONG CÙNG QUESTION ---
-                var duplicateAccent = await _questionMediaRepository.AsQueryable()
-                    .AnyAsync(x => x.QuestionId == questionId && x.Accent.ToLower() == request.Accent.ToLower());
+               
 
-                if (duplicateAccent)
-                    return Fail(BusinessCode.DUPLICATE_DATA,
-                        $"Đã tồn tại QuestionMedia với accent '{request.Accent}' trong câu hỏi này.");
+             
 
                 // --- TẠO MỚI ---
                 var media = new QuestionMedia
                 {
                     QuestionMediaId = Guid.NewGuid(),
                     QuestionId = questionId,
-                    Accent = request.Accent.Trim(),
-                    AudioUrl = request.AudioUrl,
                     VideoUrl = request.VideoUrl,
                     ImageUrl = request.ImageUrl,
-                    Source = request.Source,
                 };
 
                 await _questionMediaRepository.Insert(media);
@@ -193,34 +183,24 @@ namespace AESP.Service.Implementation
                 if (media == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy QuestionMedia để cập nhật.");
 
-                if (string.IsNullOrWhiteSpace(request.Accent))
-                    return Fail(BusinessCode.VALIDATION_FAILED, "Accent không được để trống.");
+             
 
                 // --- ÍT NHẤT 1 TRONG 3 URL PHẢI CÓ ---
                 bool hasAnyMedia =
-                    !string.IsNullOrWhiteSpace(request.AudioUrl) ||
                     !string.IsNullOrWhiteSpace(request.VideoUrl) ||
                     !string.IsNullOrWhiteSpace(request.ImageUrl);
 
                 if (!hasAnyMedia)
                     return Fail(BusinessCode.VALIDATION_FAILED,
-                        "Phải có ít nhất một trong các URL (AudioUrl, VideoUrl, ImageUrl).");
+                        "Phải có ít nhất một trong các URL ( VideoUrl, ImageUrl).");
 
                 // --- RÀNG BUỘC: KHÔNG TRÙNG ACCENT TRONG CÙNG QUESTION ---
-                var duplicate = await _questionMediaRepository.AsQueryable()
-                    .AnyAsync(x => x.QuestionId == media.QuestionId &&
-                                   x.QuestionMediaId != media.QuestionMediaId &&
-                                   x.Accent.ToLower() == request.Accent.ToLower());
-                if (duplicate)
-                    return Fail(BusinessCode.DUPLICATE_DATA,
-                        $"Đã tồn tại QuestionMedia với accent '{request.Accent}' trong câu hỏi này.");
+              
 
                 // --- CẬP NHẬT ---
-                media.Accent = request.Accent.Trim();
-                media.AudioUrl = request.AudioUrl;
+              
                 media.VideoUrl = request.VideoUrl;
                 media.ImageUrl = request.ImageUrl;
-                media.Source = request.Source;
 
                 await _questionMediaRepository.Update(media);
                 await _unitOfWork.SaveChangeAsync();
@@ -288,11 +268,10 @@ namespace AESP.Service.Implementation
                 {
                     QuestionMediaId = m.QuestionMediaId,
                     QuestionId = m.QuestionId,
-                    Accent = m.Accent,
-                    AudioUrl = m.AudioUrl,
+                 
                     VideoUrl = m.VideoUrl,
                     ImageUrl = m.ImageUrl,
-                    Source = m.Source
+                   
                 }).ToList();
 
                 return new ResponseDTO
