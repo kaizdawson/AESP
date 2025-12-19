@@ -8,6 +8,6 @@ namespace AESP.Realtime.Interfaces
 {
     public interface IRealtimeNotifier
     {
-        Task NotifyReviewCompletedAsync(Guid learnerAnswerId, int remaining);
+        Task NotifyReviewItemUpdatedAsync(string itemType, Guid itemId,int remainingReviews);
     }
 }
