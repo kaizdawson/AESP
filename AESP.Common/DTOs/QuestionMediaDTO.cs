@@ -11,11 +11,10 @@ namespace AESP.Common.DTOs
     // ============================================================
     public class CreateQuestionMediaV2DTO
     {
-        public string Accent { get; set; } = string.Empty;
-        public string? AudioUrl { get; set; }
+
         public string? VideoUrl { get; set; }
         public string? ImageUrl { get; set; }
-        public string? Source { get; set; }
+       
     }
 
     // ============================================================
@@ -23,11 +22,9 @@ namespace AESP.Common.DTOs
     // ============================================================
     public class UpdateQuestionMediaV2DTO
     {
-        public string Accent { get; set; } = string.Empty;
-        public string? AudioUrl { get; set; }
+       
         public string? VideoUrl { get; set; }
         public string? ImageUrl { get; set; }
-        public string? Source { get; set; }
     }
 
     // ============================================================
@@ -37,10 +34,8 @@ namespace AESP.Common.DTOs
     {
         public Guid QuestionMediaId { get; set; }
         public Guid QuestionId { get; set; }
-        public string Accent { get; set; } = string.Empty;
-        public string? AudioUrl { get; set; }
+      
         public string? VideoUrl { get; set; }
         public string? ImageUrl { get; set; }
-        public string? Source { get; set; }
     }
 }
