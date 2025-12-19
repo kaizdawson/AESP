@@ -623,6 +623,7 @@ namespace AESP.Service.Implementation
                                     q.QuestionId,
                                     q.Status,
                                     q.Score,
+                                    q.RelearnScore,          // ✅ THÊM Ở ĐÂY
                                     q.NumberOfRetake,
 
                                     Text = db.Set<Question>()
