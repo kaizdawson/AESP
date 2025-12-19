@@ -46,6 +46,20 @@ namespace AESP.Service.Implementation
                     res.Message = "Không tìm thấy learner.";
                     return res;
                 }
+                if (dto.FullName.All(char.IsDigit))
+                {
+                    res.IsSucess = false;
+                    res.BusinessCode = BusinessCode.INVALID_INPUT;
+                    res.Message = "Họ và tên không hợp lệ.";
+                    return res;
+                }
+                if (string.IsNullOrWhiteSpace(dto.FullName))
+                {
+                    res.IsSucess = false;
+                    res.BusinessCode = BusinessCode.INVALID_INPUT;
+                    res.Message = "Họ và tên không được để trống.";
+                    return res;
+                }
 
                 // ✅ CHỐNG TRÙNG SỐ ĐIỆN THOẠI
                 var existedPhone = await _userRepo.GetFirstByExpression(

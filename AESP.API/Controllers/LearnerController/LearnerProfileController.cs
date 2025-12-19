@@ -1,4 +1,5 @@
 ﻿using AESP.Common.DTOs;
+using AESP.Common.DTOs.BusinessCode;
 using AESP.Service.Contract;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +23,21 @@ namespace AESP.API.Controllers.LearnerController
         [HttpPut("edit")]
         public async Task<IActionResult> EditProfile([FromBody] EditLearnerProfileDto dto)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new
+                {
+                    isSuccess = false,
+                    businessCode = BusinessCode.INVALID_INPUT,
+                    errors = ModelState
+                        .Where(x => x.Value.Errors.Count > 0)
+                        .Select(x => new
+                        {
+                            Field = x.Key,
+                            Errors = x.Value.Errors.Select(e => e.ErrorMessage)
+                        })
+                });
+            }
             var learnerProfileId = GetLearnerProfileIdFromToken(User);
 
             if (learnerProfileId == null)

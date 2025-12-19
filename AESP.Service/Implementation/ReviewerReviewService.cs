@@ -764,10 +764,11 @@ namespace AESP.Service.Implementation
                 // ---------------- GỬI REALTIME CHO REVIEWER KHÁC ----------------
                 // - learnerAnswerId != null: FE dùng learnerAnswerId + remaining để update / xoá item
                 // - nếu chỉ review Record → learnerAnswerId = Guid.Empty, FE có thể bỏ qua event này
-                await _notifier.NotifyReviewCompletedAsync(
-                    learnerAnswerId ?? Guid.Empty,
+                await _notifier.NotifyReviewItemUpdatedAsync(
+                    learnerAnswerId != null ? "LearnerAnswer" : "Record",
+                    learnerAnswerId ?? recordId!.Value,
                     remainingReviews
-                );
+                    );
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.CREATED_SUCCESSFULLY;
