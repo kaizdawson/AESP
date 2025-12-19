@@ -755,7 +755,7 @@ namespace AESP.Service.Implementation
                     lpCourse.LearnerCourseId,
                     lpCourse.CourseId,
                     lpCourse.Status,
-                    lpCourse.Progress,
+                    Progress = Math.Ceiling(lpCourse.Progress),
                     lpCourse.NumberOfChapter,
                     lpCourse.OrderIndex,
 
