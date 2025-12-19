@@ -277,7 +277,10 @@ public class RecordService : IRecordService
     }
 
 
-    public async Task<ResponseDTO> UpdateRecordContentAsync(Guid learnerProfileId, Guid recordId, UpdateRecordContentDTO dto)
+    public async Task<ResponseDTO> UpdateRecordContentAsync(
+    Guid learnerProfileId,
+    Guid recordId,
+    UpdateRecordContentDTO dto)
     {
         await _unitOfWork.BeginTransactionAsync();
 
@@ -294,15 +297,26 @@ public class RecordService : IRecordService
                 return Fail("Không có quyền.");
 
             record.Content = dto.Content;
+            record.AudioRecordingURL = string.Empty;
+            record.Score = 0;
+            record.AIFeedback = string.Empty;
+            record.TranscribedText = string.Empty;
+            record.Status = "Draft";
+            record.NumberOfReview = 0;
+            record.IsNeedReviewed = false;
 
             await _recordRepo.Update(record);
             await _unitOfWork.SaveChangeAsync();
+
+            await UpdateFolderStatusAsync(record.LearnerRecord);
+            await _unitOfWork.SaveChangeAsync();
             await _unitOfWork.CommitAsync();
 
-            return Success("Cập nhật nội dung thành công.", new
+            return Success("Cập nhật content và reset record thành công.", new
             {
                 record.RecordId,
-                record.Content
+                record.Content,
+                record.Status
             });
         }
         catch (Exception ex)
@@ -311,6 +325,7 @@ public class RecordService : IRecordService
             return Fail(ex.Message);
         }
     }
+
 
 
     public async Task<ResponseDTO> SubmitRecordUpdateAsync(Guid learnerProfileId, Guid recordId, SubmitRecordUpdateDTO dto)
