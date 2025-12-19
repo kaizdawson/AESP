@@ -8,14 +8,14 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public class Feedback
+    public class Feedback : BaseEntity
     {
         [Key]
         public Guid FeedbackId { get; set; }
         public Guid UserId { get; set; }
         public string Content { get; set; } = string.Empty;
         public int Rating { get; set; }
-        public DateTime CreatedAt { get; set; }
+        
         public string Type { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         [ForeignKey("Review")]
