@@ -117,14 +117,15 @@ namespace AESP.Service.Implementation
         {
             try
             {
-                // --- VALIDATION ---
+                // =============================
+                // 1️⃣ VALIDATION INPUT
+                // =============================
                 if (request == null)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
 
                 if (questionId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "QuestionId không hợp lệ.");
 
-                // --- ÍT NHẤT 1 TRONG 2 URL PHẢI CÓ ---
                 bool hasAnyMedia =
                     !string.IsNullOrWhiteSpace(request.VideoUrl) ||
                     !string.IsNullOrWhiteSpace(request.ImageUrl);
@@ -135,7 +136,9 @@ namespace AESP.Service.Implementation
                         "Phải có ít nhất một trong VideoUrl hoặc ImageUrl."
                     );
 
-                // --- CHECK QUESTION ---
+                // =============================
+                // 2️⃣ CHECK QUESTION TỒN TẠI
+                // =============================
                 var question = await _questionRepository.GetById(questionId);
                 if (question == null)
                     return Fail(
@@ -143,19 +146,38 @@ namespace AESP.Service.Implementation
                         "Không tìm thấy câu hỏi để gắn media."
                     );
 
-                // --- CREATE ---
+                // =============================
+                // 3️⃣ CHECK NGHIỆP VỤ 1–1
+                // =============================
+                bool existed = await _questionMediaRepository.AsQueryable()
+                    .AnyAsync(x => x.QuestionId == questionId);
+
+                if (existed)
+                    return Fail(
+                        BusinessCode.VALIDATION_FAILED,
+                        "Question đã có media. Không thể tạo mới."
+                    );
+
+                // =============================
+                // 4️⃣ MAP DATA (AN TOÀN NOT NULL)
+                // =============================
+                var videoUrl = request.VideoUrl?.Trim() ?? "";
+                var imageUrl = request.ImageUrl?.Trim() ?? "";
+
                 var media = new QuestionMedia
                 {
                     QuestionMediaId = Guid.NewGuid(),
                     QuestionId = questionId,
-                    VideoUrl = request.VideoUrl,
-                    ImageUrl = request.ImageUrl
+                    VideoUrl = videoUrl,
+                    ImageUrl = imageUrl
                 };
 
+                // =============================
+                // 5️⃣ INSERT
+                // =============================
                 await _questionMediaRepository.Insert(media);
                 await _unitOfWork.SaveChangeAsync();
 
-                // --- RESPONSE ---
                 return new ResponseDTO
                 {
                     IsSucess = true,
@@ -178,6 +200,7 @@ namespace AESP.Service.Implementation
                 );
             }
         }
+
 
 
         public async Task<ResponseDTO> UpdateQuestionMediaAsync(Guid id, UpdateQuestionMediaV2DTO request)
@@ -262,21 +285,36 @@ namespace AESP.Service.Implementation
                 if (questionId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "QuestionId không hợp lệ.");
 
-                var medias = await _questionMediaRepository.AsQueryable()
+                var query = _questionMediaRepository.AsQueryable();
+
+                if (query == null)
+                    return Fail(
+                        BusinessCode.DATA_NOT_FOUND,
+                        "Không có dữ liệu QuestionMedia."
+                    );
+
+                var medias = await query
                     .Where(x => x.QuestionId == questionId)
                     .ToListAsync();
 
-                if (!medias.Any())
-                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy QuestionMedia cho câu hỏi này.");
+                // ⚠️ KHÔNG throw exception khi không có media
+                if (medias == null || medias.Count == 0)
+                {
+                    return new ResponseDTO
+                    {
+                        IsSucess = true,
+                        BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY,
+                        Message = "Câu hỏi chưa có media.",
+                        Data = new List<ReadQuestionMediaV2DTO>()
+                    };
+                }
 
                 var mapped = medias.Select(m => new ReadQuestionMediaV2DTO
                 {
                     QuestionMediaId = m.QuestionMediaId,
                     QuestionId = m.QuestionId,
-                 
                     VideoUrl = m.VideoUrl,
                     ImageUrl = m.ImageUrl,
-                   
                 }).ToList();
 
                 return new ResponseDTO
@@ -289,7 +327,10 @@ namespace AESP.Service.Implementation
             }
             catch (Exception ex)
             {
-                return Fail(BusinessCode.EXCEPTION, $"Không thể lấy danh sách QuestionMedia: {ex.Message}");
+                return Fail(
+                    BusinessCode.EXCEPTION,
+                    $"Không thể lấy danh sách QuestionMedia: {ex.Message}"
+                );
             }
         }
     }
