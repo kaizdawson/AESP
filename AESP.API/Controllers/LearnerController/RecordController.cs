@@ -50,12 +50,15 @@ namespace AESP.API.Controllers.LearnerController
             return learner.LearnerProfileId;
         }
 
-        [HttpPut("{recordId}/submit")]
-        public async Task<IActionResult> Submit(Guid recordId, [FromBody] SubmitRecordUpdateDTO dto)
+        [HttpPost("{recordContentId}/submit")]
+        public async Task<IActionResult> Submit(Guid recordContentId,[FromBody] SubmitRecordDTO dto)
         {
             var learnerId = await GetLearnerProfileIdAsync();
-            return Ok(await _recordService.SubmitRecordUpdateAsync(learnerId, recordId, dto));
+
+            return Ok(await _recordService
+                .SubmitRecordAsync(learnerId, recordContentId, dto));
         }
+
 
 
         [HttpGet("{folderId}/mine")]

@@ -109,11 +109,12 @@ public class RecordCategoryService : IRecordCategoryService
         try
         {
             var cat = await _categoryRepo.AsQueryable()
-                .Include(x => x.Records)
-                .FirstOrDefaultAsync(x =>
-                    x.LearnerRecordId == categoryId &&
-                    x.LearnerId == learnerProfileId
-                );
+    .Include(x => x.RecordContents)
+        .ThenInclude(rc => rc.Records)
+    .FirstOrDefaultAsync(x =>
+        x.LearnerRecordId == categoryId &&
+        x.LearnerId == learnerProfileId
+    );
 
             if (cat == null || cat.IsDeleted)
                 return Fail("Không tìm thấy thư mục.");
@@ -152,7 +153,19 @@ public class RecordCategoryService : IRecordCategoryService
                     x.Name,
                     x.Status,
                     x.CreatedAt,
-                    x.NumberOfRecord
+                    x.NumberOfRecord,
+
+                    RecordContents = x.RecordContents
+                    .Where(rc => !rc.IsDeleted)
+                    .OrderByDescending(rc => rc.CreatedAt)
+                    .Select(rc => new
+                    {
+                        rc.RecordContentId,
+                        rc.Content,
+                        rc.CreatedAt,
+                        rc.UpdatedAt
+                    })
+                    .ToList()
                 })
                 .ToListAsync();
 

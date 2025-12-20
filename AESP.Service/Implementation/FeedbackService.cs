@@ -42,8 +42,10 @@ namespace AESP.Service.Implementation
                     .Include(r => r.LearnerAnswer)
                         .ThenInclude(a => a.LearnerProfile)
                     .Include(r => r.Record)
-                        .ThenInclude(rc => rc.LearnerRecord)
-                        .ThenInclude(lr => lr.LearnerProfile)
+    .ThenInclude(r => r.RecordContent)
+        .ThenInclude(rc => rc.LearnerRecord)
+            .ThenInclude(lr => lr.LearnerProfile)
+
                     .FirstOrDefaultAsync(r => r.ReviewId == dto.ReviewId);
 
                 if (review == null)
@@ -61,7 +63,7 @@ namespace AESP.Service.Implementation
                     learnerUserId = review.LearnerAnswer.LearnerProfile.UserId;
 
                 if (review.Record != null)
-                    learnerUserId = review.Record.LearnerRecord.LearnerProfile.UserId;
+                    learnerUserId = review.Record.RecordContent.LearnerRecord.LearnerProfile.UserId;
 
                 if (learnerUserId == null || learnerUserId.Value != userId)
                 {
@@ -184,7 +186,7 @@ namespace AESP.Service.Implementation
                 var review = await db.Reviews
                     .Include(r => r.ReviewerProfile).ThenInclude(rp => rp.User)
                     .Include(r => r.LearnerAnswer).ThenInclude(a => a.LearnerProfile).ThenInclude(lp => lp.User)
-                    .Include(r => r.Record).ThenInclude(rc => rc.LearnerRecord).ThenInclude(lr => lr.LearnerProfile).ThenInclude(lp => lp.User)
+                    .Include(r => r.Record).ThenInclude(rec => rec.RecordContent).ThenInclude(rc => rc.LearnerRecord).ThenInclude(lr => lr.LearnerProfile).ThenInclude(lp => lp.User)
                     .FirstOrDefaultAsync(r => r.ReviewId == dto.ReviewId);
 
                 if (review == null)
@@ -202,7 +204,7 @@ namespace AESP.Service.Implementation
                     learnerUserId = review.LearnerAnswer.LearnerProfile.UserId;
 
                 if (review.Record != null)
-                    learnerUserId = review.Record.LearnerRecord.LearnerProfile.UserId;
+                    learnerUserId = review.Record.RecordContent.LearnerRecord.LearnerProfile.UserId;
 
                 if (learnerUserId == null || learnerUserId.Value != userId)
                 {

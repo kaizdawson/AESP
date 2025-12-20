@@ -79,9 +79,10 @@ namespace AESP.Service.Implementation
                  .ThenInclude(la => la.LearnerProfile)
                  .ThenInclude(lp => lp.User)
                 .Include(r => r.Record)
-                .ThenInclude(rc => rc.LearnerRecord)
-                .ThenInclude(lr => lr.LearnerProfile)
-                 .ThenInclude(lp => lp.User)
+    .ThenInclude(rec => rec.RecordContent)
+        .ThenInclude(rc => rc.LearnerRecord)
+            .ThenInclude(lr => lr.LearnerProfile)
+                .ThenInclude(lp => lp.User)
                  .Where(r => r.ReviewerProfileId == reviewerProfileId &&
                 (r.Status == "Completed"
               || r.Status == "Reported"
@@ -174,8 +175,9 @@ namespace AESP.Service.Implementation
                         CreatedAt = r.CreatedAt,
 
                         Learner = r.LearnerAnswer?.LearnerProfile?.User?.FullName
-                               ?? r.Record?.LearnerRecord?.LearnerProfile?.User?.FullName
-                               ?? "Không xác định",
+                            ?? r.Record?.RecordContent?.LearnerRecord?.LearnerProfile?.User?.FullName
+                            ?? "Không xác định",
+
 
                         Question = r.LearnerAnswer != null
                              && r.LearnerAnswer.LearningPathQuestion != null

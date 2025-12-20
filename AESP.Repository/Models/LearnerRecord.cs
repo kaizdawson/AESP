@@ -26,7 +26,7 @@ namespace AESP.Repository.Models
 
         // Navigation
         public virtual LearnerProfile LearnerProfile { get; set; }
-        public virtual ICollection<Record> Records { get; set; } = new List<Record>();
+        public virtual ICollection<RecordContent> RecordContents { get; set; } = new List<RecordContent>();
     }
 
 }
