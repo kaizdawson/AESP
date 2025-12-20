@@ -18,12 +18,15 @@ namespace AESP.Realtime.Services
             _hubContext = hubContext;
         }
 
-        public async Task NotifyReviewCompletedAsync(Guid learnerAnswerId, int remaining)
+        
+
+        public async Task NotifyReviewItemUpdatedAsync(string itemType, Guid itemId, int remainingReviews)
         {
-            await _hubContext.Clients.Group("Reviewers").SendAsync("reviewCompleted", new
+            await _hubContext.Clients.Group("Reviewers").SendAsync("reviewItemUpdated", new
             {
-                learnerAnswerId,
-                remaining
+                itemType,
+                itemId,
+                remainingReviews
             });
         }
     }

@@ -215,16 +215,17 @@ namespace AESP.Service.Implementation
                         .ThenInclude(la => la.LearningPathQuestion)
                             .ThenInclude(lpq => lpq.Question)
                     .Include(r => r.Record)
-                        .ThenInclude(rec => rec.LearnerRecord)
+                        .ThenInclude(rec => rec.RecordContent)
+                        .ThenInclude(rc => rc.LearnerRecord)
                             .ThenInclude(lr => lr.LearnerProfile)
                     .Where(r =>
                         (r.LearnerAnswer != null && r.LearnerAnswer.LearnerProfileId == learnerProfileId)
-                        || (r.Record != null && r.Record.LearnerRecord.LearnerProfile.LearnerProfileId == learnerProfileId)
+                        || (r.Record != null && r.Record.RecordContent.LearnerRecord.LearnerProfile.LearnerProfileId == learnerProfileId)
                     )
                     .AsQueryable();
                 var dashboardQuery = db.Set<Review>()
                     .Include(r => r.Feedbacks)
-                    .Where(r => (r.LearnerAnswer != null && r.LearnerAnswer.LearnerProfileId == learnerProfileId) || (r.Record != null && r.Record.LearnerRecord.LearnerProfile.LearnerProfileId == learnerProfileId))
+                    .Where(r => (r.LearnerAnswer != null && r.LearnerAnswer.LearnerProfileId == learnerProfileId) || (r.Record != null && r.Record.RecordContent.LearnerRecord.LearnerProfile.LearnerProfileId == learnerProfileId))
                     .AsQueryable();
 
                 // ✅ FILTER THEO TRẠNG THÁI FEEDBACK (ĐÚNG NGHIỆP VỤ)

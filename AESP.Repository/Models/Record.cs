@@ -14,10 +14,10 @@ namespace AESP.Repository.Models
         [Key]
         public Guid RecordId { get; set; }
 
-        [ForeignKey(nameof(LearnerRecord))]
-        public Guid LearnerRecordId { get; set; }
+        [ForeignKey(nameof(RecordContent))]
+        public Guid RecordContentId { get; set; }
 
-        
+
 
 
         public DateTime CreatedAt { get; set; } = DateTimeHelper.NowVN();
@@ -31,7 +31,7 @@ namespace AESP.Repository.Models
 
         public bool IsNeedReviewed { get; set; }
 
-        public virtual LearnerRecord LearnerRecord { get; set; }
+        public virtual RecordContent RecordContent { get; set; }
 
         public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
     }

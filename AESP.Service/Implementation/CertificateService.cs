@@ -142,13 +142,36 @@ namespace AESP.Service.Implementation
                     dto.Message = "Vui lòng chọn file hợp lệ.";
                     return dto;
                 }
-                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+
+                const long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+                if (file.Length > MAX_FILE_SIZE)
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_INPUT;
+                    dto.Message = "Dung lượng ảnh tối đa cho phép là 10MB.";
+                    return dto;
+                }
+                var allowedExtensions = new[]
+                {
+                    ".jpg", ".jpeg",
+                    ".png",
+                    ".webp",
+                    ".bmp",
+                    ".tiff", ".tif",
+                    ".heic", ".heif"
+                };
+
                 var allowedContentTypes = new[]
                 {
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-        };
+                    "image/jpeg",
+                    "image/png",
+                    "image/webp",
+                    "image/bmp",
+                    "image/tiff",
+                    "image/heic",
+                    "image/heif"
+                };
 
                 var extension = Path.GetExtension(file.FileName).ToLower();
                 var contentType = file.ContentType.ToLower();

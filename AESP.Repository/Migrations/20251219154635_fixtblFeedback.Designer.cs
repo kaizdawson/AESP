@@ -4,6 +4,7 @@ using AESP.Repository.DB;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AESP.Repository.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251219154635_fixtblFeedback")]
+    partial class fixtblFeedback
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -831,12 +834,24 @@ namespace AESP.Repository.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Accent")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AudioUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("QuestionId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("VideoUrl")
                         .IsRequired()
@@ -873,11 +888,11 @@ namespace AESP.Repository.Migrations
                     b.Property<bool>("IsNeedReviewed")
                         .HasColumnType("bit");
 
+                    b.Property<Guid>("LearnerRecordId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("NumberOfReview")
                         .HasColumnType("int");
-
-                    b.Property<Guid>("RecordContentId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<double>("Score")
                         .HasColumnType("float");
@@ -892,7 +907,7 @@ namespace AESP.Repository.Migrations
 
                     b.HasKey("RecordId");
 
-                    b.HasIndex("RecordContentId");
+                    b.HasIndex("LearnerRecordId");
 
                     b.ToTable("Records");
                 });
@@ -925,35 +940,6 @@ namespace AESP.Repository.Migrations
                     b.HasKey("RecordChargeId");
 
                     b.ToTable("RecordCharge");
-                });
-
-            modelBuilder.Entity("AESP.Repository.Models.RecordContent", b =>
-                {
-                    b.Property<Guid>("RecordContentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("LearnerRecordId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("RecordContentId");
-
-                    b.HasIndex("LearnerRecordId");
-
-                    b.ToTable("RecordContents");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.RefreshToken", b =>
@@ -1343,7 +1329,7 @@ namespace AESP.Repository.Migrations
                             UserId = new Guid("11111111-1111-1111-1111-111111111111"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 12, 20, 15, 55, 12, 854, DateTimeKind.Unspecified).AddTicks(8004),
+                            CreatedAt = new DateTime(2025, 12, 19, 22, 46, 34, 10, DateTimeKind.Unspecified).AddTicks(1678),
                             Email = "admin@aesp.com",
                             FirebaseUid = "",
                             FullName = "Super Admin",
@@ -1352,14 +1338,14 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0909000000",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 12, 20, 15, 55, 12, 854, DateTimeKind.Unspecified).AddTicks(8032)
+                            UpdatedAt = new DateTime(2025, 12, 19, 22, 46, 34, 10, DateTimeKind.Unspecified).AddTicks(1728)
                         },
                         new
                         {
                             UserId = new Guid("22222222-2222-2222-2222-222222222222"),
                             AvatarUrl = "",
                             CoinBalance = 0,
-                            CreatedAt = new DateTime(2025, 12, 20, 15, 55, 12, 854, DateTimeKind.Unspecified).AddTicks(8080),
+                            CreatedAt = new DateTime(2025, 12, 19, 22, 46, 34, 10, DateTimeKind.Unspecified).AddTicks(1798),
                             Email = "admin2@aesp.com",
                             FirebaseUid = "",
                             FullName = "Second Admin",
@@ -1368,7 +1354,7 @@ namespace AESP.Repository.Migrations
                             PhoneNumber = "0912345678",
                             Role = "ADMIN",
                             Status = "Active",
-                            UpdatedAt = new DateTime(2025, 12, 20, 15, 55, 12, 854, DateTimeKind.Unspecified).AddTicks(8081)
+                            UpdatedAt = new DateTime(2025, 12, 19, 22, 46, 34, 10, DateTimeKind.Unspecified).AddTicks(1799)
                         });
                 });
 
@@ -1703,19 +1689,8 @@ namespace AESP.Repository.Migrations
 
             modelBuilder.Entity("AESP.Repository.Models.Record", b =>
                 {
-                    b.HasOne("AESP.Repository.Models.RecordContent", "RecordContent")
-                        .WithMany("Records")
-                        .HasForeignKey("RecordContentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("RecordContent");
-                });
-
-            modelBuilder.Entity("AESP.Repository.Models.RecordContent", b =>
-                {
                     b.HasOne("AESP.Repository.Models.LearnerRecord", "LearnerRecord")
-                        .WithMany("RecordContents")
+                        .WithMany("Records")
                         .HasForeignKey("LearnerRecordId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1875,7 +1850,7 @@ namespace AESP.Repository.Migrations
 
             modelBuilder.Entity("AESP.Repository.Models.LearnerRecord", b =>
                 {
-                    b.Navigation("RecordContents");
+                    b.Navigation("Records");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.LearningPathChapter", b =>
@@ -1920,11 +1895,6 @@ namespace AESP.Repository.Migrations
             modelBuilder.Entity("AESP.Repository.Models.RecordCharge", b =>
                 {
                     b.Navigation("Purchases");
-                });
-
-            modelBuilder.Entity("AESP.Repository.Models.RecordContent", b =>
-                {
-                    b.Navigation("Records");
                 });
 
             modelBuilder.Entity("AESP.Repository.Models.Review", b =>
