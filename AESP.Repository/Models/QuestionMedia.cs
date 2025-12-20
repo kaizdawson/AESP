@@ -16,11 +16,9 @@ namespace AESP.Repository.Models
         [ForeignKey("Question")]
         public Guid QuestionId { get; set; }
 
-        public string Accent { get; set; } = string.Empty;
-        public string AudioUrl { get; set; } = string.Empty;
+        
         public string VideoUrl { get; set; } = string.Empty;
         public string ImageUrl { get; set; } = string.Empty;
-        public string Source { get; set; } = string.Empty;
 
         public virtual Question Question { get; set; }
     }

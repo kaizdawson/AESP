@@ -452,11 +452,9 @@ namespace AESP.Service.Implementation
                                 QuestionMedia = q.QuestionMedias?.Select(m => new ReadQuestionMediaForCourseDTO
                                 {
                                     QuestionMediaId = m.QuestionMediaId,
-                                    Accent = m.Accent,
-                                    AudioUrl = m.AudioUrl,
+                                   
                                     VideoUrl = m.VideoUrl,
                                     ImageUrl = m.ImageUrl,
-                                    Source = m.Source
                                 }).ToList() ?? new List<ReadQuestionMediaForCourseDTO>()
                             }).ToList() ?? new List<ReadCourseQuestionForCourseDTO>()
 

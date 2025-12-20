@@ -66,11 +66,9 @@ namespace AESP.Service.Implementation
                     Media = q.QuestionMedias?.Select(m => new ReadQuestionMediaDTO
                     {
                         QuestionMediaId = m.QuestionMediaId,
-                        Accent = m.Accent,
-                        AudioURL = m.AudioUrl,
+                      
                         VideoURL = m.VideoUrl,
                         ImageURL = m.ImageUrl,
-                        Source = m.Source
                     }).ToList() ?? new List<ReadQuestionMediaDTO>()
                 }).ToList();
 
@@ -115,11 +113,9 @@ namespace AESP.Service.Implementation
                         Media = question.QuestionMedias?.Select(m => new ReadQuestionMediaDTO
                         {
                             QuestionMediaId = m.QuestionMediaId,
-                            Accent = m.Accent,
-                            AudioURL = m.AudioUrl,
+                         
                             VideoURL = m.VideoUrl,
                             ImageURL = m.ImageUrl,
-                            Source = m.Source
                         }).ToList() ?? new List<ReadQuestionMediaDTO>()
                     }
                 };
@@ -380,11 +376,9 @@ namespace AESP.Service.Implementation
                     Media = q.QuestionMedias?.Select(m => new ReadQuestionMediaDTO
                     {
                         QuestionMediaId = m.QuestionMediaId,
-                        Accent = m.Accent,
-                        AudioURL = m.AudioUrl,
+                      
                         VideoURL = m.VideoUrl,
                         ImageURL = m.ImageUrl,
-                        Source = m.Source
                     }).ToList() ?? new List<ReadQuestionMediaDTO>()
                 }).ToList();
 
