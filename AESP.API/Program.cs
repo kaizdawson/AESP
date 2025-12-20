@@ -16,6 +16,7 @@ using CloudinaryDotNet;
 using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -25,6 +26,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 50 * 1024 * 1024; // 50MB
+});
 
 QuestPDF.Settings.License = LicenseType.Community;
 QuestPDF.Settings.CheckIfAllTextGlyphsAreAvailable = false;
@@ -271,6 +277,12 @@ FirebaseApp.Create(new AppOptions()
 {
     Credential = GoogleCredential.FromJson(JsonSerializer.Serialize(firebaseConfig))
 });
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 50 * 1024 * 1024; // 50MB
+});
+
 var app = builder.Build();
 
 

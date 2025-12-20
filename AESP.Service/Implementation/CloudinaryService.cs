@@ -34,8 +34,11 @@ namespace AESP.Service.Implementation
                         File = new FileDescription(file.FileName, file.OpenReadStream()),
                         Folder = folder,
                         UseFilename = true,
-                        UniqueFilename = false,
-                        Overwrite = true
+                        UniqueFilename = true,
+                        Overwrite = false,
+                        Transformation = new Transformation()
+                        .Quality("auto")
+                        .FetchFormat("auto")
                     };
                 }
                 else
