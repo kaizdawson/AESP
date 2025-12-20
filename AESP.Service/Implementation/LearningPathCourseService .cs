@@ -666,12 +666,9 @@ namespace AESP.Service.Implementation
                                         .Where(m => m.QuestionId == q.QuestionId)
                                         .Select(m => new
                                         {
-                                            m.QuestionMediaId,
-                                            m.Accent,
-                                            m.AudioUrl,
+                                            m.QuestionMediaId,                                           
                                             m.VideoUrl,
                                             m.ImageUrl,
-                                            m.Source
                                         })
                                         .ToList()
                                 })
