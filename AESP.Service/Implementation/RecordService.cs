@@ -389,6 +389,63 @@ public class RecordService : IRecordService
         }
     }
 
+
+    public async Task<ResponseDTO> GetLatestRecordByRecordContentAsync(
+    Guid learnerProfileId,
+    Guid recordContentId)
+    {
+        try
+        {
+          
+            var recordContent = await _recordContentRepo.AsQueryable()
+                .Include(rc => rc.LearnerRecord)
+                .FirstOrDefaultAsync(rc =>
+                    rc.RecordContentId == recordContentId &&
+                    rc.LearnerRecord.LearnerId == learnerProfileId
+                );
+
+            if (recordContent == null)
+                return Fail("Không tìm thấy content hoặc không có quyền.");
+
+            
+            var latestRecord = await _recordRepo.AsQueryable()
+                .Where(r => r.RecordContentId == recordContentId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new
+                {
+                    r.RecordId,
+                    r.RecordContentId,
+                    r.AudioRecordingURL,
+                    r.Content,
+                    r.Score,
+                    r.AIFeedback,
+                    r.TranscribedText,
+                    r.Status,
+                    r.CreatedAt,
+                    r.NumberOfReview,
+                    r.IsNeedReviewed
+                })
+                .FirstOrDefaultAsync();
+
+           
+            if (latestRecord == null)
+            {
+                return Success("Chưa có record.", new
+                {
+                    RecordContentId = recordContent.RecordContentId,
+                    Record = (object?)null
+                });
+            }
+
+            return Success("Lấy record mới nhất thành công.", latestRecord);
+        }
+        catch (Exception ex)
+        {
+            return Fail(ex.Message);
+        }
+    }
+
+
     private async Task UpdateFolderStatusAsync(LearnerRecord folder)
     {
         var records = await _recordRepo.AsQueryable()

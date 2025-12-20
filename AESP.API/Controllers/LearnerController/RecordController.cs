@@ -61,12 +61,14 @@ namespace AESP.API.Controllers.LearnerController
 
 
 
-        [HttpGet("{folderId}/mine")]
-        public async Task<IActionResult> GetMine(Guid folderId)
+        [HttpGet("record-content/{recordContentId}/mine")]
+        public async Task<IActionResult> GetMineByRecordContent(Guid recordContentId)
         {
             var learnerId = await GetLearnerProfileIdAsync();
-            return Ok(await _recordService.GetRecordsByCategoryAsync(learnerId, folderId));
+            return Ok(await _recordService
+                .GetLatestRecordByRecordContentAsync(learnerId, recordContentId));
         }
+
 
         [HttpDelete("{recordId}")]
         public async Task<IActionResult> Delete(Guid recordId)

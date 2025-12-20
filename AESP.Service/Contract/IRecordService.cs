@@ -6,7 +6,10 @@ namespace AESP.Service.Contract
     {
         Task<ResponseDTO> SubmitRecordAsync(Guid learnerProfileId, Guid folderId, SubmitRecordDTO dto);
         Task<ResponseDTO> UpdateRecordAIResultAsync(Guid learnerProfileId, Guid recordId, UpdateRecordAIResultDTO dto);
-        Task<ResponseDTO> GetRecordsByCategoryAsync(Guid learnerProfileId, Guid folderId);
+        Task<ResponseDTO> GetLatestRecordByRecordContentAsync(
+    Guid learnerProfileId,
+    Guid recordContentId);
+
         Task<ResponseDTO> DeleteRecordAsync(Guid learnerProfileId, Guid recordId);
 
         Task<ResponseDTO> CreateRecordContentOnlyAsync(Guid learnerProfileId, Guid folderId, CreateRecordContentOnlyDTO dto);
