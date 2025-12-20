@@ -111,46 +111,51 @@ namespace AESP.Service.Implementation
         }
 
 
-        public async Task<ResponseDTO> CreateQuestionMediaAsync(Guid questionId, CreateQuestionMediaV2DTO request)
+        public async Task<ResponseDTO> CreateQuestionMediaAsync(
+            Guid questionId,
+            CreateQuestionMediaV2DTO request)
         {
             try
             {
                 // --- VALIDATION ---
                 if (request == null)
                     return Fail(BusinessCode.VALIDATION_FAILED, "Dữ liệu không hợp lệ.");
+
                 if (questionId == Guid.Empty)
                     return Fail(BusinessCode.VALIDATION_FAILED, "QuestionId không hợp lệ.");
-              
 
-                // --- ÍT NHẤT 1 TRONG 3 URL PHẢI CÓ ---
+                // --- ÍT NHẤT 1 TRONG 2 URL PHẢI CÓ ---
                 bool hasAnyMedia =
                     !string.IsNullOrWhiteSpace(request.VideoUrl) ||
                     !string.IsNullOrWhiteSpace(request.ImageUrl);
-                if (!hasAnyMedia)
-                    return Fail(BusinessCode.VALIDATION_FAILED,
-                        "Phải có ít nhất một trong các URL (VideoUrl, ImageUrl).");
 
-                // --- KIỂM TRA QUESTION CÓ TỒN TẠI ---
+                if (!hasAnyMedia)
+                    return Fail(
+                        BusinessCode.VALIDATION_FAILED,
+                        "Phải có ít nhất một trong VideoUrl hoặc ImageUrl."
+                    );
+
+                // --- CHECK QUESTION ---
                 var question = await _questionRepository.GetById(questionId);
                 if (question == null)
-                    return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy câu hỏi để gắn media.");
+                    return Fail(
+                        BusinessCode.DATA_NOT_FOUND,
+                        "Không tìm thấy câu hỏi để gắn media."
+                    );
 
-               
-
-             
-
-                // --- TẠO MỚI ---
+                // --- CREATE ---
                 var media = new QuestionMedia
                 {
                     QuestionMediaId = Guid.NewGuid(),
                     QuestionId = questionId,
                     VideoUrl = request.VideoUrl,
-                    ImageUrl = request.ImageUrl,
+                    ImageUrl = request.ImageUrl
                 };
 
                 await _questionMediaRepository.Insert(media);
                 await _unitOfWork.SaveChangeAsync();
 
+                // --- RESPONSE ---
                 return new ResponseDTO
                 {
                     IsSucess = true,
@@ -160,17 +165,17 @@ namespace AESP.Service.Implementation
                     {
                         media.QuestionMediaId,
                         media.QuestionId,
-                        media.Accent,
-                        media.AudioUrl,
                         media.VideoUrl,
-                        media.ImageUrl,
-                        media.Source
+                        media.ImageUrl
                     }
                 };
             }
             catch (Exception ex)
             {
-                return Fail(BusinessCode.EXCEPTION, $"Không thể tạo QuestionMedia: {ex.Message}");
+                return Fail(
+                    BusinessCode.EXCEPTION,
+                    $"Không thể tạo QuestionMedia: {ex.Message}"
+                );
             }
         }
 
