@@ -64,6 +64,8 @@ namespace AESP.Repository.DB
 
         public DbSet<RecordCharge> RecordCharge { get; set; }
 
+        public DbSet<RecordContent> RecordContents { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -184,6 +186,17 @@ namespace AESP.Repository.DB
                  .HasOne(r => r.User)
                  .WithMany(u => u.RefreshTokens)
                  .HasForeignKey(r => r.UserId);
+            modelBuilder.Entity<RecordContent>()
+    .HasOne(rc => rc.LearnerRecord)
+    .WithMany(lr => lr.RecordContents)
+    .HasForeignKey(rc => rc.LearnerRecordId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Record>()
+                .HasOne(r => r.RecordContent)
+                .WithMany(rc => rc.Records)
+                .HasForeignKey(r => r.RecordContentId)
+                .OnDelete(DeleteBehavior.Restrict);
 
         }
     }

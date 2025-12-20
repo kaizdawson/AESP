@@ -99,10 +99,12 @@ namespace AESP.Service.Implementation
                             .ThenInclude(la => la.LearnerProfile)
                                 .ThenInclude(lp => lp.User)
                     .Include(f => f.Review)
-                        .ThenInclude(r => r.Record)
-                            .ThenInclude(rec => rec.LearnerRecord)
-                                .ThenInclude(lr => lr.LearnerProfile)
-                                    .ThenInclude(lp => lp.User)
+    .ThenInclude(r => r.Record)
+        .ThenInclude(rec => rec.RecordContent)
+            .ThenInclude(rc => rc.LearnerRecord)
+                .ThenInclude(lr => lr.LearnerProfile)
+                    .ThenInclude(lp => lp.User)
+
                     .FirstOrDefaultAsync(f => f.FeedbackId == feedbackId && f.Type == "ReviewerReport");
 
                 if (feedback == null)
@@ -150,8 +152,8 @@ namespace AESP.Service.Implementation
                 }
                 else if (review.Record != null)
                 {
-                    learnerUser = review.Record.LearnerRecord.LearnerProfile.User;
-                    learnerProfileId = review.Record.LearnerRecord.LearnerProfile.LearnerProfileId;
+                    learnerUser = review.Record.RecordContent.LearnerRecord.LearnerProfile.User;
+                    learnerProfileId = review.Record.RecordContent.LearnerRecord.LearnerProfile.LearnerProfileId;
                 }
                 else
                 {
