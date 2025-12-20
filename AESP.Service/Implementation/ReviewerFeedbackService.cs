@@ -59,6 +59,7 @@ namespace AESP.Service.Implementation
                             .ThenInclude(lp => lp.User)
                     .Include(f => f.Review)
                         .ThenInclude(r => r.Record)
+                        .ThenInclude(rcd => rcd.RecordContent)
                             .ThenInclude(rec => rec.LearnerRecord)
                             .ThenInclude(lr => lr.LearnerProfile)
                             .ThenInclude(lp => lp.User)

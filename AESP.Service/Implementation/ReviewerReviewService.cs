@@ -101,9 +101,10 @@ namespace AESP.Service.Implementation
                 // 2) GET RECORDS
                 // ============================
                 var pendingRecordsQuery = db.Set<Record>()
-                    .Include(r => r.LearnerRecord)
-                        .ThenInclude(lr => lr.LearnerProfile)
-                            .ThenInclude(lp => lp.User)
+                    .Include(r => r.RecordContent)
+    .ThenInclude(rc => rc.LearnerRecord)
+        .ThenInclude(lr => lr.LearnerProfile)
+            .ThenInclude(lp => lp.User)
                     .AsNoTracking()
                     .Where(r =>
                         r.IsNeedReviewed == true &&
@@ -125,7 +126,7 @@ namespace AESP.Service.Implementation
 
                         AudioUrl = r.AudioRecordingURL,
                         NumberOfReview = r.NumberOfReview,
-                        LearnerFullName = r.LearnerRecord.LearnerProfile.User.FullName,
+                        LearnerFullName =r.RecordContent.LearnerRecord.LearnerProfile.User.FullName,
                         ExpectedReviewerCoin = 0
 
                     });
@@ -153,7 +154,7 @@ namespace AESP.Service.Implementation
                             .FirstOrDefault()
                         : db.Set<Record>()
                             .Where(x => x.RecordId == item.Id)
-                            .Select(x => x.LearnerRecord.LearnerProfile.User.UserId)
+                            .Select(x => x.RecordContent.LearnerRecord.LearnerProfile.User.UserId)
                             .FirstOrDefault();
 
                     item.ExpectedReviewerCoin =
@@ -440,6 +441,7 @@ namespace AESP.Service.Implementation
                  .ThenInclude(la => la.LearnerProfile)
                  .ThenInclude(lp => lp.User)
                  .Include(r => r.Record)
+                 .ThenInclude(rec => rec.RecordContent)
                  .ThenInclude(rec => rec.LearnerRecord)
                  .ThenInclude(lr => lr.LearnerProfile)
                  .ThenInclude(lp => lp.User)
@@ -482,7 +484,7 @@ namespace AESP.Service.Implementation
                         LearnerFullName = r.LearnerAnswer != null
                             ? r.LearnerAnswer.LearnerProfile.User.FullName
                             : (r.Record != null
-                                ? r.Record.LearnerRecord.LearnerProfile.User.FullName
+                                ? r.Record.RecordContent.LearnerRecord.LearnerProfile.User.FullName
                                 : null),
 
                         // Loại review: Answer / Record
@@ -690,8 +692,9 @@ namespace AESP.Service.Implementation
                 if (recordId != null && recordId != Guid.Empty)
                 {
                     var record = await db.Set<Record>()
-                        .Include(r => r.LearnerRecord)
-                            .ThenInclude(cat => cat.LearnerProfile)
+                        .Include(r => r.RecordContent)
+                        .ThenInclude(rc => rc.LearnerRecord)
+                        .ThenInclude(lr => lr.LearnerProfile)
                         .FirstOrDefaultAsync(x => x.RecordId == recordId);
 
                     if (record == null)
@@ -750,7 +753,7 @@ namespace AESP.Service.Implementation
                     await PayReviewerAsync(
                         db,
                         reviewerProfileId,
-                        record.LearnerRecord.LearnerProfile.LearnerProfileId,
+                        record.RecordContent.LearnerRecord.LearnerProfile.LearnerProfileId,
                         review.ReviewId,
                         "Thanh toán coin cho reviewer sau khi review Record.");
                 }
@@ -821,7 +824,7 @@ namespace AESP.Service.Implementation
                 var review = await db.Reviews
                     .Include(r => r.ReviewerProfile).ThenInclude(rp => rp.User)
                     .Include(r => r.LearnerAnswer).ThenInclude(la => la.LearnerProfile).ThenInclude(lp => lp.User)
-                    .Include(r => r.Record).ThenInclude(rec => rec.LearnerRecord).ThenInclude(lr => lr.LearnerProfile).ThenInclude(lp => lp.User)
+                    .Include(r => r.Record).ThenInclude(rec => rec.RecordContent).ThenInclude(rc => rc.LearnerRecord).ThenInclude(lr => lr.LearnerProfile).ThenInclude(lp => lp.User)
                     .FirstOrDefaultAsync(r =>
                         r.ReviewId == dto.ReviewId &&
                         r.ReviewerProfileId == reviewerProfileId &&
@@ -850,11 +853,11 @@ namespace AESP.Service.Implementation
                 // 4. Lấy learner UserId
                 Guid learnerUserId = review.LearnerAnswer != null
                     ? review.LearnerAnswer.LearnerProfile.User.UserId
-                    : review.Record.LearnerRecord.LearnerProfile.User.UserId;
+                    : review.Record.RecordContent.LearnerRecord.LearnerProfile.User.UserId;
 
                 Guid learnerProfileId = review.LearnerAnswer != null
                     ? review.LearnerAnswer.LearnerProfileId
-                    : review.Record.LearnerRecord.LearnerId;
+                    : review.Record.RecordContent.LearnerRecord.LearnerId;
 
                 // 5. Trừ & cộng coin
                 reviewerUser.CoinBalance -= dto.AmountCoin;
