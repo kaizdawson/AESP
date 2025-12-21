@@ -6,6 +6,7 @@ using AESP.Common.Helpers;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
+using CloudinaryDotNet;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -334,9 +335,8 @@ Trân trọng,
                         Title = course?.Title ?? "(Không rõ)",
                         Price = course?.Price ?? 0,
                         Duration = course?.Duration ?? 0,
-                        // ✅ Lấy thời gian học dựa theo tài khoản học viên
-                        StartTime = learner.User.CreatedAt,
-                        EndTime = learner.User.CreatedAt.AddDays(course?.Duration ?? 0)
+                        StartTime = currentLp.CreatedAt,
+                        EndTime = currentLp.CreatedAt.AddDays(course?.Duration ?? 0)
                     };
                 }
 
@@ -351,9 +351,8 @@ Trân trọng,
                         Title = lp.Course?.Title ?? "(Không rõ)",
                         Price = lp.Course?.Price ?? 0,
                         Duration = lp.Course?.Duration ?? 0,
-                        // ✅ Học viên hoàn thành cũng tính thời gian theo tài khoản của họ
-                        StartTime = learner.User.CreatedAt,
-                        EndTime = learner.User.CreatedAt.AddDays(lp.Course?.Duration ?? 0)
+                        StartTime = lp.CreatedAt,
+                        EndTime = lp.CreatedAt.AddDays(lp.Course?.Duration ?? 0)
                     })
                     .ToList();
                 var allCourses = new List<ReadLearnerCourseDTOS>();
@@ -380,7 +379,7 @@ Trân trọng,
                     LastActiveAt = learner.User.LastActiveAt,
                     Courses = allCourses,
                     AssessmentCount = learner.Assessments.Count,
-                    AvgScore = learner.Assessments.Any() ? learner.Assessments.Average(a => (double)a.Score) : 0
+                    AvgScore = learner.Assessments.Any(a => a.Score.HasValue)? learner.Assessments.Where(a => a.Score.HasValue).Average(a => a.Score!.Value): 0
                 };
 
                 dto.IsSucess = true;
