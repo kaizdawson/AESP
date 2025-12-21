@@ -38,7 +38,8 @@ public class RecordService : IRecordService
     .Include(rc => rc.LearnerRecord)
     .FirstOrDefaultAsync(rc =>
         rc.RecordContentId == recordContentId &&
-        rc.LearnerRecord.LearnerId == learnerProfileId
+        rc.LearnerRecord.LearnerId == learnerProfileId &&
+    !rc.IsDeleted
     );
 
 
@@ -109,6 +110,8 @@ public class RecordService : IRecordService
             if (record.RecordContent.LearnerRecord.LearnerId != learnerProfileId)
                 return Fail("Không có quyền.");
 
+            if (record.RecordContent.IsDeleted)
+                return Fail("Record content đã bị xóa.");
 
             record.Score = dto.Score;
             record.AIFeedback = dto.AIFeedback;
@@ -164,7 +167,7 @@ public class RecordService : IRecordService
 
             var result = await (
     from rc in _recordContentRepo.AsQueryable()
-    where rc.LearnerRecordId == folderId
+    where rc.LearnerRecordId == folderId && !rc.IsDeleted
 
     let latestRecord = _recordRepo.AsQueryable()
         .Where(r => r.RecordContentId == rc.RecordContentId)
@@ -241,7 +244,8 @@ public class RecordService : IRecordService
             {
                 RecordContentId = Guid.NewGuid(),
                 LearnerRecordId = folderId,
-                Content = dto.Content
+                Content = dto.Content,
+                IsDeleted = false
             };
 
             await _recordContentRepo.Insert(recordContent);
@@ -284,7 +288,8 @@ public class RecordService : IRecordService
                 .Include(rc => rc.LearnerRecord)
                 .FirstOrDefaultAsync(rc =>
                     rc.RecordContentId == recordContentId &&
-                    rc.LearnerRecord.LearnerId == learnerProfileId
+                    rc.LearnerRecord.LearnerId == learnerProfileId &&
+    !rc.IsDeleted
                 );
 
             if (recordContent == null)
@@ -357,6 +362,9 @@ public class RecordService : IRecordService
             if (record.RecordContent.LearnerRecord.LearnerId != learnerProfileId)
                 return Fail("Không có quyền.");
 
+            if (record.RecordContent.IsDeleted)
+                return Fail("Record content đã bị xóa.");
+
             record.AudioRecordingURL = dto.AudioRecordingURL;
             record.Score = dto.Score;
             record.AIFeedback = dto.AIFeedback;
@@ -392,7 +400,8 @@ public class RecordService : IRecordService
     private async Task UpdateFolderStatusAsync(LearnerRecord folder)
     {
         var contents = await _recordContentRepo.AsQueryable()
-            .Where(rc => rc.LearnerRecordId == folder.LearnerRecordId)
+            .Where(rc => rc.LearnerRecordId == folder.LearnerRecordId &&
+        !rc.IsDeleted)
             .Select(rc => new
             {
                 rc.RecordContentId,
@@ -428,47 +437,41 @@ public class RecordService : IRecordService
     // DELETE RECORD CONTENT (AGGREGATE)
     // ============================================================
     public async Task<ResponseDTO> DeleteRecordContentAsync(
-        Guid learnerProfileId,
-        Guid recordContentId)
+    Guid learnerProfileId,
+    Guid recordContentId)
     {
         await _unitOfWork.BeginTransactionAsync();
 
         try
         {
-            // 1. Lấy RecordContent + check quyền
+            // 1️⃣ Lấy RecordContent + check quyền + chưa bị xóa
             var recordContent = await _recordContentRepo.AsQueryable()
                 .Include(rc => rc.LearnerRecord)
                 .FirstOrDefaultAsync(rc =>
                     rc.RecordContentId == recordContentId &&
-                    rc.LearnerRecord.LearnerId == learnerProfileId
+                    rc.LearnerRecord.LearnerId == learnerProfileId &&
+                    !rc.IsDeleted
                 );
 
             if (recordContent == null)
                 return Fail("Không tìm thấy record content hoặc không có quyền.");
 
-           
-            var records = await _recordRepo.AsQueryable()
-                .Where(r => r.RecordContentId == recordContentId)
-                .ToListAsync();
+            // 2️⃣ SOFT DELETE DUY NHẤT RecordContent
+            recordContent.IsDeleted = true;
+            recordContent.UpdatedAt = DateTimeHelper.NowVN();
+            await _recordContentRepo.Update(recordContent);
 
-         
-            foreach (var record in records)
-            {
-                await _recordRepo.Delete(record);
-            }
-
-            
-            await _recordContentRepo.Delete(recordContent);
-
+            // 3️⃣ Lưu DB
             await _unitOfWork.SaveChangeAsync();
 
-        
+            // 4️⃣ Cập nhật trạng thái folder (bỏ qua record content đã bị xóa)
             await UpdateFolderStatusAsync(recordContent.LearnerRecord);
-
             await _unitOfWork.SaveChangeAsync();
+
+            // 5️⃣ Commit
             await _unitOfWork.CommitAsync();
 
-            return Success("Xóa record content và toàn bộ record thành công.");
+            return Success("Xóa record content thành công.");
         }
         catch (Exception ex)
         {
@@ -476,6 +479,8 @@ public class RecordService : IRecordService
             return Fail(ex.Message);
         }
     }
+
+
 
 
     // ============================================================
