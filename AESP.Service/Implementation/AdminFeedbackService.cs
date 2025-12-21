@@ -167,6 +167,46 @@ namespace AESP.Service.Implementation
                 feedback.Status = "Active";
                 db.Feedbacks.Update(feedback);
 
+                var approvedReportCount = await db.Feedbacks
+    .Include(f => f.Review)
+    .Where(f =>
+        f.Type == "ReviewerReport" &&
+        f.Status == "Active" &&
+        f.Review.ReviewerProfileId == reviewerProfile.ReviewerProfileId)
+    .CountAsync();
+
+                // ===============================
+                // ❷ NẾU >= 3 → BAN REVIEWER
+                // ===============================
+                if (approvedReportCount >= 3)
+                {
+                    // Khóa ReviewerProfile
+                    reviewerProfile.Status = "Banned";
+                    reviewerProfile.IsDeleted = false;
+                    db.ReviewerProfiles.Update(reviewerProfile);
+
+                    // Khóa luôn User
+                    reviewerUser.Status = "Banned";
+                    reviewerUser.IsDeleted = false;
+                    db.Users.Update(reviewerUser);
+
+                    // (Optional) Gửi email thông báo bị ban
+                    if (!string.IsNullOrEmpty(reviewerUser.Email))
+                    {
+                        string subject = "AESP - Tài khoản reviewer của bạn đã bị khóa";
+                        string body =
+                $@"Xin chào {reviewerUser.FullName},
+
+Tài khoản reviewer của bạn đã bị KHÓA do có từ 3 report hợp lệ được learner gửi và được admin xác nhận.
+
+Vui lòng liên hệ bộ phận hỗ trợ nếu bạn cho rằng đây là nhầm lẫn.
+
+Trân trọng,
+Đội ngũ AESP.";
+                        await _emailService.SendEmailAsync(reviewerUser.Email, subject, body);
+                    }
+                }
+
                 // 2) Đổi trạng thái Review
                 review.Status = "Reported"; // hoặc "ReportedApproved"
                 db.Reviews.Update(review);
@@ -301,6 +341,8 @@ Trân trọng,
             {
                 var db = _feedbackRepository.GetDbContext();
 
+                var baseQuery = db.Feedbacks.AsQueryable();
+
                 var query = db.Feedbacks
                     .Include(f => f.User)
                  .Include(f => f.Review) // thêm dòng này
@@ -329,6 +371,9 @@ Trân trọng,
                         case "rejected":
                             query = query.Where(f => f.Status == "Rejected");
                             break;
+                        case "pending":
+                            query = query.Where(f => f.Status == "Pending");
+                            break;
                         case "all":
                         default:
                             // không lọc
@@ -341,17 +386,25 @@ Trân trọng,
                     query = query.Where(f => f.Type == type);
                 }
 
-                var totalFeedback = await query.CountAsync(f => f.Type == "ReviewerFeedback");
-                var totalApproved = await query.CountAsync(f => f.Type == "ReviewerFeedback" && f.Status == "Active");
-                var totalRejected = await query.CountAsync(f => f.Type == "ReviewerFeedback" && f.Status == "Rejected");
+                var totalFeedback = await baseQuery
+            .CountAsync(f => f.Type == "ReviewerFeedback");
+
+                var totalApproved = await baseQuery
+                    .CountAsync(f => f.Type == "ReviewerFeedback" && f.Status == "Active");
+
+                var totalRejected = await baseQuery
+                    .CountAsync(f => f.Type == "ReviewerFeedback" && f.Status == "Rejected");
+
+                var totalReports = await baseQuery
+                    .CountAsync(f => f.Type == "ReviewerReport");
 
                 var avgRating = totalFeedback > 0
                     ? Math.Round(await query
-                        .Where(f => f.Type == "ReviewerFeedback")
+                        .Where(f => f.Type == "ReviewerFeedback" && f.Status == "Active")
                         .AverageAsync(f => (double?)f.Rating) ?? 0, 1)
                     : 0;
 
-                var totalReports = await query.CountAsync(f => f.Type == "ReviewerReport");
+                
 
                 // 🔢 Phân trang
                 var totalItems = await query.CountAsync();
@@ -632,11 +685,11 @@ Trân trọng,
                 .Include(f => f.Review)
                .Where(f =>
                   f.Review.ReviewerProfileId == reviewerProfileId &&
-                  f.Type == "LearnerFeedback" &&
+                  f.Type == "ReviewerFeedback" &&
                   f.Status == "Active")
                   .ToListAsync();
 
-            if (feedbacks.Count == 0)
+            if (!feedbacks.Any())
                 return;
 
             // 2️⃣ Tính điểm trung bình
