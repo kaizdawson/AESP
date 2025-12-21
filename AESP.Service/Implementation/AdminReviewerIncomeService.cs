@@ -141,6 +141,26 @@ namespace AESP.Service.Implementation
 
                 var totalRejectedReviews = await query.CountAsync(x => x.Status == "Rejected");
 
+                // 🔹 Lấy tiền theo từng review (CHUẨN KẾ TOÁN)
+                var reviewPayments = await db.Set<TransferTransaction>()
+                    .Where(t =>
+                        t.ReviewerProfileId == reviewerProfileId &&
+                        t.Status == "Completed" &&
+                        t.TransactionType == "ReviewPayment" &&
+                        t.ReviewId != null &&
+                        (fromDate == null || t.CreatedAt >= fromDate) &&
+                        (toDate == null || t.CreatedAt <= toDate))
+                    .GroupBy(t => t.ReviewId!.Value)
+                    .Select(g => new
+                    {
+                        ReviewId = g.Key,
+                        Amount = g.Sum(x => x.AmountCoin)
+                    })
+                    .ToDictionaryAsync(x => x.ReviewId, x => x.Amount);
+
+
+
+
 
                 // ========================================
                 // 4) Trả dữ liệu cho Admin
@@ -156,8 +176,8 @@ namespace AESP.Service.Implementation
                     Reported = totalReportedReviews,
                     Rejected = totalRejectedReviews,
 
-                    PricePerReview = pricePerReview,
-                    IncomePerReview = incomePerReview,
+                    CurrentSystemPricePerReview = pricePerReview,
+                    CurrentReviewerIncomePerReview = incomePerReview,
 
                     TotalEarnedFromSystem = totalEarnedFromSystem,
                     TotalPenalty = totalPenalty,
@@ -192,8 +212,9 @@ namespace AESP.Service.Implementation
                             : "Không xác định",
 
                         EarnedFromThisReview =
-                            r.Status == "Completed" ? incomePerReview :
-                            (r.Status == "Reported" || r.Status == "Rejected") ? 0 : 0
+                            reviewPayments.TryGetValue(r.ReviewId, out var coin)
+                                ? coin
+                                : 0
                     }).ToList()
                 };
 
