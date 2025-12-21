@@ -153,19 +153,7 @@ public class RecordCategoryService : IRecordCategoryService
                     x.Name,
                     x.Status,
                     x.CreatedAt,
-                    x.NumberOfRecord,
-
-                    RecordContents = x.RecordContents
-                    .Where(rc => !rc.IsDeleted)
-                    .OrderByDescending(rc => rc.CreatedAt)
-                    .Select(rc => new
-                    {
-                        rc.RecordContentId,
-                        rc.Content,
-                        rc.CreatedAt,
-                        rc.UpdatedAt
-                    })
-                    .ToList()
+                    x.NumberOfRecord
                 })
                 .ToListAsync();
 

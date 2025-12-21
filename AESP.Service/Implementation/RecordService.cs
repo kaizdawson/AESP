@@ -52,7 +52,7 @@ public class RecordService : IRecordService
                 RecordId = Guid.NewGuid(),
                 RecordContentId = recordContent.RecordContentId,
                 AudioRecordingURL = dto.AudioRecordingURL,
-                Content = dto.Content,
+                TranscribedText = dto.TranscribedText,
                 Score = dto.Score,
                 AIFeedback = dto.AIFeedback,
                 Status = "Submitted",
@@ -74,7 +74,7 @@ public class RecordService : IRecordService
                 record.RecordId,
                 record.RecordContentId,
                 record.AudioRecordingURL,
-                record.Content,
+                record.TranscribedText,
                 record.Score,
                 record.AIFeedback,
                 record.Status,
@@ -146,35 +146,52 @@ public class RecordService : IRecordService
     // ============================================================
     // GET ALL RECORDS BY FOLDER
     // ============================================================
-    public async Task<ResponseDTO> GetRecordsByCategoryAsync(Guid learnerProfileId, Guid folderId)
+    public async Task<ResponseDTO> GetRecordsByCategoryAsync(
+    Guid learnerProfileId,
+    Guid folderId)
     {
         try
         {
-            var list = await _recordRepo.AsQueryable()
-    .Include(r => r.RecordContent)
-        .ThenInclude(rc => rc.LearnerRecord)
-    .Where(r =>
-        r.RecordContent.LearnerRecordId == folderId &&
-        r.RecordContent.LearnerRecord.LearnerId == learnerProfileId
-    )
-    .OrderByDescending(r => r.CreatedAt)
-    .Select(r => new
+           
+            var folder = await _folderRepo.AsQueryable()
+                .FirstOrDefaultAsync(f =>
+                    f.LearnerRecordId == folderId &&
+                    f.LearnerId == learnerProfileId);
+
+            if (folder == null)
+                return Fail("Không tìm thấy thư mục hoặc không có quyền.");
+
+
+            var result = await (
+    from rc in _recordContentRepo.AsQueryable()
+    where rc.LearnerRecordId == folderId
+
+    let latestRecord = _recordRepo.AsQueryable()
+        .Where(r => r.RecordContentId == rc.RecordContentId)
+        .OrderByDescending(r => r.CreatedAt)
+        .FirstOrDefault()
+
+    select new
     {
-        r.RecordId,
-        r.RecordContentId,
-        r.AudioRecordingURL,
-        r.Score,
-        r.AIFeedback,
-        r.TranscribedText,
-        r.Status,
-        r.CreatedAt,
-        r.NumberOfReview,
-        r.Content
-    })
-    .ToListAsync();
+        rc.RecordContentId,
+        rc.Content,
+
+        RecordId = latestRecord != null ? latestRecord.RecordId : (Guid?)null,
+        AudioRecordingURL = latestRecord != null ? latestRecord.AudioRecordingURL : string.Empty,
+        TranscribedText = latestRecord != null ? latestRecord.TranscribedText : string.Empty,
+        Score = latestRecord != null ? latestRecord.Score : 0,
+        AIFeedback = latestRecord != null ? latestRecord.AIFeedback : string.Empty,
+        Status = latestRecord != null ? latestRecord.Status : "Draft",
+        CreatedAt = latestRecord != null ? latestRecord.CreatedAt : (DateTime?)null,
+        NumberOfReview = latestRecord != null ? latestRecord.NumberOfReview : 0,
+        IsNeedReviewed = latestRecord != null && latestRecord.IsNeedReviewed
+    }
+)
+.OrderByDescending(x => x.CreatedAt ?? DateTime.MinValue)
+.ToListAsync();
 
 
-            return Success("Lấy danh sách record thành công.", list);
+            return Success("Lấy danh sách record theo folder thành công.", result);
         }
         catch (Exception ex)
         {
@@ -182,44 +199,8 @@ public class RecordService : IRecordService
         }
     }
 
-    // ============================================================
-    // DELETE RECORD
-    // ============================================================
-    public async Task<ResponseDTO> DeleteRecordAsync(Guid learnerProfileId, Guid recordId)
-    {
-        await _unitOfWork.BeginTransactionAsync();
 
-        try
-        {
-            var record = await _recordRepo.AsQueryable()
-    .Include(r => r.RecordContent)
-        .ThenInclude(rc => rc.LearnerRecord)
-    .FirstOrDefaultAsync(r => r.RecordId == recordId);
-
-
-            if (record == null)
-                return Fail("Không tìm thấy record.");
-
-            if (record.RecordContent.LearnerRecord.LearnerId != learnerProfileId)
-                return Fail("Không có quyền.");
-
-
-            await _recordRepo.Delete(record);
-            await _unitOfWork.SaveChangeAsync();
-            await UpdateFolderStatusAsync(record.RecordContent.LearnerRecord);
-
-
-            await _unitOfWork.SaveChangeAsync();
-            await _unitOfWork.CommitAsync();
-
-            return Success("Xóa record thành công.");
-        }
-        catch (Exception ex)
-        {
-            await _unitOfWork.RollbackAsync();
-            return Fail(ex.Message);
-        }
-    }
+    
 
 
 
@@ -291,45 +272,60 @@ public class RecordService : IRecordService
 
     public async Task<ResponseDTO> UpdateRecordContentAsync(
     Guid learnerProfileId,
-    Guid recordId,
+    Guid recordContentId,
     UpdateRecordContentDTO dto)
     {
         await _unitOfWork.BeginTransactionAsync();
 
         try
         {
-            var record = await _recordRepo.AsQueryable()
-    .Include(r => r.RecordContent)
-        .ThenInclude(rc => rc.LearnerRecord)
-    .FirstOrDefaultAsync(r => r.RecordId == recordId);
+           
+            var recordContent = await _recordContentRepo.AsQueryable()
+                .Include(rc => rc.LearnerRecord)
+                .FirstOrDefaultAsync(rc =>
+                    rc.RecordContentId == recordContentId &&
+                    rc.LearnerRecord.LearnerId == learnerProfileId
+                );
 
-            if (record == null)
-                return Fail("Không tìm thấy record.");
+            if (recordContent == null)
+                return Fail("Không tìm thấy content hoặc không có quyền.");
 
-            if (record.RecordContent.LearnerRecord.LearnerId != learnerProfileId)
-                return Fail("Không có quyền.");
+       
+            recordContent.Content = dto.Content;
+            recordContent.UpdatedAt = DateTimeHelper.NowVN();
+            await _recordContentRepo.Update(recordContent);
 
-            record.Content = dto.Content;
-            record.AudioRecordingURL = string.Empty;
-            record.Score = 0;
-            record.AIFeedback = string.Empty;
-            record.TranscribedText = string.Empty;
-            record.Status = "Draft";
-            record.NumberOfReview = 0;
-            record.IsNeedReviewed = false;
+       
+            var newRecord = new Record
+            {
+                RecordId = Guid.NewGuid(),
+                RecordContentId = recordContent.RecordContentId,
 
-            await _recordRepo.Update(record);
+                AudioRecordingURL = string.Empty,
+                TranscribedText = string.Empty,
+                Score = 0,
+                AIFeedback = string.Empty,
+
+                Status = "Draft",
+                CreatedAt = DateTimeHelper.NowVN(),
+                NumberOfReview = 0,
+                IsNeedReviewed = false
+            };
+
+            await _recordRepo.Insert(newRecord);
+
+          
             await _unitOfWork.SaveChangeAsync();
+            await UpdateFolderStatusAsync(recordContent.LearnerRecord);
 
-            await UpdateFolderStatusAsync(record.RecordContent.LearnerRecord);
             await _unitOfWork.SaveChangeAsync();
             await _unitOfWork.CommitAsync();
 
-            return Success("Cập nhật content và reset record thành công.", new
+            return Success("Cập nhật content và tạo record mới thành công.", new
             {
-                record.RecordId,
-                record.Content,
-                record.Status
+                recordContent.RecordContentId,
+                recordContent.Content,
+                NewRecordId = newRecord.RecordId
             });
         }
         catch (Exception ex)
@@ -338,6 +334,8 @@ public class RecordService : IRecordService
             return Fail(ex.Message);
         }
     }
+
+
 
 
 
@@ -390,13 +388,54 @@ public class RecordService : IRecordService
     }
 
 
-    public async Task<ResponseDTO> GetLatestRecordByRecordContentAsync(
-    Guid learnerProfileId,
-    Guid recordContentId)
+
+    private async Task UpdateFolderStatusAsync(LearnerRecord folder)
     {
+        var contents = await _recordContentRepo.AsQueryable()
+            .Where(rc => rc.LearnerRecordId == folder.LearnerRecordId)
+            .Select(rc => new
+            {
+                rc.RecordContentId,
+                LatestRecordStatus = _recordRepo.AsQueryable()
+                    .Where(r => r.RecordContentId == rc.RecordContentId)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .Select(r => r.Status)
+                    .FirstOrDefault()
+            })
+            .ToListAsync();
+
+        if (!contents.Any())
+        {
+            folder.Status = "Draft";
+        }
+        else if (contents.All(x =>
+            x.LatestRecordStatus == "Submitted" ||
+            x.LatestRecordStatus == "Reviewed"))
+        {
+            folder.Status = "Done";
+        }
+        else
+        {
+            folder.Status = "InProgress";
+        }
+
+        folder.UpdatedAt = DateTimeHelper.NowVN();
+        await _folderRepo.Update(folder);
+    }
+
+
+    // ============================================================
+    // DELETE RECORD CONTENT (AGGREGATE)
+    // ============================================================
+    public async Task<ResponseDTO> DeleteRecordContentAsync(
+        Guid learnerProfileId,
+        Guid recordContentId)
+    {
+        await _unitOfWork.BeginTransactionAsync();
+
         try
         {
-          
+            // 1. Lấy RecordContent + check quyền
             var recordContent = await _recordContentRepo.AsQueryable()
                 .Include(rc => rc.LearnerRecord)
                 .FirstOrDefaultAsync(rc =>
@@ -405,73 +444,37 @@ public class RecordService : IRecordService
                 );
 
             if (recordContent == null)
-                return Fail("Không tìm thấy content hoặc không có quyền.");
-
-            
-            var latestRecord = await _recordRepo.AsQueryable()
-                .Where(r => r.RecordContentId == recordContentId)
-                .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new
-                {
-                    r.RecordId,
-                    r.RecordContentId,
-                    r.AudioRecordingURL,
-                    r.Content,
-                    r.Score,
-                    r.AIFeedback,
-                    r.TranscribedText,
-                    r.Status,
-                    r.CreatedAt,
-                    r.NumberOfReview,
-                    r.IsNeedReviewed
-                })
-                .FirstOrDefaultAsync();
+                return Fail("Không tìm thấy record content hoặc không có quyền.");
 
            
-            if (latestRecord == null)
+            var records = await _recordRepo.AsQueryable()
+                .Where(r => r.RecordContentId == recordContentId)
+                .ToListAsync();
+
+         
+            foreach (var record in records)
             {
-                return Success("Chưa có record.", new
-                {
-                    RecordContentId = recordContent.RecordContentId,
-                    Record = (object?)null
-                });
+                await _recordRepo.Delete(record);
             }
 
-            return Success("Lấy record mới nhất thành công.", latestRecord);
+            
+            await _recordContentRepo.Delete(recordContent);
+
+            await _unitOfWork.SaveChangeAsync();
+
+        
+            await UpdateFolderStatusAsync(recordContent.LearnerRecord);
+
+            await _unitOfWork.SaveChangeAsync();
+            await _unitOfWork.CommitAsync();
+
+            return Success("Xóa record content và toàn bộ record thành công.");
         }
         catch (Exception ex)
         {
+            await _unitOfWork.RollbackAsync();
             return Fail(ex.Message);
         }
-    }
-
-
-    private async Task UpdateFolderStatusAsync(LearnerRecord folder)
-    {
-        var records = await _recordRepo.AsQueryable()
-    .Include(r => r.RecordContent)
-    .Where(r => r.RecordContent.LearnerRecordId == folder.LearnerRecordId)
-    .ToListAsync();
-
-
-
-        if (!records.Any())
-        {
-            folder.Status = "Draft";
-        }
-        
-        else if (records.All(r => r.Status == "Submitted"))
-        {
-            folder.Status = "Done";
-        }
-       
-        else
-        {
-            folder.Status = "InProgress";
-        }
-
-        folder.UpdatedAt = DateTimeHelper.NowVN();
-        await _folderRepo.Update(folder);
     }
 
 
