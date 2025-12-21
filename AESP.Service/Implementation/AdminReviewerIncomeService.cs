@@ -134,9 +134,13 @@ namespace AESP.Service.Implementation
                              && (toDate == null || t.CreatedAt <= toDate))
                     .SumAsync(t => (decimal?)t.AmountCoin) ?? 0m;
 
-                var totalCompletedReviews = reviews.Count(x => x.Status == "Completed");
-                var totalReportedReviews = reviews.Count(x => x.Status == "Reported" || x.Status == "Reported_Pending");
-                var totalRejectedReviews = reviews.Count(x => x.Status == "Rejected");
+                var totalCompletedReviews = await query.CountAsync(x => x.Status == "Completed");
+
+                var totalReportedReviews = await query.CountAsync(x =>
+                    x.Status == "Reported" || x.Status == "Reported_Pending");
+
+                var totalRejectedReviews = await query.CountAsync(x => x.Status == "Rejected");
+
 
                 // ========================================
                 // 4) Trả dữ liệu cho Admin
@@ -147,7 +151,7 @@ namespace AESP.Service.Implementation
                 dto.Message = "Lấy chi tiết reviewer thành công.";
                 dto.Data = new
                 {
-                    TotalReviews = reviews.Count,
+                    TotalReviews = totalItems,
                     Completed = totalCompletedReviews,
                     Reported = totalReportedReviews,
                     Rejected = totalRejectedReviews,

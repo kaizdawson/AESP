@@ -55,7 +55,7 @@ namespace AESP.Service.Implementation
                     response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
                     return response;
                 }
-
+                
                 // 2️ Kiểm tra Review này có thuộc Learner đang đăng nhập không
                 Guid? learnerUserId = null;
 
@@ -72,6 +72,7 @@ namespace AESP.Service.Implementation
                     response.BusinessCode = BusinessCode.ACCESS_DENIED;
                     return response;
                 }
+
 
                 // 3️ Validate Content
                 if (string.IsNullOrWhiteSpace(dto.Content))
@@ -140,6 +141,7 @@ namespace AESP.Service.Implementation
                         };
                     }
                 }
+
 
                 // 4️⃣ Tạo Feedback
                 var feedback = new Feedback
