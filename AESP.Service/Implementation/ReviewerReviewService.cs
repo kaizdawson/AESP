@@ -84,7 +84,7 @@ namespace AESP.Service.Implementation
                         Type = "LearnerAnswer",
                         Id = la.LearnerAnswerId,
                         SubmittedAt = la.SubmittedAt,
-
+                        RecordContent = null,
                         QuestionText = la.LearningPathQuestion.Question.Text,
                         TranscribedText = la.TranscribedText,
 
@@ -102,9 +102,9 @@ namespace AESP.Service.Implementation
                 // ============================
                 var pendingRecordsQuery = db.Set<Record>()
                     .Include(r => r.RecordContent)
-    .ThenInclude(rc => rc.LearnerRecord)
-        .ThenInclude(lr => lr.LearnerProfile)
-            .ThenInclude(lp => lp.User)
+                    .ThenInclude(rc => rc.LearnerRecord)
+                    .ThenInclude(lr => lr.LearnerProfile)
+                    .ThenInclude(lp => lp.User)
                     .AsNoTracking()
                     .Where(r =>
                         r.IsNeedReviewed == true &&
@@ -118,7 +118,8 @@ namespace AESP.Service.Implementation
                         Id = r.RecordId,
                         SubmittedAt = r.CreatedAt,
 
-                        QuestionText = r.Content,
+                        QuestionText = null,
+                        RecordContent = r.RecordContent.Content,
 
                         TranscribedText = r.TranscribedText,
                         AIFeedback = r.AIFeedback,           // ✅ chuẩn
@@ -135,7 +136,7 @@ namespace AESP.Service.Implementation
                 // 3) GỘP 2 QUERY
                 // ============================
                 var combinedQuery = pendingAnswersQuery
-                    .Union(pendingRecordsQuery);
+                    .Concat(pendingRecordsQuery);
 
                 var totalItems = await combinedQuery.CountAsync();
 
@@ -414,8 +415,8 @@ namespace AESP.Service.Implementation
 
                 var db = _unitOfWork.GetDbContext();
                 var reviewer = await db.Set<ReviewerProfile>()
-    .Include(r => r.User)
-    .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
+                .Include(r => r.User)
+                .FirstOrDefaultAsync(r => r.ReviewerProfileId == reviewerProfileId);
 
                 if (reviewer == null)
                 {
@@ -477,8 +478,8 @@ namespace AESP.Service.Implementation
 
                         // Câu hỏi của Answer hoặc Content của Record
                         QuestionContent = r.LearnerAnswer != null
-                             ? r.LearnerAnswer.LearningPathQuestion.Question.Text
-                             : (r.Record != null ? r.Record.Content : null),
+                            ? r.LearnerAnswer.LearningPathQuestion.Question.Text
+                            : (r.Record != null ? r.Record.RecordContent.Content : null),
 
                         // Tên học viên
                         LearnerFullName = r.LearnerAnswer != null
