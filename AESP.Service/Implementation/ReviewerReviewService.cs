@@ -84,7 +84,7 @@ namespace AESP.Service.Implementation
                         Type = "LearnerAnswer",
                         Id = la.LearnerAnswerId,
                         SubmittedAt = la.SubmittedAt,
-                        RecordContent = null,
+                       
                         QuestionText = la.LearningPathQuestion.Question.Text,
                         TranscribedText = la.TranscribedText,
 
@@ -118,8 +118,8 @@ namespace AESP.Service.Implementation
                         Id = r.RecordId,
                         SubmittedAt = r.CreatedAt,
 
-                        QuestionText = null,
-                        RecordContent = r.RecordContent.Content,
+                        QuestionText = r.RecordContent.Content,
+                       
 
                         TranscribedText = r.TranscribedText,
                         AIFeedback = r.AIFeedback,           // ✅ chuẩn
