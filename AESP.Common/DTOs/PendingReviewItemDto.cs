@@ -13,6 +13,9 @@ namespace AESP.Common.DTOs
         public DateTime SubmittedAt { get; set; }
 
         public string QuestionText { get; set; }
+
+        public string? RecordContent { get; set; }
+
         public string TranscribedText { get; set; }
         public string AIFeedback { get; set; }
 

@@ -264,10 +264,18 @@ namespace AESP.Service.Implementation
                 // ✅ FILTER THEO TYPE FEEDBACK (ReviewerFeedback / ReviewerReport)
                 if (!string.IsNullOrWhiteSpace(feedbackType))
                 {
-                    feedbackType = feedbackType.Trim().ToLower();
+                    var normalizedType =
+                    feedbackType.Equals("reviewerfeedback", StringComparison.OrdinalIgnoreCase)
+                    ? "ReviewerFeedback"
+                    : feedbackType.Equals("reviewerreport", StringComparison.OrdinalIgnoreCase)
+                    ? "ReviewerReport"
+                    : null;
 
-                    baseQuery = baseQuery.Where(r =>
-                        r.Feedbacks.Any(f => f.Type == feedbackType));
+                    if (normalizedType != null)
+                    {
+                        baseQuery = baseQuery.Where(r =>
+                            r.Feedbacks.Any(f => f.Type == normalizedType));
+                    }
                 }
 
                 // ✅ SEARCH ĐÚNG NGHIỆP VỤ
@@ -279,7 +287,7 @@ namespace AESP.Service.Implementation
                         (r.Comment != null && r.Comment.ToLower().Contains(keyword)) ||
                         (r.LearnerAnswer != null &&
                             r.LearnerAnswer.LearningPathQuestion.Question.Text.ToLower().Contains(keyword)) ||
-                        (r.Record != null && r.Record.Content.ToLower().Contains(keyword))
+                        (r.Record != null && r.Record.RecordContent.Content.ToLower().Contains(keyword))
                     );
                 }
 
@@ -302,8 +310,8 @@ namespace AESP.Service.Implementation
                         CreatedAt = r.CreatedAt,
 
                         QuestionContent = r.LearnerAnswer != null
-                            ? r.LearnerAnswer.LearningPathQuestion.Question.Text
-                            : r.Record.Content,
+                        ? r.LearnerAnswer.LearningPathQuestion.Question.Text
+                        : r.Record.RecordContent.Content,
 
                         ReviewerFullName = r.ReviewerProfile.User.FullName,
 
