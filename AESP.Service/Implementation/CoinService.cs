@@ -616,8 +616,8 @@ namespace AESP.Service.Implementation
                 dto.Message = "Lấy dashboard giao dịch thành công.";
                 dto.Data = new
                 {
-                    totalPaid = totalPaid,
-                    totalApproved = totalApproved,
+                    totalDepositPaid = totalPaid,
+                    totalWithdrawalApproved = totalApproved,
                     totalFailTransaction = totalFailTransaction,
                     totalPendingTransaction = totalPendingTransaction,
                     totalDepositAmount,
