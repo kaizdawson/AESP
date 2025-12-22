@@ -225,13 +225,28 @@ Trân trọng,
                         .Where(lp => learnerCourseIdsOfLearner.Contains(lp.LearnerCourseId))
                         .ToList();
 
-                    // 🔹 Xác định khóa học hiện tại (Pending hoặc Enrolled)
+                   
                     var currentLp = lpOfLearner
-                        .Where(lp =>
-                            StatusHelper.EqualsCourseStatus(lp.Status, CourseStatus.Pending) ||
-                            StatusHelper.EqualsCourseStatus(lp.Status, CourseStatus.Enrolled))
-                        .OrderByDescending(lp => lp.OrderIndex)
-                        .FirstOrDefault();
+                         .Where(lp =>
+                             lp.Status.Equals("InProgress", StringComparison.OrdinalIgnoreCase) ||
+                             lp.Status.Equals("NotStarted", StringComparison.OrdinalIgnoreCase))
+                         .OrderByDescending(lp => lp.OrderIndex)
+                         .FirstOrDefault();
+
+                    string courseStatus = "-";
+
+                    if (currentLp != null)
+                    {
+                        var expiredAt = currentLp.CreatedAt
+                            .AddDays(currentLp.Course?.Duration ?? 0);
+
+                        if (currentLp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                            courseStatus = "Completed";
+                        else if (DateTimeHelper.NowVN() > expiredAt)
+                            courseStatus = "Expired";
+                        else
+                            courseStatus = currentLp.Status;
+                    }
 
                     return new
                     {
@@ -246,9 +261,7 @@ Trân trọng,
                         JoinDate = l.User.CreatedAt,
                         LastActiveAt = l.User.LastActiveAt,
                         CurrentCourseTitle = currentLp?.Course?.Title ?? "(Chưa học khóa nào)",
-                        CurrentCourseStatus = currentLp != null
-                             ? StatusHelper.ToCourseStatus(currentLp.Status).ToString()
-                             : "-",
+                        CurrentCourseStatus = courseStatus,
                         CurrentCourseProgress = currentLp?.Progress ?? 0
                     };
                 });
@@ -320,7 +333,10 @@ Trân trọng,
 
                 // --- B3: Xác định khóa học hiện tại ---
                 var currentLp = learningPathCourses
-                    .Where(lp => StatusHelper.InCourseStatus(lp.Status, CourseStatus.Pending, CourseStatus.Enrolled))
+                    .Where(lp =>
+                        lp.Status.Equals("InProgress", StringComparison.OrdinalIgnoreCase) ||
+                        lp.Status.Equals("NotStarted", StringComparison.OrdinalIgnoreCase) ||
+                        lp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                     .OrderByDescending(lp => lp.OrderIndex)
                     .FirstOrDefault();
 
@@ -328,15 +344,27 @@ Trân trọng,
                 if (currentLp != null)
                 {
                     var course = currentLp.Course;
+                    var expiredAt = currentLp.CreatedAt.AddDays(course?.Duration ?? 0);
+                    var now = DateTimeHelper.NowVN();
+
+                    CourseStatus displayStatus;
+
+                    if (currentLp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                        displayStatus = CourseStatus.Completed;
+                    else if (now > expiredAt)
+                        displayStatus = CourseStatus.Expired;
+                    else
+                        displayStatus = CourseStatus.Enrolled;
+
                     currentDto = new ReadLearnerCourseDTOS
                     {
-                        Status = StatusHelper.ToCourseStatus(currentLp.Status),
+                        Status = displayStatus,
                         Progress = currentLp.Progress,
                         Title = course?.Title ?? "(Không rõ)",
                         Price = course?.Price ?? 0,
                         Duration = course?.Duration ?? 0,
                         StartTime = currentLp.CreatedAt,
-                        EndTime = currentLp.CreatedAt.AddDays(course?.Duration ?? 0)
+                        EndTime = expiredAt
                     };
                 }
 
