@@ -182,42 +182,49 @@ namespace AESP.Service.Implementation
                             x.LearnerCourseId == dto.LearnerCourseId &&
                             x.OrderIndex == orderIndex - 1);
 
+                    // ❌ KHÔNG ĐƯỢC return Fail
                     if (prevCourse == null)
-                        return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học trước đó.");
-
-                    bool allExerciseCompleted = prevCourse.LearningPathChapters
-                        .SelectMany(c => c.LearningPathExercises)
-                        .All(e => e.Status == "Completed" && e.ScoreAchieved >= 50);
-
-                    if (!allExerciseCompleted)
-                        canStartLearning = false;
-                
-
-
-                if (!prevCourse.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                     {
                         canStartLearning = false;
                     }
                     else
                     {
-                        double totalScore = 0;
-                        int exerciseCount = 0;
+                        // check exercise completed + score
+                        bool allExerciseCompleted = prevCourse.LearningPathChapters
+                            .SelectMany(c => c.LearningPathExercises)
+                            .All(e => e.Status == "Completed" && e.ScoreAchieved >= 50);
 
-                        foreach (var chapter in prevCourse.LearningPathChapters)
+                        if (!allExerciseCompleted)
                         {
-                            foreach (var ex in chapter.LearningPathExercises)
-                            {
-                                totalScore += ex.ScoreAchieved;
-                                exerciseCount++;
-                            }
+                            canStartLearning = false;
                         }
 
-                        double avgScore = exerciseCount == 0 ? 0 : totalScore / exerciseCount;
-
-                        if (avgScore < 50)
+                        if (!prevCourse.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                        {
                             canStartLearning = false;
+                        }
+                        else
+                        {
+                            double totalScore = 0;
+                            int exerciseCount = 0;
+
+                            foreach (var chapter in prevCourse.LearningPathChapters)
+                            {
+                                foreach (var ex in chapter.LearningPathExercises)
+                                {
+                                    totalScore += ex.ScoreAchieved;
+                                    exerciseCount++;
+                                }
+                            }
+
+                            double avgScore = exerciseCount == 0 ? 0 : totalScore / exerciseCount;
+
+                            if (avgScore < 50)
+                                canStartLearning = false;
+                        }
                     }
                 }
+
 
 
 
