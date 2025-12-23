@@ -39,6 +39,15 @@ namespace AESP.Service.Implementation
                     response.Message = "Dữ liệu gói phí không hợp lệ (Số lần Review và Giá gói phải lớn hơn 0, tổng phần trăm chia phải bằng 1).";
                     return response;
                 }
+                // === VALIDATION MỚI: Reviewer Income PHẢI là số nguyên ===
+                decimal reviewerIncome = dto.PricePerReviewFee * dto.PercentOfReviewer;
+                if (reviewerIncome != Math.Floor(reviewerIncome)) // Có phần thập phân
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.VALIDATION_ERROR;
+                    response.Message = $"Thu nhập reviewer ({reviewerIncome} coin) phải là số nguyên. Vui lòng điều chỉnh giá hoặc % reviewer (ví dụ: 50% của 10 coin = 5 coin).";
+                    return response;
+                }
 
                 // 🔹 2. TẠO REVIEW FEE (Gói sản phẩm)
                 var reviewFee = new ReviewFee
@@ -433,7 +442,14 @@ namespace AESP.Service.Implementation
                     response.Message = "Giá gói phải lớn hơn 0 và tổng phần trăm chia phải bằng 1.";
                     return response;
                 }
-
+                decimal reviewerIncome = dto.PricePerReviewFee * dto.PercentOfReviewer;
+                if (reviewerIncome != Math.Floor(reviewerIncome))
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.VALIDATION_ERROR;
+                    response.Message = $"Thu nhập reviewer ({reviewerIncome} coin) phải là số nguyên. Vui lòng điều chỉnh giá hoặc % reviewer.";
+                    return response;
+                }
                 // 🔹 2. KIỂM TRA GÓI REVIEW FEE CÓ TỒN TẠI KHÔNG
                 // Không cần tải toàn bộ, chỉ cần kiểm tra sự tồn tại (nếu Repository có phương thức CheckExistsAsync thì dùng, ở đây dùng GetById)
                 var existingFee = await _reviewFeeRepository.GetById(dto.ReviewFeeId);
@@ -560,6 +576,15 @@ namespace AESP.Service.Implementation
                     response.IsSucess = false;
                     response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
                     response.Message = "Không tìm thấy chính sách giá cần cập nhật.";
+                    return response;
+                }
+
+                decimal reviewerIncome = dto.PricePerReviewFee * dto.PercentOfReviewer;
+                if (reviewerIncome != Math.Floor(reviewerIncome))
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.VALIDATION_ERROR;
+                    response.Message = $"Thu nhập reviewer ({reviewerIncome} coin) phải là số nguyên. Vui lòng điều chỉnh giá hoặc % reviewer.";
                     return response;
                 }
 
