@@ -220,9 +220,9 @@ namespace AESP.Service.Implementation
                 var totalFeedback = await db.Set<Feedback>()
                     .Include(f => f.Review)
                     .CountAsync(f =>
-                        f.Type == "ReviewerFeedback" &&
-                        f.Status == "Active" &&
-                        f.Review.ReviewerProfileId == reviewerProfileId);
+                        f.Review.ReviewerProfileId == reviewerProfileId &&
+                        f.Status == "Active" &&                          // Chỉ lấy đã duyệt
+                        (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport"));
 
                 // ================================
                 // 2. Tổng bài đã review
@@ -236,7 +236,7 @@ namespace AESP.Service.Implementation
                 var ratingList = await db.Set<Feedback>()
                     .Include(f => f.Review)
                     .Where(f =>
-                        f.Type == "ReviewerFeedback" &&
+                        (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport") &&
                         f.Status == "Active" &&
                         f.Review.ReviewerProfileId == reviewerProfileId)
                     .Select(f => (double?)f.Rating)

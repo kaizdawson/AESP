@@ -122,7 +122,7 @@ namespace AESP.Service.Implementation
 
                         QuestionContent = f.Review.LearnerAnswer != null
                             ? f.Review.LearnerAnswer.LearningPathQuestion.Question.Text
-                            : (f.Review.Record != null ? f.Review.Record.Content : null),
+                            : (f.Review.Record != null ? f.Review.Record.RecordContent.Content : null),
 
                         LearnerRecordAudioUrl = f.Review.Record != null
                             ? f.Review.Record.AudioRecordingURL
