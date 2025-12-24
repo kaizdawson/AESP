@@ -121,6 +121,41 @@ namespace AESP.Service.Implementation
                 if (course == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy khóa học.");
 
+
+                // 🔐 XÁC ĐỊNH LEVEL THẬT CỦA LEARNERCOURSE (qua course OrderIndex = 1)
+                var learnerCourseLevel = await _repo.AsQueryable()
+                    .Include(x => x.Course)
+                    .Where(x =>
+                        x.LearnerCourseId == dto.LearnerCourseId &&
+                        x.OrderIndex == 1
+                    )
+                    .Select(x => x.Course.Level)
+                    .FirstOrDefaultAsync();
+
+                // ❌ LearnerCourse không hợp lệ (chưa enroll hoặc dữ liệu bẩn)
+                if (string.IsNullOrEmpty(learnerCourseLevel))
+                {
+                    return Fail(
+                        BusinessCode.INVALID_ACTION,
+                        "Lộ trình học không hợp lệ. Vui lòng Enroll lại để tạo lộ trình mới."
+                    );
+                }
+
+
+                // 🚫 KHÓA CỨNG: không cho dùng LearnerCourse cũ khi học level khác
+                if (!course.Level.Equals(learnerCourseLevel, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Fail(
+      BusinessCode.INVALID_ACTION,
+      $"Hiện tại level của bạn đã chuyển sang {course.Level}. " +
+      $"Vui lòng Enroll khóa học đầu tiên của level này để mở quyền mua các khóa học tiếp theo."
+  );
+
+                }
+
+
+
+
                 // ❌ Không cho phép mở khóa học đầu tiên trong level bằng API CreateAsync
                 if (course.OrderIndex == 1)
                     return Fail(BusinessCode.INVALID_ACTION,
