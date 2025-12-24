@@ -216,8 +216,8 @@ namespace AESP.Service.Implementation
 
         public async Task<object> WithdrawCoinAsync(Guid userId, int coin, string bankName, string accountNumber)
         {
-            if (coin <= 0)
-                throw new Exception("Số coin phải > 0.");
+            if (coin < 100)
+                throw new Exception("Số coin rút cần phải lớn hơn hoặc bằng 100.");
 
             var user = await _userRepository.GetById(userId)
                 ?? throw new Exception("Không tìm thấy người dùng.");
