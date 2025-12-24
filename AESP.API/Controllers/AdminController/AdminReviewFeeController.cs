@@ -75,6 +75,17 @@ namespace AESP.API.Controllers.AdminController
             var result = await _adminReviewerFeeService.DeleteUpcomingReviewFeeDetailAsync(id);
             return StatusCode(result.IsSucess ? 200 : 400, result);
         }
-
+        [HttpDelete("review-fee/{id}")]
+        public async Task<IActionResult> DeleteReviewFee(Guid id)
+        {
+            var result = await _adminReviewerFeeService.DeleteReviewFeePackageAsync(id);
+            return StatusCode(result.IsSucess ? 200 : 400, result);
+        }
+        [HttpGet("deleted-packages")]
+        public async Task<IActionResult> GetDeletedReviewFeePackages([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        {
+            var result = await _adminReviewerFeeService.GetDeletedReviewFeePackagesAsync(pageNumber, pageSize);
+            return Ok(result);
+        }
     }
 }

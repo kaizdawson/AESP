@@ -97,6 +97,75 @@ namespace AESP.Service.Implementation
             return response;
         }
 
+        public async Task<ResponseDTO> DeleteReviewFeePackageAsync(Guid reviewFeeId)
+        {
+            var response = new ResponseDTO();
+            try
+            {
+                var now = DateTimeHelper.NowVN();
+
+                // 🔹 1. LẤY GÓI REVIEW FEE KÈM TẤT CẢ CHI TIẾT
+                var package = await _reviewFeeRepository.AsQueryable()
+                    .Include(rf => rf.ReviewFeeDetails)
+                    .Include(rf => rf.Purchases)  // Kiểm tra xem có ai mua chưa
+                    .FirstOrDefaultAsync(rf => rf.ReviewFeeId == reviewFeeId);
+
+                if (package == null)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    response.Message = "Không tìm thấy gói Review Fee cần xóa.";
+                    return response;
+                }
+
+                // 🔹 2. KIỂM TRA ĐÃ CÓ NGƯỜI MUA GÓI NÀY CHƯA (chặn xóa nếu có)
+                if (package.Purchases.Any())
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.INVALID_ACTION;
+                    response.Message = "Không thể xóa gói Review Fee này vì đã có người dùng mua gói (có giao dịch liên quan).";
+                    return response;
+                }
+
+                // 🔹 3. XÓA MỀM GÓI REVIEW FEE
+                package.IsDeleted = true;
+                package.UpdatedAt = now;
+
+                await _reviewFeeRepository.Update(package);
+
+                // 🔹 4. XÓA MỀM TẤT CẢ REVIEW FEE DETAIL LIÊN QUAN
+                foreach (var detail in package.ReviewFeeDetails)
+                {
+                    detail.IsDeleted = true;
+                    detail.UpdatedAt = now;
+                    await _reviewFeeDetailRepository.Update(detail);
+                }
+
+                // 🔹 5. LƯU THAY ĐỔI
+                await _unitOfWork.SaveChangeAsync();
+
+                // 🔹 6. RESPONSE THÀNH CÔNG
+                response.IsSucess = true;
+                response.BusinessCode = BusinessCode.DELETE_SUCESSFULLY;
+                response.Message = "Đã xóa mềm toàn bộ gói Review Fee và tất cả chính sách giá liên quan.";
+                response.Data = new
+                {
+                    DeletedReviewFeeId = reviewFeeId,
+                    NumberOfReview = package.NumberOfReview,
+                    DetailsCount = package.ReviewFeeDetails.Count
+                };
+
+                return response;
+            }
+            catch (Exception ex)
+            {
+                response.IsSucess = false;
+                response.BusinessCode = BusinessCode.EXCEPTION;
+                response.Message = "Lỗi khi xóa mềm gói Review Fee: " + ex.Message;
+                return response;
+            }
+        }
+
         public async Task<ResponseDTO> DeleteUpcomingReviewFeeDetailAsync(Guid reviewFeeDetailId)
         {
             var response = new ResponseDTO();
@@ -210,7 +279,7 @@ namespace AESP.Service.Implementation
                 foreach (var pkg in pagedPackages)
                 {
                     var currentDetail = pkg.ReviewFeeDetails
-                        .Where(d => d.AppliedDate <= now)
+                        .Where(d => d.AppliedDate <= now && !d.IsDeleted)
                         .OrderByDescending(d => d.AppliedDate)
                         .FirstOrDefault();
 
@@ -275,7 +344,7 @@ namespace AESP.Service.Implementation
                 // ================================
                 var packages = await _reviewFeeRepository.AsQueryable()
                     .Include(rf => rf.ReviewFeeDetails)
-                    .Where(rf => rf.ReviewFeeDetails.Any(d => d.AppliedDate <= now))
+                    .Where(rf => rf.ReviewFeeDetails.Any(d => d.AppliedDate <= now && !d.IsDeleted))
                     .OrderByDescending(rf => rf.NumberOfReview)
                     .ToListAsync();
 
@@ -298,7 +367,7 @@ namespace AESP.Service.Implementation
                 foreach (var pkg in packages)
                 {
                     var currentDetail = pkg.ReviewFeeDetails
-                        .Where(d => d.AppliedDate <= now)
+                        .Where(d => d.AppliedDate <= now && !d.IsDeleted)
                         .OrderByDescending(d => d.AppliedDate)
                         .FirstOrDefault();
 
@@ -343,6 +412,103 @@ namespace AESP.Service.Implementation
             return response;
         }
 
+        public async Task<ResponseDTO> GetDeletedReviewFeePackagesAsync(int pageNumber = 1, int pageSize = 10)
+        {
+            var response = new ResponseDTO();
+            var packagesDto = new List<object>(); // Dùng object để linh hoạt map
+            try
+            {
+                // 1. Validation phân trang
+                if (pageNumber <= 0 || pageSize <= 0)
+                {
+                    response.IsSucess = false;
+                    response.BusinessCode = BusinessCode.VALIDATION_ERROR;
+                    response.Message = "PageNumber và PageSize phải lớn hơn 0.";
+                    return response;
+                }
+
+                // 2. Lấy tất cả gói ĐÃ XÓA MỀM
+                var deletedPackagesQuery = _reviewFeeRepository.AsQueryable()
+                    .Include(rf => rf.ReviewFeeDetails)
+                    .Where(rf => rf.IsDeleted)  // ← Chỉ lấy gói đã xóa mềm
+                    .OrderByDescending(rf => rf.UpdatedAt)  // Sắp xếp theo thời gian xóa gần nhất
+                    .AsQueryable();
+
+                var totalItems = await deletedPackagesQuery.CountAsync();
+                if (totalItems == 0)
+                {
+                    response.IsSucess = true;
+                    response.BusinessCode = BusinessCode.DATA_NOT_FOUND;
+                    response.Message = "Không có gói Review Fee nào đã bị xóa mềm.";
+                    response.Data = new
+                    {
+                        PageNumber = pageNumber,
+                        PageSize = pageSize,
+                        TotalItems = 0,
+                        Items = packagesDto
+                    };
+                    return response;
+                }
+
+                // 3. Phân trang + lấy dữ liệu
+                var pagedPackages = await deletedPackagesQuery
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                // 4. Map dữ liệu trả về (bao gồm thông tin xóa mềm)
+                foreach (var pkg in pagedPackages)
+                {
+                    packagesDto.Add(new
+                    {
+                        ReviewFeeId = pkg.ReviewFeeId,
+                        NumberOfReview = pkg.NumberOfReview,
+                        CreatedAt = pkg.CreatedAt,
+                        UpdatedAt = pkg.UpdatedAt,  // Thời gian xóa mềm
+                        IsDeleted = pkg.IsDeleted,
+                        DeletedDetailsCount = pkg.ReviewFeeDetails.Count(d => d.IsDeleted),
+                        // Nếu cần chi tiết giá đã xóa (lịch sử đầy đủ)
+                        DeletedDetails = pkg.ReviewFeeDetails
+                            .Where(d => d.IsDeleted)
+                            .Select(d => new
+                            {
+                                ReviewFeeDetailId = d.ReviewFeeDetailId,
+                                PricePerReviewFee = d.PricePerReviewFee,
+                                PercentOfReviewer = d.PercentOfReviewer,
+                                PercentOfSystem = d.PercentOfSystem,
+                                AppliedDate = d.AppliedDate
+                            })
+                            .ToList()
+                    });
+                }
+
+                response.IsSucess = true;
+                response.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
+                response.Message = "Lấy danh sách gói Review Fee đã xóa mềm thành công.";
+                response.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = totalItems,
+                    Items = packagesDto
+                };
+            }
+            catch (Exception ex)
+            {
+                response.IsSucess = false;
+                response.BusinessCode = BusinessCode.EXCEPTION;
+                response.Message = "Lỗi khi lấy danh sách gói Review Fee đã xóa mềm: " + ex.Message;
+                response.Data = new
+                {
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    TotalItems = 0,
+                    Items = packagesDto
+                };
+            }
+            return response;
+        }
+
         public async Task<ResponseDTO> GetReviewFeePackageDetailAsync(Guid reviewFeeId)
         {
             var response = new ResponseDTO();
@@ -353,6 +519,7 @@ namespace AESP.Service.Implementation
 
                 var package = await _reviewFeeRepository.AsQueryable()
                     .Include(rf => rf.ReviewFeeDetails)
+                    .Where(rf => !rf.IsDeleted)
                     .FirstOrDefaultAsync(rf => rf.ReviewFeeId == reviewFeeId);
 
                 if (package == null)
@@ -365,18 +532,19 @@ namespace AESP.Service.Implementation
 
                 // Chính sách ĐANG ÁP DỤNG
                 var currentPolicy = package.ReviewFeeDetails
-                    .Where(d => d.AppliedDate <= now)
+                    .Where(d => !d.IsDeleted && d.AppliedDate <= now)
                     .OrderByDescending(d => d.AppliedDate)
                     .FirstOrDefault();
 
                 // Chính sách SẮP ÁP DỤNG (nếu có)
                 var upcomingPolicy = package.ReviewFeeDetails
-                    .Where(d => d.AppliedDate > now)
+                    .Where(d => !d.IsDeleted && d.AppliedDate > now)
                     .OrderBy(d => d.AppliedDate)
                     .FirstOrDefault();
 
                 // Tất cả lịch sử chính sách (sắp xếp cũ → mới)
                 var historyPolicies = package.ReviewFeeDetails
+                    .Where(d => !d.IsDeleted)
                     .OrderBy(d => d.AppliedDate)
                     .Select(d => new
                     {
