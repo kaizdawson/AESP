@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace AESP.Repository.Models
 {
-    public  class ReviewFeeDetail
+    public  class ReviewFeeDetail : BaseEntity
     {
         [Key]
         public Guid ReviewFeeDetailId { get; set; }

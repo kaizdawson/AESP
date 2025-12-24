@@ -16,6 +16,8 @@ namespace AESP.Service.Contract
         Task<ResponseDTO> GetAllReviewFeePackagesAsync();
         Task<ResponseDTO> UpdateUpcomingReviewFeeDetailAsync(UpdateUpcomingReviewFeeDetailDto dto);
         Task<ResponseDTO> DeleteUpcomingReviewFeeDetailAsync(Guid reviewFeeDetailId);
+        Task<ResponseDTO> DeleteReviewFeePackageAsync(Guid reviewFeeId);
+        Task<ResponseDTO> GetDeletedReviewFeePackagesAsync(int pageNumber = 1, int pageSize = 10);
 
     }
 }

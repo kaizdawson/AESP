@@ -87,6 +87,9 @@ Chứng chỉ bạn gửi lên hệ thống đã được phê duyệt thành c�
 
 Bạn đã có thể tiếp tục tham gia vào các hoạt động đánh giá và làm việc trong hệ thống.
 
+Truy cập ngay trang chủ để bắt đầu:  
+👉 https://www.aespwithai.com/landing
+
 Trân trọng,
 Đội ngũ Quản trị AESP.";
                     await _emailService.SendEmailAsync(profile.User.Email, subject, body);

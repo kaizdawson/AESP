@@ -42,7 +42,7 @@ namespace AESP.Service.Implementation
 
             var fees = await _reviewfeeRepo.AsQueryable().ToListAsync();
             var details = await _reviewfeeDetailRepo.AsQueryable()
-                .Where(x => x.AppliedDate <= now)
+                .Where(x => x.AppliedDate <= now && !x.IsDeleted)
                 .ToListAsync();
 
             var result = fees
