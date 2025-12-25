@@ -60,10 +60,7 @@ namespace AESP.Service.Implementation
                         Month = g.Key,
 
                         // ✅ ĐẾM SỐ NGƯỜI MUA (DISTINCT USER)
-                        TotalBuyer = g
-                            .Select(x => x.UserId)
-                            .Distinct()
-                            .Count()
+                        TotalPurchases = g.Count()
                     })
                     .ToListAsync();
 
@@ -72,14 +69,14 @@ namespace AESP.Service.Implementation
                     .Select(m => new MonthlyStatDTO
                     {
                         Month = m,
-                        Count = monthlyData.FirstOrDefault(x => x.Month == m)?.TotalBuyer ?? 0,
-                        Revenue = 0 // ❗ FE hiện chỉ cần biểu đồ người mua → để 0
+                        Count = monthlyData.FirstOrDefault(x => x.Month == m)?.TotalPurchases ?? 0,  // ← Dùng TotalPurchases
+                        Revenue = 0 // FE hiện chỉ cần biểu đồ lượt mua → để 0
                     })
                     .ToList();
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
-                dto.Message = $"Thống kê số người mua service package theo tháng năm {year} thành công.";
+                dto.Message = $"Thống kê số lượt mua service package theo tháng năm {year} thành công.";
                 dto.Data = result;
             }
             catch (Exception ex)

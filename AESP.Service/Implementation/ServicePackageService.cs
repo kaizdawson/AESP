@@ -237,12 +237,21 @@ namespace AESP.Service.Implementation
                         .Distinct()
                         .CountAsync();
 
+                    var totalPurchases = await db.Transactions
+                        .Where(t =>
+                            t.ServicePackageId == p.ServicePackageId &&
+                            t.Type == "Deposit" &&
+                            t.Status == "Paid")
+                        .CountAsync();  // ← Chỉ cần .Count() thay vì Distinct()
+
                     var totalRevenueMoney = await db.Transactions
                         .Where(t =>
                             t.ServicePackageId == p.ServicePackageId &&
                             t.Type == "Deposit" &&
                             t.Status == "Paid")
                         .SumAsync(t => (decimal?)t.AmountMoney) ?? 0;
+
+
 
                     var totalRevenueCoin = await db.Transactions
                         .Where(t =>
@@ -265,6 +274,8 @@ namespace AESP.Service.Implementation
 
                         // ✅ THỐNG KÊ ĐÃ GỘP
                         TotalBuyer = totalBuyer,
+
+                        TotalPurchases = totalPurchases,
                         TotalRevenueMoney = totalRevenueMoney,
                         TotalRevenueCoin = totalRevenueCoin
                     });
