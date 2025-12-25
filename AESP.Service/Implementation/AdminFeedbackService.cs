@@ -168,12 +168,12 @@ namespace AESP.Service.Implementation
                 db.Feedbacks.Update(feedback);
 
                 var approvedReportCount = await db.Feedbacks
-    .Include(f => f.Review)
-    .Where(f =>
-        f.Type == "ReviewerReport" &&
-        f.Status == "Active" &&
-        f.Review.ReviewerProfileId == reviewerProfile.ReviewerProfileId)
-    .CountAsync();
+                    .Include(f => f.Review)
+                    .Where(f =>
+                        f.Type == "ReviewerReport" &&
+                        f.Status == "Active" &&
+                        f.Review.ReviewerProfileId == reviewerProfile.ReviewerProfileId)
+                    .CountAsync();
 
                 // ===============================
                 // ❷ NẾU >= 3 → BAN REVIEWER
@@ -208,7 +208,7 @@ Trân trọng,
                 }
 
                 // 2) Đổi trạng thái Review
-                review.Status = "Reported"; // hoặc "ReportedApproved"
+                review.Status = "Reported_Approved"; // hoặc "ReportedApproved"
                 db.Reviews.Update(review);
 
                 // 3) Hoàn lại 1 lượt review cho learner (không hoàn coin)
@@ -440,7 +440,7 @@ Trân trọng,
                         QuestionContent =
             f.Review.LearnerAnswerId != null
                 ? f.Review.LearnerAnswer.LearningPathQuestion.Question.Text
-                : null,
+                : (f.Review.Record != null ? f.Review.Record.RecordContent.Content : null),
 
                         // ✅ AUDIO BÀI NÓI CỦA LEARNER (NẾU LÀ RECORD)
                         LearnerRecordAudioUrl =
