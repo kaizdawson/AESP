@@ -280,6 +280,22 @@ Trân trọng,
                 var reviewers = await query.ToListAsync();
                 DateTime now = DateTimeHelper.NowVN();
 
+                var reviewerIds = reviewers.Select(r => r.ReviewerProfileId).ToList();
+
+                var feedbackRatings = await db.Feedbacks
+                    .Include(f => f.Review)
+                    .Where(f =>
+                        reviewerIds.Contains(f.Review.ReviewerProfileId) &&
+                        f.Status == "Active" &&
+                        (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport"))
+                    .GroupBy(f => f.Review.ReviewerProfileId)
+                    .Select(g => new
+                    {
+                        ReviewerProfileId = g.Key,
+                        AvgRating = Math.Round(g.Average(x => x.Rating), 2)
+                    })
+                    .ToListAsync();
+
                 // ✅ Xử lý logic trạng thái động (3 loại)
                 var mapped = reviewers.Select(r =>
                 {
@@ -304,7 +320,9 @@ Trân trọng,
                         Phone = r.User.PhoneNumber,
                         Level = r.Level,
                         Experience = r.Experience,
-                        Rating = r.Rating,
+                        Rating = feedbackRatings
+                    .FirstOrDefault(x => x.ReviewerProfileId == r.ReviewerProfileId)
+                    ?.AvgRating ?? 0,
                         Status = status,
                         LastActiveAt = r.User.LastActiveAt,
                         CreatedAt = r.User.CreatedAt
@@ -460,8 +478,9 @@ Trân trọng,
      .Include(f => f.User)
      .Include(f => f.Review)
      .Where(f =>
-         f.Review.ReviewerProfileId == reviewerProfileId &&
-         f.Type == "ReviewerFeedback")
+    f.Review.ReviewerProfileId == reviewerProfileId &&
+    f.Status == "Active" &&
+    (f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport"))
      .OrderByDescending(f => f.CreatedAt)
      .Select(f => new
      {
@@ -473,6 +492,9 @@ Trân trọng,
          Date = f.CreatedAt
      })
      .ToListAsync();
+                double averageRating = feedbacks.Any()
+           ? Math.Round(feedbacks.Average(f => f.Rating), 2)
+           : 0;
 
 
                 // 🔹 Trả kết quả
@@ -488,7 +510,7 @@ Trân trọng,
                     reviewer.Experience,
                     reviewer.User.PhoneNumber,
                     reviewer.Level,
-                    reviewer.Rating,
+                    Rating = averageRating,
                     reviewer.Status,
                     reviewer.User.CreatedAt,
                     Certificates = reviewer.Certificates.Select(c => new
