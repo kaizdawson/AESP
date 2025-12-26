@@ -630,6 +630,11 @@ namespace AESP.Service.Implementation
                 }
                 var now = DateTimeHelper.NowVN();
 
+                if (dto.AppliedDate.Kind == DateTimeKind.Utc)
+                {
+                    dto.AppliedDate = dto.AppliedDate.ToLocalTime();
+                }
+
                 // 🚫✅ CHẶN TUYỆT ĐỐI: KHÔNG CHO ĐỤNG LỊCH SỬ (AppliedDate < NOW)
                 if (dto.AppliedDate < now)
                 {
