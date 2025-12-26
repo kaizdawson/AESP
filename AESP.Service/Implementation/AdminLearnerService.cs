@@ -233,6 +233,11 @@ Trân trọng,
                          .OrderByDescending(lp => lp.OrderIndex)
                          .FirstOrDefault();
 
+                    var latestCompletedLp = lpOfLearner
+                          .Where(lp => lp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                          .OrderByDescending(lp => lp.OrderIndex)
+                          .FirstOrDefault();
+
                     string courseStatus = "-";
 
                     if (currentLp != null)
@@ -262,7 +267,9 @@ Trân trọng,
                         LastActiveAt = l.User.LastActiveAt,
                         CurrentCourseTitle = currentLp?.Course?.Title ?? "(Chưa học khóa nào)",
                         CurrentCourseStatus = courseStatus,
-                        CurrentCourseProgress = currentLp?.Progress ?? 0
+                        CurrentCourseProgress = currentLp?.Progress ?? 0,
+                        LatestCompletedCourseTitle = latestCompletedLp?.Course?.Title,
+                        LatestCompletedAt = latestCompletedLp?.CreatedAt
                     };
                 });
 
@@ -335,8 +342,8 @@ Trân trọng,
                 var currentLp = learningPathCourses
                     .Where(lp =>
                         lp.Status.Equals("InProgress", StringComparison.OrdinalIgnoreCase) ||
-                        lp.Status.Equals("NotStarted", StringComparison.OrdinalIgnoreCase) ||
-                        lp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                        lp.Status.Equals("NotStarted", StringComparison.OrdinalIgnoreCase) )
+                        //lp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
                     .OrderByDescending(lp => lp.OrderIndex)
                     .FirstOrDefault();
 
@@ -347,14 +354,9 @@ Trân trọng,
                     var expiredAt = currentLp.CreatedAt.AddDays(course?.Duration ?? 0);
                     var now = DateTimeHelper.NowVN();
 
-                    CourseStatus displayStatus;
-
-                    if (currentLp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
-                        displayStatus = CourseStatus.Completed;
-                    else if (now > expiredAt)
-                        displayStatus = CourseStatus.Expired;
-                    else
-                        displayStatus = CourseStatus.Enrolled;
+                    var displayStatus = now > expiredAt
+                ? CourseStatus.Expired
+                : CourseStatus.Enrolled;
 
                     currentDto = new ReadLearnerCourseDTOS
                     {
@@ -370,19 +372,21 @@ Trân trọng,
 
                 // --- B4: Danh sách khóa học đã hoàn thành ---
                 var completedDtos = learningPathCourses
-                    .Where(lp => StatusHelper.EqualsCourseStatus(lp.Status, CourseStatus.Completed))
-                    .OrderBy(lp => lp.OrderIndex)
-                    .Select(lp => new ReadLearnerCourseDTOS
-                    {
-                        Status = CourseStatus.Completed,
-                        Progress = lp.Progress,
-                        Title = lp.Course?.Title ?? "(Không rõ)",
-                        Price = lp.Course?.Price ?? 0,
-                        Duration = lp.Course?.Duration ?? 0,
-                        StartTime = lp.CreatedAt,
-                        EndTime = lp.CreatedAt.AddDays(lp.Course?.Duration ?? 0)
-                    })
-                    .ToList();
+              .Where(lp =>
+                  lp.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase)
+              )
+              .OrderBy(lp => lp.OrderIndex)
+              .Select(lp => new ReadLearnerCourseDTOS
+              {
+                  Status = CourseStatus.Completed,
+                  Progress = lp.Progress,
+                  Title = lp.Course?.Title ?? "(Không rõ)",
+                  Price = lp.Course?.Price ?? 0,
+                  Duration = lp.Course?.Duration ?? 0,
+                  StartTime = lp.CreatedAt,
+                  EndTime = lp.CreatedAt.AddDays(lp.Course?.Duration ?? 0)
+              })
+              .ToList();
                 var allCourses = new List<ReadLearnerCourseDTOS>();
 
                 if (currentDto != null)
