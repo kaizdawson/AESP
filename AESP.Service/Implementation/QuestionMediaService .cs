@@ -211,24 +211,27 @@ namespace AESP.Service.Implementation
                 if (media == null)
                     return Fail(BusinessCode.DATA_NOT_FOUND, "Không tìm thấy QuestionMedia để cập nhật.");
 
-             
+
 
                 // --- ÍT NHẤT 1 TRONG 3 URL PHẢI CÓ ---
                 bool hasAnyMedia =
-                    !string.IsNullOrWhiteSpace(request.VideoUrl) ||
-                    !string.IsNullOrWhiteSpace(request.ImageUrl);
+     !string.IsNullOrWhiteSpace(request.VideoUrl) ||
+     !string.IsNullOrWhiteSpace(request.ImageUrl) ||
+     !string.IsNullOrWhiteSpace(media.VideoUrl) ||
+     !string.IsNullOrWhiteSpace(media.ImageUrl);
 
                 if (!hasAnyMedia)
-                    return Fail(BusinessCode.VALIDATION_FAILED,
-                        "Phải có ít nhất một trong các URL ( VideoUrl, ImageUrl).");
+                    return Fail(
+                        BusinessCode.VALIDATION_FAILED,
+                        "QuestionMedia phải có ít nhất VideoUrl hoặc ImageUrl."
+                    );
 
-                // --- RÀNG BUỘC: KHÔNG TRÙNG ACCENT TRONG CÙNG QUESTION ---
-              
+                if (!string.IsNullOrWhiteSpace(request.VideoUrl))
+                    media.VideoUrl = request.VideoUrl.Trim();
 
-                // --- CẬP NHẬT ---
-              
-                media.VideoUrl = request.VideoUrl;
-                media.ImageUrl = request.ImageUrl;
+                if (!string.IsNullOrWhiteSpace(request.ImageUrl))
+                    media.ImageUrl = request.ImageUrl.Trim();
+
 
                 await _questionMediaRepository.Update(media);
                 await _unitOfWork.SaveChangeAsync();
