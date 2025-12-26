@@ -184,6 +184,24 @@ namespace AESP.Service.Implementation
             // =========================================================
             if (status.Equals("InProgress", StringComparison.OrdinalIgnoreCase))
             {
+                // 🔒 1. CHẶN NHẢY BÀI TRONG CHƯƠNG
+                if (lpExercise.OrderIndex > 1)
+                {
+                    var previousExercise = await _repo.AsQueryable()
+                        .FirstOrDefaultAsync(x =>
+                            x.LearningPathChapterId == currentChapter.LearningPathChapterId &&
+                            x.OrderIndex == lpExercise.OrderIndex - 1);
+
+                    if (previousExercise == null ||
+                        !previousExercise.Status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return Fail(
+                            BusinessCode.INVALID_ACTION,
+                            "Bạn phải hoàn thành bài tập trước đó trong chương."
+                        );
+                    }
+                }
+
                 var hasOtherInProgress = await _repo.AsQueryable()
                     .AnyAsync(x =>
                         x.LearningPathChapterId == currentChapter.LearningPathChapterId &&
