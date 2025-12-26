@@ -131,6 +131,13 @@ namespace AESP.Service.Implementation
                     dto.Message = "Không tìm thấy bản chấm liên quan.";
                     return dto;
                 }
+                if (review.Status == "Reported_Approved")
+                {
+                    dto.IsSucess = false;
+                    dto.BusinessCode = BusinessCode.INVALID_ACTION;
+                    dto.Message = "Review này đã có report hợp lệ trước đó.";
+                    return dto;
+                }
 
                 var reviewerProfile = review.ReviewerProfile;
                 var reviewerUser = reviewerProfile?.User;
@@ -167,18 +174,22 @@ namespace AESP.Service.Implementation
                 feedback.Status = "Active";
                 db.Feedbacks.Update(feedback);
 
-                var approvedReportCount = await db.Feedbacks
-                    .Include(f => f.Review)
-                    .Where(f =>
-                        f.Type == "ReviewerReport" &&
-                        f.Status == "Active" &&
-                        f.Review.ReviewerProfileId == reviewerProfile.ReviewerProfileId)
-                    .CountAsync();
+                review.Status = "Reported_Approved";
+                db.Reviews.Update(review);
+
+                await db.SaveChangesAsync();
+
+                var approvedReportedReviewCount = await db.Reviews
+            .Where(r =>
+                r.ReviewerProfileId == reviewerProfile.ReviewerProfileId &&
+                r.Status == "Reported_Approved")
+            .CountAsync();
+
 
                 // ===============================
                 // ❷ NẾU >= 3 → BAN REVIEWER
                 // ===============================
-                if (approvedReportCount >= 3)
+                if (approvedReportedReviewCount >= 3)
                 {
                     // Khóa ReviewerProfile
                     reviewerProfile.Status = "Banned";

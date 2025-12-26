@@ -454,7 +454,11 @@ namespace AESP.Service.Implementation
                 var totalItems = await query.CountAsync();
 
                 var items = await query
-                    .OrderByDescending(r => r.ReviewId)
+                    .OrderByDescending(r =>
+                        r.LearnerAnswer != null
+                            ? r.LearnerAnswer.SubmittedAt
+                            : (r.Record != null ? r.Record.CreatedAt : DateTime.MinValue)
+                    )
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
                     .Select(r => new
@@ -465,12 +469,11 @@ namespace AESP.Service.Implementation
                         r.Status,
 
                         LearnerAudioUrl = r.LearnerAnswer != null
-            ? r.LearnerAnswer.AudioRecordingUrl
-            : (r.Record != null ? r.Record.AudioRecordingURL : null),
+                            ? r.LearnerAnswer.AudioRecordingUrl
+                            : (r.Record != null ? r.Record.AudioRecordingURL : null),
 
                         ReviewerAudioUrl = r.RecordAudioUrl,
 
-                        // Nếu là LearnerAnswer
                         LearnerAnswerId = r.LearnerAnswerId,
                         RecordId = r.RecordId,
 
@@ -478,26 +481,23 @@ namespace AESP.Service.Implementation
                             ? r.LearnerAnswer.SubmittedAt
                             : (r.Record != null ? r.Record.CreatedAt : DateTimeHelper.NowVN()),
 
-                        // Câu hỏi của Answer hoặc Content của Record
                         QuestionContent = r.LearnerAnswer != null
                             ? r.LearnerAnswer.LearningPathQuestion.Question.Text
                             : (r.Record != null ? r.Record.RecordContent.Content : null),
 
-                        // Tên học viên
                         LearnerFullName = r.LearnerAnswer != null
                             ? r.LearnerAnswer.LearnerProfile.User.FullName
                             : (r.Record != null
                                 ? r.Record.RecordContent.LearnerRecord.LearnerProfile.User.FullName
                                 : null),
 
-                        // Loại review: Answer / Record
                         ReviewType = r.LearnerAnswerId != null ? "LearnerAnswer" : "Record",
 
                         ReviewerEarnCoin = db.Set<TransferTransaction>()
-                        .Where(t => t.ReviewId == r.ReviewId &&
-                        t.ReviewerProfileId == r.ReviewerProfileId)
-                         .Select(t => (int?)t.AmountCoin)
-                        .FirstOrDefault() ?? 0
+                            .Where(t => t.ReviewId == r.ReviewId &&
+                                        t.ReviewerProfileId == r.ReviewerProfileId)
+                            .Select(t => (int?)t.AmountCoin)
+                            .FirstOrDefault() ?? 0
                     })
                     .ToListAsync();
 
