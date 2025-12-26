@@ -454,11 +454,7 @@ namespace AESP.Service.Implementation
                 var totalItems = await query.CountAsync();
 
                 var items = await query
-                    .OrderByDescending(r =>
-                        r.LearnerAnswer != null
-                            ? r.LearnerAnswer.SubmittedAt
-                            : (r.Record != null ? r.Record.CreatedAt : DateTime.MinValue)
-                    )
+                    .OrderByDescending(r => r.CreatedAt) // ✅ FIX: sort theo thời điểm reviewer review xong
                     .Skip((pageNumber - 1) * pageSize)
                     .Take(pageSize)
                     .Select(r => new
@@ -477,9 +473,7 @@ namespace AESP.Service.Implementation
                         LearnerAnswerId = r.LearnerAnswerId,
                         RecordId = r.RecordId,
 
-                        CreatedAt = r.LearnerAnswer != null
-                            ? r.LearnerAnswer.SubmittedAt
-                            : (r.Record != null ? r.Record.CreatedAt : DateTimeHelper.NowVN()),
+                        CreatedAt = r.CreatedAt,
 
                         QuestionContent = r.LearnerAnswer != null
                             ? r.LearnerAnswer.LearningPathQuestion.Question.Text
@@ -618,7 +612,8 @@ namespace AESP.Service.Implementation
                     Score = score,
                     Comment = comment,
                     Status = "Completed",
-                    RecordAudioUrl = recordAudioUrl
+                    RecordAudioUrl = recordAudioUrl,
+                    CreatedAt = DateTimeHelper.NowVN()
                 };
 
                 int remainingReviews = 0;
@@ -788,6 +783,7 @@ namespace AESP.Service.Implementation
                     review.Comment,
                     review.Status,
                     review.RecordAudioUrl,
+                    review.CreatedAt,
                     RemainingReviews = remainingReviews
                 };
             }
