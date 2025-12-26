@@ -341,7 +341,24 @@ namespace AESP.Service.Implementation
                     .Where(f => f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport")
                     .OrderByDescending(f => f.CreatedAt)
                     .Select(f => f.Content)
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+
+                    // ========================================
+                TipAmount = db.Set<TransferTransaction>()
+                    .Where(tt => tt.ReviewId == r.ReviewId &&
+                                 tt.TransactionType == "ReviewerTip" &&
+                                 tt.Status == "Completed")
+                    .Sum(tt => (int?)tt.AmountCoin) ?? 0,
+                        TipMessage = db.Set<TransferTransaction>()
+                    .Where(tt => tt.ReviewId == r.ReviewId &&
+                                 tt.TransactionType == "ReviewerTip" &&
+                                 tt.Status == "Completed")
+                    .Select(tt => tt.Comment)
+                    .FirstOrDefault() ?? "Cảm ơn bạn đã nói rất tốt!",
+
+                        LearnerAudioUrl = r.LearnerAnswer != null
+                    ? r.LearnerAnswer.AudioRecordingUrl
+                    : (r.Record != null ? r.Record.AudioRecordingURL : null)
                     })
                     .ToListAsync();
 

@@ -134,6 +134,23 @@ namespace AESP.Service.Implementation
                              && (toDate == null || t.CreatedAt <= toDate))
                     .SumAsync(t => (decimal?)t.AmountCoin) ?? 0m;
 
+
+                var tipPayments = await db.Set<TransferTransaction>()
+                    .Where(t =>
+                        t.ReviewerProfileId == reviewerProfileId &&
+                        t.Status == "Completed" &&
+                        t.TransactionType == "ReviewerTip" &&
+                        t.ReviewId != null &&
+                        (fromDate == null || t.CreatedAt >= fromDate) &&
+                        (toDate == null || t.CreatedAt <= toDate))
+                    .GroupBy(t => t.ReviewId!.Value)
+                    .Select(g => new
+                    {
+                        ReviewId = g.Key,
+                        TipAmount = g.Sum(x => x.AmountCoin)
+                    })
+                    .ToDictionaryAsync(x => x.ReviewId, x => x.TipAmount);
+
                 var totalCompletedReviews = await query.CountAsync(x => x.Status == "Completed");
 
                 var totalReportedReviews = await query.CountAsync(x =>
@@ -207,14 +224,19 @@ namespace AESP.Service.Implementation
                              && r.LearnerAnswer.LearningPathQuestion != null
                              && r.LearnerAnswer.LearningPathQuestion.Question != null
                             ? r.LearnerAnswer.LearningPathQuestion.Question.Text
-                            : r.Record != null
-                            ? r.Record.Content
+                            : (r.Record != null && r.Record.RecordContent != null)
+                            ? r.Record.RecordContent.Content  // ← ĐÃ FIX
                             : "Không xác định",
 
                         EarnedFromThisReview =
                             reviewPayments.TryGetValue(r.ReviewId, out var coin)
                                 ? coin
+                                : 0,
+                        TipAmount = tipPayments.TryGetValue(r.ReviewId, out var tip)  // ← THÊM: Coin tip cho review này
+                                ? tip
                                 : 0
+
+
                     }).ToList()
                 };
 
