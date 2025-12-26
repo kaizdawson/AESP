@@ -324,10 +324,12 @@ namespace AESP.Service.Implementation
                 // 2. Tổng coin kiếm được
                 // =============================
                 int totalEarnedCoin = await db.Set<TransferTransaction>()
-                    .Where(t =>
-                        t.ReviewerProfileId == reviewerProfileId &&
-                        t.Status == "Completed")
-                    .SumAsync(t => (int?)t.AmountCoin) ?? 0;
+                 .Where(t =>
+                     t.ReviewerProfileId == reviewerProfileId &&
+                     t.Status == "Completed" &&
+                     t.TransactionType == "ReviewPayment" // 🔥 FIX QUAN TRỌNG
+                 )
+                 .SumAsync(t => (int?)t.AmountCoin) ?? 0;
 
                 decimal totalEarnedMoney = totalEarnedCoin * 1000;
 
