@@ -3,6 +3,7 @@ using AESP.Common.DTOs.BusinessCode;
 using AESP.Repository.Contract;
 using AESP.Repository.Models;
 using AESP.Service.Contract;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,6 +34,7 @@ namespace AESP.Service.Implementation
             ResponseDTO dto = new ResponseDTO();
             try
             {
+                var db = _reviewerProfileRepository.GetDbContext();
                 // Load kèm Certificates, Wallet, Reviews (nếu cần)
                 var profile = await _reviewerProfileRepository.GetFirstByExpression(
                     x => x.UserId == userId,
@@ -47,6 +49,17 @@ namespace AESP.Service.Implementation
                     dto.Message = "Không tìm thấy hồ sơ Reviewer.";
                     return dto;
                 }
+                var avgRating = await db.Feedbacks
+                    .Include(f => f.Review)
+                    .Where(f =>
+                        f.Review.ReviewerProfileId == profile.ReviewerProfileId &&
+                        f.Status == "Active" &&
+                        f.Type == "ReviewerFeedback" || f.Type == "ReviewerReport"
+                    )
+                    .Select(f => (double?)f.Rating)
+                    .AverageAsync() ?? 0;
+
+                        avgRating = Math.Round(avgRating, 2);
 
                 dto.IsSucess = true;
                 dto.BusinessCode = BusinessCode.GET_DATA_SUCCESSFULLY;
@@ -56,7 +69,7 @@ namespace AESP.Service.Implementation
                     profile.ReviewerProfileId,
                     profile.UserId,
                     profile.Experience,
-                    profile.Rating,
+                    Rating = avgRating,
                     profile.Status,
 
                     IsReviewerActive = profile.Status == "Pending" || profile.Status == "Active",
