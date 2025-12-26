@@ -552,6 +552,14 @@ namespace AESP.Service.Implementation
                     };
                 }
 
+                if (user != null && string.Equals(user.Status, "Banned", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new LoginResult
+                    {
+                        Success = false,
+                        Message = "Tài khoản của bạn đã bị khóa"
+                    };
+                }
 
                 if (user == null && !string.IsNullOrEmpty(email))
                 {
@@ -735,6 +743,15 @@ namespace AESP.Service.Implementation
                     {
                         Success = false,
                         Message = "Tài khoản này thuộc Learner. Vui lòng đăng nhập qua cổng Learner."
+                    };
+                }
+
+                if (user != null && string.Equals(user.Status, "Banned", StringComparison.OrdinalIgnoreCase))
+                {
+                    return new LoginResult
+                    {
+                        Success = false,
+                        Message = "Tài khoản của bạn đã bị khóa"
                     };
                 }
 
